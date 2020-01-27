@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Quilt Draw - Designer</title>
+
+    <link href="app.css" rel="stylesheet" type="text/css">
+</head>
+<body>
+
+<noscript>
+    <h1>Welcome!</h1>
+
+    <p>It looks like you do not have JavaScript available and enabled.
+        In order to use our app, you'll need to allow JavaScript for our domain,
+        and for our delivery network:</p>
+
+    <ul>
+        <li>[TBD] this-site.com</li>
+        <li>TBD.cloudfront.net</li>
+    </ul>
+
+    <canvas id="detect">
+        <p>You will also need full support for <code>&lt;canvas&gt;</code>,
+            or to enable it for our domain.</p>
+    </canvas>
+
+    <p>If these requirements don't work for you, try the <a
+        href="https://www.freequiltpatterns.info/custom/quilt-pattern-playground/quilt-pattern-playground.php"
+    >Quilter Pattern Playground</a> instead!</p>
+</noscript>
+
+<div class="hide" id="app">
+    <div id="controls">
+        <ul id="colors">
+            <li>C1</li>
+            <li>C2</li>
+        </ul>
+        <ul id="shapes">
+            <li>[&nbsp;]</li>
+            <li>[/]</li>
+            <li>[\]</li>
+        </ul>
+    </div>
+
+    <div id="view">
+        <div class="panel panel-left" id="editorArea">
+            <canvas height="480" id="editor" width="480"></canvas>
+        </div>
+        <div class="panel panel-right" id="previewArea">
+            <canvas height="480" id="preview" width="480"></canvas>
+        </div>
+    </div>
+</div>
+
+<script src="app.js"></script>
+
+</body>
+</html>

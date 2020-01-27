@@ -1,0 +1,32 @@
+.hide {
+    display: none;
+}
+
+#controls {
+    margin: auto auto 1em;
+    padding: 0.6em;
+}
+
+#view {
+    width: 990px;
+    height: 480px;
+    margin: 10px 0;
+    position: relative;
+}
+
+.panel {
+    position: absolute;
+    width: 480px;
+    height: 480px;
+    padding: 10px;
+}
+
+.panel-left {
+    top: 0;
+    left: 0;
+}
+
+.panel-right {
+    top: 0;
+    right: 0;
+}
