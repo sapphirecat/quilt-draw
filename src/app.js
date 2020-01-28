@@ -1,3 +1,5 @@
+"use strict";
+
 /**
  * @typedef {Object} Cell
  * @property {Array<number>} colors
@@ -38,26 +40,32 @@ const quilt = {
     size: 3,
     colorSet: [
         '#40aa80',
-        '#0066cc'
+        '#0066cc',
+        '#c0b085',
     ],
     block: [
         cellSolid(0),
-        cellRising(0, 1),
-        cellFalling(0, 1),
-
-        cellRising(0, 1),
-        cellFalling(0, 1),
+        cellSolid(2),
         cellSolid(0),
 
+        cellRising(0, 1),
+        cellRising(0, 2),
+        cellRising(0, 1),
+
         cellFalling(0, 1),
-        cellSolid(0),
-        cellRising(0, 1)
+        cellFalling(0, 2),
+        cellFalling(0, 1)
     ]
 };
+
+let editShape = SHAPE_SOLID;
 
 function initJs() {
     // un-hide JS content
     document.getElementById('app').className = '';
+
+    // connect events
+    editor.addEventListener('click', onEditorClick);
 }
 
 /**
@@ -106,6 +114,38 @@ function cellRising(topColor, bottomColor) {
 function cellFalling(topColor, bottomColor) {
     return cell2(SHAPE_FALLING, topColor, bottomColor);
 }
+
+
+/**
+ * Find which cell in the quilt block was clicked
+ *
+ * @param {number} x X-coordinate
+ * @param {number} y Y-coordinate
+ * @returns {number}
+ */
+function getCellIndex(x, y) {
+    const _ = Math.floor;
+    const cW = _(editor.width / quilt.size);
+    const cH = _(editor.height / quilt.size);
+
+    return _(x / cW) + (quilt.size * _(y / cH));
+}
+
+/**
+ * @param {MouseEvent} ev
+ */
+function onEditorClick(ev) {
+    const rect = editor.getBoundingClientRect();
+    const cell = getCellIndex(ev.clientX - rect.left, ev.clientY - rect.top);
+
+    if (editShape === SHAPE_SOLID) {
+        quilt.block[cell] = cellSolid(1);
+        updateEditor(quilt, quilt.block);
+    } else {
+        console.log("Unsupported editShape");
+    }
+}
+
 
 /**
  * Draw a triangle at coordinates on the canvas.
@@ -186,10 +226,10 @@ function updateEditor(quilt, block) {
 
     // process cells
     iBlock = 0;
-    for (let cX = 0; cX < quilt.size; ++cX) {
-        oX = cX * cW;
-        for (let cY = 0; cY < quilt.size; ++cY) {
-            oY = cY * cH;
+    for (let cY = 0; cY < quilt.size; ++cY) {
+        oY = cY * cH;
+        for (let cX = 0; cX < quilt.size; ++cX) {
+            oX = cX * cW;
             drawCellAt(ctx, oX, oY, cW, cH, quilt.colorSet, block[iBlock++]);
         }
     }

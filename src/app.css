@@ -1,3 +1,8 @@
+body {
+    background-color: #ffffff;
+    color: #000000;
+}
+
 .hide {
     display: none;
 }
@@ -7,11 +12,26 @@
     padding: 0.6em;
 }
 
+#shapes button {
+    border: 1px solid #dcdcdc;
+    background-color: #ffffff;
+}
+
+#shapes button.active {
+    color: #ffffff;
+    background-color: #6690cf;
+    border-color: #627178;
+}
+
 #view {
     width: 990px;
     height: 480px;
     margin: 10px 0;
     position: relative;
+}
+
+#editor {
+    cursor: pointer;
 }
 
 .panel {
@@ -29,4 +49,10 @@
 .panel-right {
     top: 0;
     right: 0;
+}
+
+footer {
+    margin: 2rem 0;
+    text-align: center;
+    font-size: 75%;
 }
