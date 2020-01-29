@@ -34,6 +34,8 @@ const CANVAS_HEIGHT = 480;
 const SHAPE_RISING = 1;
 const SHAPE_FALLING = 2;
 
+const pickers = [];
+
 /** @type BlockStructure quilt */
 const quilt = {
     size: 3,
@@ -97,29 +99,49 @@ function initColors() {
 
                     input: true,
                     cancel: true,
-                    save: true,
+                    save: false,
                     clear: false
                 }
+            },
+
+            strings: {
+                cancel: "Reset"
             }
         });
 
-        // allocate a fresh `i` copy for each button
-        const callback = function (i) {
-            return (value) => onColorSave(i, value);
+        // save the picker for future interaction, because the defaults are strange
+        pickers[i] = {
+            handle: picker,
+            saved: value,
         };
-        picker.on('save', callback(i++));
+
+        // allocate a fresh `i` copy for each button
+        picker.on('change', (function (i) {
+            return (value) => onColorChanged(i, value);
+        })(i));
+        picker.on('hide', (function (i) {
+            return () => onColorPickerHide(i);
+        })(i));
+        picker.on('cancel', (function (i) {
+            return () => onColorReset(i);
+        })(i));
+
+        i++;
     }
 }
 
-function onColorSave(i, value) {
-    if (value === null) {
-        return;
-    }
+function onColorPickerHide(i) {
+    pickers[i].saved = quilt.colorSet[i]; // save color for next cancel button click
+    pickers[i].handle.applyColor(true); // save color to button, without firing a save event
+}
 
-    // set the color
+function onColorChanged(i, value) {
     quilt.colorSet[i] = value.toHSLA().toString();
+    updateView();
+}
 
-    // redraw quilt with new colors
+function onColorReset(i) {
+    quilt.colorSet[i] = pickers[i].saved;
     updateView();
 }
 
