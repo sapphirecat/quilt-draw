@@ -31,18 +31,13 @@ const editor = document.getElementById('editor');
 const CANVAS_WIDTH = 480;
 const CANVAS_HEIGHT = 480;
 
-const SHAPE_SOLID = 0;
 const SHAPE_RISING = 1;
 const SHAPE_FALLING = 2;
 
 /** @type BlockStructure quilt */
 const quilt = {
     size: 3,
-    colorSet: [
-        '#40aa80',
-        '#0066cc',
-        '#c0b085',
-    ],
+    colorSet: [],
     block: [
         cellSolid(0),
         cellSolid(2),
@@ -58,14 +53,74 @@ const quilt = {
     ]
 };
 
-let editShape = SHAPE_SOLID;
-
 function initJs() {
-    // un-hide JS content
-    document.getElementById('app').className = '';
-
     // connect events
     editor.addEventListener('click', onEditorClick);
+
+    initColors();
+
+    // un-hide JS content
+    document.getElementById('app').className = '';
+}
+
+function initColors() {
+    const colorBox = document.getElementById('colors');
+    const buttonsLive = colorBox.getElementsByClassName('color-button');
+    const buttons = [];
+
+    for (let i = 0; i < buttonsLive.length; i++) {
+        buttons.push(buttonsLive.item(i));
+    }
+
+    let i = 0;
+    for (const button of buttons) {
+        const value = button.getAttribute('data-initial-color');
+        quilt.colorSet[i] = value;
+
+        const picker = Pickr.create({
+            el: button,
+            theme: 'nano',
+            lockOpacity: true,
+            default: value,
+            defaultRepresentation: 'HSLA',
+            adjustableNumbers: true,
+
+            components: {
+                preview: true,
+                hue: true,
+                interaction: {
+                    hex: true,
+                    hsla: true,
+                    hsva: false,
+                    rgba: false,
+                    cmyk: false,
+
+                    input: true,
+                    cancel: true,
+                    save: true,
+                    clear: false
+                }
+            }
+        });
+
+        // allocate a fresh `i` copy for each button
+        const callback = function (i) {
+            return (value) => onColorSave(i, value);
+        };
+        picker.on('save', callback(i++));
+    }
+}
+
+function onColorSave(i, value) {
+    if (value === null) {
+        return;
+    }
+
+    // set the color
+    quilt.colorSet[i] = value.toHSLA().toString();
+
+    // redraw quilt with new colors
+    updateView();
 }
 
 /**
@@ -89,10 +144,7 @@ function cell2(shape, topColor, bottomColor) {
  * @returns Cell
  */
 function cellSolid(color) {
-    return {
-        shape: SHAPE_SOLID,
-        colors: [color],
-    }
+    return cell2(SHAPE_RISING, color, color);
 }
 
 /**
@@ -137,13 +189,8 @@ function getCellIndex(x, y) {
 function onEditorClick(ev) {
     const rect = editor.getBoundingClientRect();
     const cell = getCellIndex(ev.clientX - rect.left, ev.clientY - rect.top);
-
-    if (editShape === SHAPE_SOLID) {
-        quilt.block[cell] = cellSolid(1);
-        updateEditor(quilt, quilt.block);
-    } else {
-        console.log("Unsupported editShape");
-    }
+    quilt.block[cell] = cellSolid(1);
+    updateView();
 }
 
 
@@ -184,7 +231,7 @@ function drawCellAt(ctx, oX, oY, cW, cH, palette, cell) {
         ctx.fillRect(oX, oY, cW, cH);
     }
 
-    if (cell.shape === SHAPE_SOLID) {
+    if (cell.colors[1] === cell.colors[0]) {
         return; // that was all for a solid square
     }
 

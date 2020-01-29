@@ -12,9 +12,24 @@ body {
     padding: 0.6em;
 }
 
-#shapes button {
-    border: 1px solid #dcdcdc;
+button {
     background-color: #ffffff;
+    border: 1px solid #000000;
+    border-radius: 3px;
+}
+
+#colors {
+    margin: 0 0 1em;
+}
+
+#colors button {
+    display: inline-block;
+    margin-right: 1.0em;
+    width: 2.0em;
+}
+
+#shapes button {
+    border-color: #dcdcdc;
 }
 
 #shapes button.active {

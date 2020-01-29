@@ -5,6 +5,7 @@
     <title>Quilt Draw - Designer</title>
 
     <link href="app.css" rel="stylesheet" type="text/css">
+    <link href="pickr/nano.min.css" rel="stylesheet" type="text/css">
 </head>
 <body>
 
@@ -32,10 +33,11 @@
 
 <div class="hide" id="app">
     <div id="controls">
-        <ul id="colors">
-            <li>C1</li>
-            <li>C2</li>
-        </ul>
+        <div id="colors">
+            <button class="color-button" data-initial-color="#40aa80" id="color-0">&nbsp;</button>
+            <button class="color-button" data-initial-color="#0066cc" id="color-1">&nbsp;</button>
+            <button class="color-button" data-initial-color="#c0b085" id="color-2">&nbsp;</button>
+        </div>
         <div id="shapes">
             <button>Square</button>
             <button>Rising</button>
@@ -53,6 +55,7 @@
     </div>
 </div>
 
+<script src="pickr/pickr.min.js"></script>
 <script src="app.js"></script>
 
 <footer>
