@@ -12,6 +12,17 @@ body {
     padding: 0.6em;
 }
 
+#controls ul {
+    list-style-type: none;
+    float: left;
+    width: 200px;
+    margin-right: 1em;
+}
+
+#app > .clear {
+    clear: both;
+}
+
 button {
     background-color: #ffffff;
     border: 1px solid #000000;
@@ -22,17 +33,25 @@ button {
     margin: 0 0 1em;
 }
 
-#colors button {
+#colors .color-active {
+    transform: translateY(50%); /* vertically center */
+}
+
+div.pickr {
     display: inline-block;
     margin-right: 1.0em;
     width: 2.0em;
 }
 
-#shapes button {
+#tools button {
     border-color: #dcdcdc;
 }
 
-#shapes button.active {
+#tools li {
+    margin-bottom: 1em;
+}
+
+#tools button.active {
     color: #ffffff;
     background-color: #6690cf;
     border-color: #627178;

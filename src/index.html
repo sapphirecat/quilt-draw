@@ -33,17 +33,41 @@
 
 <div class="hide" id="app">
     <div id="controls">
-        <div id="colors">
-            <button class="color-button" data-initial-color="#40aa80">&nbsp;</button>
-            <button class="color-button" data-initial-color="#0066cc">&nbsp;</button>
-            <button class="color-button" data-initial-color="#c0b085">&nbsp;</button>
-        </div>
-        <div id="shapes">
-            <button>Square</button>
-            <button>Rising</button>
-            <button>Falling</button>
-        </div>
+        <ul id="colors">
+            <li class="color-select">
+                <label>
+                    <input class="color-active" data-color-id="0" id="color0" name="color"
+                           type="radio">
+                    <button class="color-button" data-initial-color="#40aa80">&nbsp;</button>
+                </label>
+            </li>
+            <li class="color-select">
+                <label>
+                    <input class="color-active" data-color-id="1" id="color1" name="color"
+                           type="radio">
+                    <button class="color-button" data-initial-color="#0066cc">&nbsp;</button>
+                </label>
+            </li>
+            <li class="color-select">
+                <label>
+                    <input class="color-active" data-color-id="2" id="color2" name="color"
+                           type="radio">
+                    <button class="color-button" data-initial-color="#c0b085">&nbsp;</button>
+                </label>
+            </li>
+        </ul>
+
+        <ul id="tools">
+            <li>
+                <button class="tool-select" id="tool-paint">Paint</button>
+            </li>
+            <li>
+                <button class="tool-select" id="tool-flip">Flip</button>
+            </li>
+        </ul>
     </div>
+
+    <div class="clear"></div>
 
     <div id="view">
         <div class="panel panel-left" id="editorArea">

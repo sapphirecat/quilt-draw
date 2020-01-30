@@ -33,6 +33,11 @@ const CANVAS_HEIGHT = 480;
 
 const SHAPE_RISING = 1;
 const SHAPE_FALLING = 2;
+const SHAPES = [SHAPE_RISING, SHAPE_FALLING];
+
+const TOOL_PAINT = 'paint';
+const TOOL_FLIP = 'flip';
+const TOOLS = [TOOL_PAINT, TOOL_FLIP];
 
 const pickers = [];
 
@@ -43,12 +48,15 @@ const quilt = {
     block: []
 };
 
-function initJs() {
-    // connect events
-    editor.addEventListener('click', onEditorClick);
+const ui = {
+    selectedColor: 1,
+    selectedTool: TOOL_PAINT
+};
 
-    // set up color pickers
+function initJs() {
+    // set up UI
     initColors();
+    initTools();
 
     // generate a random initial quilt
     initQuiltBlock();
@@ -58,8 +66,7 @@ function initJs() {
 }
 
 function initQuiltBlock() {
-    const shapes = [SHAPE_FALLING, SHAPE_RISING];
-    const shapeCount = Math.floor(shapes.length);
+    const shapeCount = Math.floor(SHAPES.length);
     const colorCount = Math.floor(quilt.colorSet.length);
 
     // generate a random size from 3 to 5 cells
@@ -68,7 +75,7 @@ function initQuiltBlock() {
     for (let column = 0; column < quilt.size; column++) {
         for (let row = 0; row < quilt.size; row++) {
             // Pick a random direction
-            const shape = shapes[Math.floor(Math.random() * shapeCount)];
+            const shape = SHAPES[Math.floor(Math.random() * shapeCount)];
             const color1 = Math.floor(Math.random() * colorCount);
             const color2 = Math.floor(Math.random() * colorCount);
 
@@ -77,7 +84,29 @@ function initQuiltBlock() {
     }
 }
 
+function initTools() {
+    // connect events
+    editor.addEventListener('click', onEditorClick);
+
+    // obvious improvement: learn what jQuery.on() does under the hood, and do that
+    for (const tool of TOOLS) {
+        const button = document.getElementById(`tool-${tool}`);
+        if (!button) {
+            continue;
+        }
+
+        button.addEventListener('click', onToolChange);
+    }
+
+    const colors = document.getElementById('colors');
+    const colorRadios = colors.getElementsByClassName('color-active');
+    for (const radio of colorRadios) {
+        radio.addEventListener('click', onColorRadioClick);
+    }
+}
+
 function initColors() {
+    // convert initial buttons to Pickr UI
     const colorBox = document.getElementById('colors');
     const buttonsLive = colorBox.getElementsByClassName('color-button');
     const buttons = [];
@@ -140,6 +169,12 @@ function initColors() {
 
         i++;
     }
+
+    // set the radio state to reflect the selected JS color
+    const colorIndex = Math.min(ui.selectedColor, quilt.colorSet.length - 1);
+    if (colorIndex > -1) {
+        document.getElementById(`color${colorIndex}`).checked = true;
+    }
 }
 
 function onColorPickerHide(i) {
@@ -172,29 +207,21 @@ function cell2(shape, topColor, bottomColor) {
     };
 }
 
-/**
- * Solid cell constructor
- * @param {number} color
- * @returns Cell
- */
-function cellSolid(color) {
-    return cell2(SHAPE_RISING, color, color);
-}
-
 
 /**
- * Find which cell in the quilt block was clicked
- *
- * @param {number} x X-coordinate
- * @param {number} y Y-coordinate
+ * @param {number} shape
  * @returns {number}
  */
-function getCellIndex(x, y) {
-    const _ = Math.floor;
-    const cW = _(editor.width / quilt.size);
-    const cH = _(editor.height / quilt.size);
-
-    return _(x / cW) + (quilt.size * _(y / cH));
+function flipShape(shape) {
+    switch (shape) {
+    case SHAPE_FALLING:
+        return SHAPE_RISING;
+    case SHAPE_RISING:
+        return SHAPE_FALLING;
+    default:
+        console.error("invalid shape %d", shape);
+        return shape;
+    }
 }
 
 /**
@@ -202,9 +229,62 @@ function getCellIndex(x, y) {
  */
 function onEditorClick(ev) {
     const rect = editor.getBoundingClientRect();
-    const cell = getCellIndex(ev.clientX - rect.left, ev.clientY - rect.top);
-    quilt.block[cell] = cellSolid(1);
+    const x = ev.clientX - rect.left;
+    const y = ev.clientY - rect.top;
+    const _ = Math.floor;
+
+    // calculate hit positions
+    const sz = quilt.size;
+    const cW = _(editor.width / sz);
+    const cH = _(editor.height / sz);
+
+    const index = _(x / cW) + (sz * _(y / cH));
+    const cell = quilt.block[index];
+
+    // act on the hit
+    switch (ui.selectedTool) {
+    case TOOL_PAINT:
+        const top = _(index / sz) * cH;
+        const left = _(index % sz) * cW;
+        const cX = x - left;
+        const cY = y - top;
+        let colorIndex = 0;
+
+        if (cell.shape === SHAPE_FALLING && cX < cY) {
+            colorIndex = 1;
+        }
+        if (cell.shape === SHAPE_RISING && cX > (cH - cY)) {
+            colorIndex = 1;
+        }
+
+        // apply color to the index that was hit
+        cell.colors[colorIndex] = ui.selectedColor;
+
+        break;
+    case TOOL_FLIP:
+        cell.shape = flipShape(cell.shape);
+        break;
+    default:
+        console.error("Unknown tool selected: %s", ui.selectedTool)
+    }
+
     updateView();
+}
+
+/**
+ * @param {MouseEvent} ev
+ */
+function onToolChange(ev) {
+    const node = ev.target;
+    ui.selectedTool = node.id.replace(/^tool-/, '');
+}
+
+/**
+ * @param {MouseEvent} ev
+ */
+function onColorRadioClick(ev) {
+    const node = ev.target;
+    ui.selectedColor = parseInt(node.getAttribute('data-color-id'), 10);
 }
 
 
