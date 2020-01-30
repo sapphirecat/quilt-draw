@@ -38,31 +38,43 @@ const pickers = [];
 
 /** @type BlockStructure quilt */
 const quilt = {
-    size: 3,
+    size: 0,
     colorSet: [],
-    block: [
-        cellSolid(0),
-        cellSolid(2),
-        cellSolid(0),
-
-        cellRising(0, 1),
-        cellRising(0, 2),
-        cellRising(0, 1),
-
-        cellFalling(0, 1),
-        cellFalling(0, 2),
-        cellFalling(0, 1)
-    ]
+    block: []
 };
 
 function initJs() {
     // connect events
     editor.addEventListener('click', onEditorClick);
 
+    // set up color pickers
     initColors();
+
+    // generate a random initial quilt
+    initQuiltBlock();
 
     // un-hide JS content
     document.getElementById('app').className = '';
+}
+
+function initQuiltBlock() {
+    const shapes = [SHAPE_FALLING, SHAPE_RISING];
+    const shapeCount = Math.floor(shapes.length);
+    const colorCount = Math.floor(quilt.colorSet.length);
+
+    // generate a random size from 3 to 5 cells
+    quilt.size = 3 + Math.floor(Math.random() * 2.0);
+
+    for (let column = 0; column < quilt.size; column++) {
+        for (let row = 0; row < quilt.size; row++) {
+            // Pick a random direction
+            const shape = shapes[Math.floor(Math.random() * shapeCount)];
+            const color1 = Math.floor(Math.random() * colorCount);
+            const color2 = Math.floor(Math.random() * colorCount);
+
+            quilt.block.push(cell2(shape, color1, color2));
+        }
+    }
 }
 
 function initColors() {
@@ -167,26 +179,6 @@ function cell2(shape, topColor, bottomColor) {
  */
 function cellSolid(color) {
     return cell2(SHAPE_RISING, color, color);
-}
-
-/**
- * Rising cell constructor
- * @param {number} topColor
- * @param {number} bottomColor
- * @returns Cell
- */
-function cellRising(topColor, bottomColor) {
-    return cell2(SHAPE_RISING, topColor, bottomColor);
-}
-
-/**
- * Falling cell constructor
- * @param {number} topColor
- * @param {number} bottomColor
- * @returns Cell
- */
-function cellFalling(topColor, bottomColor) {
-    return cell2(SHAPE_FALLING, topColor, bottomColor);
 }
 
 
