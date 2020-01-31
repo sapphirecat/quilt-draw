@@ -245,12 +245,14 @@ function onEditorClick(ev) {
     // act on the hit
     switch (ui.selectedTool) {
     case TOOL_PAINT:
+        // we need to find what sub-shape was hit
         const top = _(index / sz) * cH;
         const left = _(index % sz) * cW;
-        const cX = x - left;
+        const cX = x - left; // cX/cY = cell-relative coordinates
         const cY = y - top;
-        let colorIndex = 0;
+        let colorIndex = 0; // assume top section
 
+        // if it's actually the bottom section, change index
         if (cell.shape === SHAPE_FALLING && cX < cY) {
             colorIndex = 1;
         }
@@ -286,6 +288,7 @@ function onToolChange(ev) {
 function onColorRadioClick(ev) {
     const node = ev.target;
     ui.selectedColor = parseInt(node.getAttribute('data-color-id'), 10);
+    ui.selectedTool = TOOL_PAINT;
 }
 
 
@@ -367,9 +370,9 @@ function updateEditor(quilt, block) {
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
     // process cells
-    iBlock = 0;
+    iBlock = 0; // index into block array
     for (let cY = 0; cY < quilt.size; ++cY) {
-        oY = cY * cH;
+        oY = cY * cH; // Y-origin = cell Y-index (row) times cell height
         for (let cX = 0; cX < quilt.size; ++cX) {
             oX = cX * cW;
             drawCellAt(ctx, oX, oY, cW, cH, quilt.colorSet, block[iBlock++]);
@@ -379,25 +382,28 @@ function updateEditor(quilt, block) {
 
 function updatePreview(source, borderColor) {
     const ctx = preview.getContext('2d');
-    const bSize = Math.min(preview.height / 6, preview.width / 5);
-    const padSize = bSize / 2.0;
-    const scale = bSize / source.width;
-
+    // save and restore the state, or else scale() accumulates
     ctx.save();
 
+    // Preview will be 5x4 blocks (rows x columns), plus 1 block for border.
+    const bSize = Math.min(preview.height / 6, preview.width / 5);
+    const padSize = bSize / 2.0; // half a block on each side
+    const scale = bSize / source.width; // convert to scaling factor
+    const antiScale = source.width / bSize; // reversed scaling factor
+
+    // fill the border (and everything else) with the base color
     ctx.fillStyle = borderColor;
     ctx.fillRect(0, 0, preview.width, preview.height);
-    ctx.scale(scale, scale);
+    ctx.scale(scale, scale); // set the scale factor on the canvas
 
+    // draw the 5x4 blocks, inset by the half-block padSize
     for (let col = 0; col < 4; col++) {
         for (let row = 0; row < 5; row++) {
-            ctx.save();
-
+            // determine the current block's origin X/Y in unscaled space
             const oX = padSize + (col * bSize);
             const oY = padSize + (row * bSize);
-            ctx.drawImage(source, oX / scale, oY / scale);
-
-            ctx.restore();
+            // reverse the scaling on the coordinates to draw where intended
+            ctx.drawImage(source, oX * antiScale, oY * antiScale);
         }
     }
 
