@@ -300,6 +300,92 @@ function onColorRadioClick(ev) {
 
 
 /**
+ * Move all cells to the left, wrapping the leftmost column to the right
+ *
+ * @param {Block} block
+ * @returns {Block}
+ */
+function rollLeft(block) {
+    const rolled = new Array(block.length);
+    const size = Math.sqrt(block.length);
+
+    let i = 0;
+    for (let row = 0; row < size; row++) {
+        // rolled[r, 0] <- block[r, 1] through rolled[r, N] <- block[r, 0]
+        for (let col = 0; col < size; col++) {
+            const readCol = (col + 1) % size;
+            rolled[i++] = block[readCol + (row * size)];
+        }
+    }
+
+    return rolled;
+}
+
+/**
+ * Move all cells to the right, wrapping the rightmost column to the left.
+ *
+ * @param {Block} block
+ * @returns {Block}
+ */
+function rollRight(block) {
+    const rolled = new Array(block.length);
+    const size = Math.sqrt(block.length);
+
+    let i = 0;
+    for (let row = 0; row < size; row++) {
+        for (let col = 0; col < size; col++) {
+            const readCol = col ? col - 1 : size - 1;
+            rolled[i++] = block[readCol + (row * size)];
+        }
+    }
+
+    return rolled;
+}
+
+/**
+ * Move all cells down, wrapping the bottommost row to the top.
+ *
+ * @param {Block} block
+ * @returns {Block}
+ */
+function rollDown(block) {
+    const rolled = new Array(block.length);
+    const size = Math.sqrt(block.length);
+
+    let i = 0;
+    for (let row = 0; row < size; row++) {
+        for (let col = 0; col < size; col++) {
+            const readRow = row ? row - 1 : size - 1;
+            rolled[i++] = block[col + (readRow * size)];
+        }
+    }
+
+    return rolled;
+}
+
+/**
+ * Move all cells up, wrapping the topmost row to the bottom.
+ *
+ * @param {Block} block
+ * @returns {Block}
+ */
+function rollUp(block) {
+    const rolled = new Array(block.length);
+    const size = Math.sqrt(block.length);
+
+    let i = 0;
+    for (let row = 0; row < size; row++) {
+        for (let col = 0; col < size; col++) {
+            const readRow = (row + 1) % size;
+            rolled[i++] = block[col + (readRow * size)];
+        }
+    }
+
+    return rolled;
+}
+
+
+/**
  * Draw a triangle at coordinates on the canvas.
  *
  * @param {CanvasRenderingContext2D} ctx
