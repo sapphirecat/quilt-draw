@@ -27,6 +27,7 @@
 
     //** @type {HTMLCanvasElement} editor */
 const editor = document.getElementById('editor');
+const preview = document.getElementById('preview');
 
 const CANVAS_WIDTH = 480;
 const CANVAS_HEIGHT = 480;
@@ -376,13 +377,41 @@ function updateEditor(quilt, block) {
     }
 }
 
-function updateView() {
-    updateEditor(quilt, quilt.block);
+function updatePreview(source, borderColor) {
+    const ctx = preview.getContext('2d');
+    const bSize = Math.min(preview.height / 6, preview.width / 5);
+    const padSize = bSize / 2.0;
+    const scale = bSize / source.width;
+
+    ctx.save();
+
+    ctx.fillStyle = borderColor;
+    ctx.fillRect(0, 0, preview.width, preview.height);
+    ctx.scale(scale, scale);
+
+    for (let col = 0; col < 4; col++) {
+        for (let row = 0; row < 5; row++) {
+            ctx.save();
+
+            const oX = padSize + (col * bSize);
+            const oY = padSize + (row * bSize);
+            ctx.drawImage(source, oX / scale, oY / scale);
+
+            ctx.restore();
+        }
+    }
+
+    ctx.restore();
 }
 
-if (editor) {
+function updateView() {
+    updateEditor(quilt, quilt.block);
+    updatePreview(editor, quilt.colorSet[0]);
+}
+
+if (editor && preview) {
     initJs();
     updateView();
 } else {
-    console.log("Can't get editor; doing nothing.");
+    console.error("Can't get editor and preview; doing nothing.");
 }
