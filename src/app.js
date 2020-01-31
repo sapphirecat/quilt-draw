@@ -54,6 +54,12 @@ const ui = {
     selectedTool: TOOL_PAINT
 };
 
+function setPaintColor(i) {
+    ui.selectedColor = i;
+    ui.selectedTool = TOOL_PAINT;
+    document.getElementById(`color${i}`).checked = true
+}
+
 function initJs() {
     // set up UI
     initColors();
@@ -181,6 +187,7 @@ function initColors() {
 function onColorPickerHide(i) {
     pickers[i].saved = quilt.colorSet[i]; // save color for next cancel button click
     pickers[i].handle.applyColor(true); // save color to button, without firing a save event
+    setPaintColor(i);
 }
 
 function onColorChanged(i, value) {
@@ -287,8 +294,8 @@ function onToolChange(ev) {
  */
 function onColorRadioClick(ev) {
     const node = ev.target;
-    ui.selectedColor = parseInt(node.getAttribute('data-color-id'), 10);
-    ui.selectedTool = TOOL_PAINT;
+    const colorIndex = parseInt(node.getAttribute('data-color-id'), 10);
+    setPaintColor(colorIndex);
 }
 
 
