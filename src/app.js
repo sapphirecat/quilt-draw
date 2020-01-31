@@ -299,6 +299,23 @@ function onColorRadioClick(ev) {
 }
 
 
+function rollCore(block, mappingFn) {
+    const rolled = new Array(block.length);
+    const size = Math.sqrt(block.length);
+
+    // walk across rolled. ask the mapping function where the data for the
+    // row/column of rolled is located in block, by row/column.
+    let i = 0;
+    for (let row = 0; row < size; row++) {
+        for (let col = 0; col < size; col++) {
+            const [readRow, readCol] = mappingFn(row, col, size);
+            rolled[i++] = block[readCol + (readRow * size)];
+        }
+    }
+
+    return rolled;
+}
+
 /**
  * Move all cells to the left, wrapping the leftmost column to the right
  *
@@ -306,19 +323,9 @@ function onColorRadioClick(ev) {
  * @returns {Block}
  */
 function rollLeft(block) {
-    const rolled = new Array(block.length);
-    const size = Math.sqrt(block.length);
-
-    let i = 0;
-    for (let row = 0; row < size; row++) {
-        // rolled[r, 0] <- block[r, 1] through rolled[r, N] <- block[r, 0]
-        for (let col = 0; col < size; col++) {
-            const readCol = (col + 1) % size;
-            rolled[i++] = block[readCol + (row * size)];
-        }
-    }
-
-    return rolled;
+    return rollCore(block, function (row, col, size) {
+        return [row, (col + 1) % size];
+    });
 }
 
 /**
@@ -328,18 +335,9 @@ function rollLeft(block) {
  * @returns {Block}
  */
 function rollRight(block) {
-    const rolled = new Array(block.length);
-    const size = Math.sqrt(block.length);
-
-    let i = 0;
-    for (let row = 0; row < size; row++) {
-        for (let col = 0; col < size; col++) {
-            const readCol = col ? col - 1 : size - 1;
-            rolled[i++] = block[readCol + (row * size)];
-        }
-    }
-
-    return rolled;
+    return rollCore(block, function (row, col, size) {
+        return [row, col ? col - 1 : size - 1];
+    });
 }
 
 /**
@@ -349,18 +347,9 @@ function rollRight(block) {
  * @returns {Block}
  */
 function rollDown(block) {
-    const rolled = new Array(block.length);
-    const size = Math.sqrt(block.length);
-
-    let i = 0;
-    for (let row = 0; row < size; row++) {
-        for (let col = 0; col < size; col++) {
-            const readRow = row ? row - 1 : size - 1;
-            rolled[i++] = block[col + (readRow * size)];
-        }
-    }
-
-    return rolled;
+    return rollCore(block, function (row, col, size) {
+        return [row ? row - 1 : size - 1, col];
+    });
 }
 
 /**
@@ -370,18 +359,9 @@ function rollDown(block) {
  * @returns {Block}
  */
 function rollUp(block) {
-    const rolled = new Array(block.length);
-    const size = Math.sqrt(block.length);
-
-    let i = 0;
-    for (let row = 0; row < size; row++) {
-        for (let col = 0; col < size; col++) {
-            const readRow = (row + 1) % size;
-            rolled[i++] = block[col + (readRow * size)];
-        }
-    }
-
-    return rolled;
+    return rollCore(block, function (row, col, size) {
+        return [(row + 1) % size, col];
+    });
 }
 
 
