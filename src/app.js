@@ -79,7 +79,7 @@ function initQuiltBlock() {
     const colorCount = Math.floor(quilt.colorSet.length);
 
     // generate a random size from 3 to 5 cells
-    quilt.size = 3 + Math.floor(Math.random() * 2.0);
+    quilt.size = 3 + Math.floor(Math.random() * 3.0);
 
     for (let column = 0; column < quilt.size; column++) {
         for (let row = 0; row < quilt.size; row++) {
