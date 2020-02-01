@@ -96,21 +96,7 @@ function initQuiltBlock() {
 function initTools() {
     // connect events
     editor.addEventListener('click', onEditorClick);
-
-    // obvious improvement: learn what jQuery.on() does under the hood, and do that
-    for (const tool of TOOLS) {
-        const button = document.getElementById(`tool-${tool}`);
-        if (!button) {
-            continue;
-        }
-
-        button.addEventListener('click', onToolChange);
-    }
-
-    const colorRadios = ui.colorBox.querySelectorAll('.color-active');
-    for (const radio of colorRadios) {
-        radio.addEventListener('click', onColorRadioClick);
-    }
+    document.getElementById('controls').addEventListener('click', onControlClick);
 }
 
 function initColors() {
@@ -309,6 +295,25 @@ function onEditorClick(ev) {
     }
 
     updateView();
+}
+
+/**
+ * Delegating event handler for control input-radio clicks
+ *
+ * @param {MouseEvent} ev
+ */
+function onControlClick(ev) {
+    const target = ev.target;
+    if (target.tagName.toLowerCase() !== 'input') {
+        return;
+    }
+
+    const classes = target.classList;
+    if (classes.contains('color-active')) {
+        onColorRadioClick(ev);
+    } else if (classes.contains('tool-active')) {
+        onToolChange(ev);
+    }
 }
 
 /**
