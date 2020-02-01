@@ -17,6 +17,7 @@
 /**
  * @typedef {object} BlockStructure
  * @property {number} size
+ * @property {number} borderSize
  * @property {Palette} colorSet
  * @property {Block} block
  */
@@ -38,13 +39,13 @@ const SHAPES = [SHAPE_RISING, SHAPE_FALLING];
 
 const TOOL_PAINT = 'paint';
 const TOOL_FLIP = 'flip';
-const TOOLS = [TOOL_PAINT, TOOL_FLIP];
 
 const pickers = [];
 
 /** @type BlockStructure quilt */
 const quilt = {
     size: 0,
+    borderSize: 0,
     colorSet: [],
     block: []
 };
@@ -91,12 +92,22 @@ function initQuiltBlock() {
             quilt.block.push(cell2(shape, color1, color2));
         }
     }
+
+    // choose a random border size
+    const borderControl = document.getElementById('border-width');
+    const step = parseInt(borderControl.getAttribute('step') || '1', 10);
+    const maxBase = parseInt(borderControl.getAttribute('max')) / step;
+    const width = step + Math.floor(Math.random() * (maxBase + 1));
+
+    borderControl.value = width;
+    quilt.borderSize = width;
 }
 
 function initTools() {
     // connect events
     editor.addEventListener('click', onEditorClick);
     document.getElementById('controls').addEventListener('click', onControlClick);
+    document.getElementById('border-width').addEventListener('input', onBorderSize);
 }
 
 function initColors() {
@@ -298,6 +309,14 @@ function onEditorClick(ev) {
 }
 
 /**
+ * @param {InputEvent} ev
+ */
+function onBorderSize(ev) {
+    quilt.borderSize = parseInt(ev.target.value, 10);
+    updatePreview(editor, quilt.colorSet[0], quilt.borderSize);
+}
+
+/**
  * Delegating event handler for control input-radio clicks
  *
  * @param {MouseEvent} ev
@@ -488,23 +507,36 @@ function updateEditor(quilt, block) {
     }
 }
 
-function updatePreview(source, borderColor) {
+function updatePreview(source, borderColor, borderSize) {
     const ctx = preview.getContext('2d');
     // save and restore the state, or else scale() accumulates
     ctx.save();
 
-    // Preview will be 5x4 blocks (rows x columns), plus 1 block for border.
-    const bSize = Math.min(preview.height / 6, preview.width / 5);
-    const padSize = bSize / 2.0; // half a block on each side
+    // Size border to user request (values of 0-1 block, by steps of 2)
+    const padSize = borderSize / 2.0; // half on each side
+    // Determine the block size within the remaining area
+    const bSize = Math.min((preview.height - borderSize) / 5, (preview.width - borderSize) / 4);
     const scale = bSize / source.width; // convert to scaling factor
     const antiScale = source.width / bSize; // reversed scaling factor
 
+    // determine the draw width/height
+    const dW = 4 * bSize + borderSize;
+    const dH = 5 * bSize + borderSize;
+
+    // clear out-of-bounds
+    if (dW < preview.width) {
+        ctx.clearRect(dW, 0, preview.width - dW, preview.height);
+    }
+    if (dH < preview.height) {
+        ctx.clearRect(0, dH, preview.width, dH - preview.height);
+    }
+
     // fill the border (and everything else) with the base color
     ctx.fillStyle = borderColor;
-    ctx.fillRect(0, 0, preview.width, preview.height);
+    ctx.fillRect(0, 0, dW, dH);
     ctx.scale(scale, scale); // set the scale factor on the canvas
 
-    // draw the 5x4 blocks, inset by the half-block padSize
+    // draw the 5x4 blocks, inset by the half-border-width padSize
     for (let col = 0; col < 4; col++) {
         for (let row = 0; row < 5; row++) {
             // determine the current block's origin X/Y in unscaled space
@@ -520,7 +552,7 @@ function updatePreview(source, borderColor) {
 
 function updateView() {
     updateEditor(quilt, quilt.block);
-    updatePreview(editor, quilt.colorSet[0]);
+    updatePreview(editor, quilt.colorSet[0], quilt.borderSize);
 }
 
 if (editor && preview) {
