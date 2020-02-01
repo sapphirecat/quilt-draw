@@ -102,7 +102,7 @@ function initTools() {
 function initColors() {
     // set up global data for addColor
     ui.colorTemplate = document.getElementById('color-item');
-    ui.colorBox = document.getElementById('controls');
+    ui.colorBox = document.getElementById('colors');
 
     // double-check that our requirements are fulfilled
     if (!(ui.colorTemplate && ui.colorBox)) {

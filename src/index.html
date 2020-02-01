@@ -32,7 +32,15 @@
 </noscript>
 
 <div class="hide" id="app">
-    <div data-initial-palette="#40aa80,#0066cc,#c0b085" id="controls">
+    <div id="controls">
+        <div data-initial-palette="#40aa80,#0066cc,#c0b085" id="colors">
+            <template class="hide" id="color-item">
+                <label class="color-item">
+                    <input class="color-active" name="tool_select" type="radio">
+                    <button class="color-button">&nbsp;</button>
+                </label>
+            </template>
+        </div>
         <label class="color-new">
             <button id="color-new">+</button>
         </label>
@@ -52,13 +60,6 @@
             <canvas height="576" id="preview" width="480"></canvas>
         </div>
     </div>
-
-    <template class="hide" id="color-item">
-        <label class="color-item">
-            <input class="color-active" name="tool_select" type="radio">
-            <button class="color-button">&nbsp;</button>
-        </label>
-    </template>
 </div>
 
 <script src="pickr/pickr.min.js"></script>

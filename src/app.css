@@ -30,7 +30,7 @@ footer {
     flex-wrap: wrap;
 }
 
-#controls > label {
+#controls > label, #colors {
     margin-right: 1.0em;
 }
 
@@ -44,6 +44,10 @@ footer {
 
 #controls .tool-item {
     order: 9;
+}
+
+#colors {
+    max-width: 375px;
 }
 
 #tools button {
