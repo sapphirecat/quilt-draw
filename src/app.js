@@ -136,6 +136,16 @@ function initColors() {
     if (colorIndex > -1) {
         document.getElementById(`color${colorIndex}`).checked = true;
     }
+
+    // set up "New Color" button
+    document.getElementById('color-new').addEventListener('click', createColor);
+}
+
+function createColor() {
+    const hue = Math.floor(Math.random() * 360);
+    const sat = 55 + Math.floor(Math.random() * 25);
+    const i = addColor(`hsla(${hue}, ${sat}%, 60%, 1.0)`);
+    setPaintColor(i);
 }
 
 function addColor(value) {
@@ -150,7 +160,7 @@ function addColor(value) {
         return;
     }
 
-    dataNode.setAttribute('data-color-id', i);
+    dataNode.setAttribute('data-color-id', `${i}`);
     dataNode.id = `color${i}`;
 
     // define the color
@@ -200,6 +210,8 @@ function addColor(value) {
         handle: picker,
         saved: value,
     };
+
+    return i;
 }
 
 function onColorPickerHide(i) {

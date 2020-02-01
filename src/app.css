@@ -14,8 +14,16 @@ body {
     flex-wrap: wrap;
 }
 
+#controls > label {
+    margin-right: 1.0em;
+}
+
 #controls .color-item {
     order: 1;
+}
+
+#controls .color-new {
+    order: 2;
 }
 
 #controls .tool-item {
@@ -34,7 +42,6 @@ button {
 
 div.pickr {
     display: inline-block;
-    margin-right: 1.0em;
     width: 2.0em;
 }
 
