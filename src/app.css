@@ -35,20 +35,16 @@ footer {
     flex-wrap: wrap;
 }
 
-#controls > label, #colors {
+#controls > .control {
     margin-right: 1.0em;
 }
 
-#controls .color-item {
-    order: 1;
+#controls #colors {
+    order: -2;
 }
 
 #controls .color-new {
-    order: 2;
-}
-
-#controls #borders {
-    order: 6;
+    order: -1;
 }
 
 #controls .tool-item {
@@ -71,6 +67,40 @@ footer {
     color: #ffffff;
     background-color: #6690cf;
     border-color: #627178;
+}
+
+#rollers {
+    position: relative;
+    box-sizing: border-box;
+    width: 4.5em;
+    height: 4.5em;
+}
+
+#rollers button {
+    position: absolute;
+    width: 1.5rem;
+    height: 1.5rem;
+    padding: 0;
+}
+
+#roll-left {
+    top: 1.5rem;
+    left: 0;
+}
+
+#roll-right {
+    top: 1.5rem;
+    left: 3rem;
+}
+
+#roll-up {
+    left: 1.5rem;
+    top: 0;
+}
+
+#roll-down {
+    left: 1.5rem;
+    top: 3rem;
 }
 
 #view {

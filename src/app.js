@@ -323,7 +323,7 @@ function onBorderSize(ev) {
  */
 function onControlClick(ev) {
     const target = ev.target;
-    if (target.tagName.toLowerCase() !== 'input') {
+    if (!target.tagName.toLowerCase().match(/^(?:button|input)$/)) {
         return;
     }
 
@@ -332,6 +332,8 @@ function onControlClick(ev) {
         onColorRadioClick(ev);
     } else if (classes.contains('tool-active')) {
         onToolChange(ev);
+    } else if (classes.contains('roll')) {
+        onRollerClick(ev);
     }
 }
 
@@ -350,6 +352,26 @@ function onColorRadioClick(ev) {
     const node = ev.target;
     const colorIndex = parseInt(node.getAttribute('data-color-id'), 10);
     setPaintColor(colorIndex);
+}
+
+/**
+ * Roll the quilt block in some direction.
+ *
+ * @param {MouseEvent} ev
+ */
+function onRollerClick(ev) {
+    const movers = {
+        "roll-up": rollUp,
+        "roll-down": rollDown,
+        "roll-left": rollLeft,
+        "roll-right": rollRight
+    };
+
+    const callback = movers[ev.target.id];
+    if (callback) {
+        quilt.block = callback(quilt.block);
+        updateView();
+    }
 }
 
 

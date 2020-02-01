@@ -33,7 +33,7 @@
 
 <div class="hide" id="app">
     <div id="controls">
-        <div data-initial-palette="#40aa80,#0066cc,#c0b085" id="colors">
+        <div class="control" data-initial-palette="#40aa80,#0066cc,#c0b085" id="colors">
             <template class="hide" id="color-item">
                 <label class="color-item">
                     <input class="color-active" name="tool_select" type="radio">
@@ -41,18 +41,26 @@
                 </label>
             </template>
         </div>
-        <label class="color-new">
+        <label class="color-new control">
             <button id="color-new">+</button>
         </label>
-        <label class="tool-item">
+        <label class="tool-item control">
             <input class="tool-active" id="tool-flip" name="tool_select" type="radio">
             Flip
         </label>
-        <div id="borders">
+        <div class="control" id="borders">
             <label class="center-text">
                 Border width<br>
                 <input id="border-width" max="96" min="0" step="8" type="range" value="96">
             </label>
+        </div>
+        <div class="control" id="transforms">
+            <div id="rollers">
+                <button class="roll" id="roll-up">&uarr;</button>
+                <button class="roll" id="roll-left">&larr;</button>
+                <button class="roll" id="roll-down">&darr;</button>
+                <button class="roll" id="roll-right">&rarr;</button>
+            </div>
         </div>
     </div>
 
