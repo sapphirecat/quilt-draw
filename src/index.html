@@ -33,28 +33,7 @@
 
 <div class="hide" id="app">
     <div id="controls">
-        <ul id="colors">
-            <li class="color-select">
-                <label>
-                    <input class="color-active" data-color-id="0" id="color0" name="tool_select"
-                           type="radio">
-                    <button class="color-button" data-initial-color="#40aa80">&nbsp;</button>
-                </label>
-            </li>
-            <li class="color-select">
-                <label>
-                    <input class="color-active" data-color-id="1" id="color1" name="tool_select"
-                           type="radio">
-                    <button class="color-button" data-initial-color="#0066cc">&nbsp;</button>
-                </label>
-            </li>
-            <li class="color-select">
-                <label>
-                    <input class="color-active" data-color-id="2" id="color2" name="tool_select"
-                           type="radio">
-                    <button class="color-button" data-initial-color="#c0b085">&nbsp;</button>
-                </label>
-            </li>
+        <ul data-initial-palette="#40aa80,#0066cc,#c0b085" id="colors">
         </ul>
 
         <ul id="tools">
@@ -77,6 +56,16 @@
             <canvas height="576" id="preview" width="480"></canvas>
         </div>
     </div>
+
+    <template class="hide" id="color-item">
+        <li class="color-select">
+            <label>
+                <input class="color-active" name="tool_select" type="radio">
+                <button class="color-button">&nbsp;</button>
+            </label>
+        </li>
+
+    </template>
 </div>
 
 <script src="pickr/pickr.min.js"></script>

@@ -50,6 +50,8 @@ const quilt = {
 };
 
 const ui = {
+    colorTemplate: null,
+    colorBox: null,
     selectedColor: 1,
     selectedTool: TOOL_PAINT
 };
@@ -113,75 +115,92 @@ function initTools() {
 }
 
 function initColors() {
-    // convert initial buttons to Pickr UI
-    const colorBox = document.getElementById('colors');
-    const buttonsLive = colorBox.getElementsByClassName('color-button');
-    const buttons = [];
+    // set up global data for addColor
+    ui.colorTemplate = document.getElementById('color-item');
+    ui.colorBox = document.getElementById('colors');
 
-    for (let i = 0; i < buttonsLive.length; i++) {
-        buttons.push(buttonsLive.item(i));
+    // double-check that our requirements are fulfilled
+    if (!(ui.colorTemplate && ui.colorBox)) {
+        console.error("Invalid HTML: missing template#color-item or #colors");
+        return;
     }
 
-    let i = 0;
-    for (const button of buttons) {
-        const value = button.getAttribute('data-initial-color');
-        quilt.colorSet[i] = value;
+    // parse the initial palette data
+    const colorText = ui.colorBox.getAttribute('data-initial-palette') || '#ff00ff';
+    const colors = colorText.split(',');
 
-        const picker = Pickr.create({
-            el: button,
-            theme: 'nano',
-            lockOpacity: true,
-            default: value,
-            defaultRepresentation: 'HSLA',
-            adjustableNumbers: true,
-
-            components: {
-                preview: true,
-                hue: true,
-                interaction: {
-                    hex: true,
-                    hsla: true,
-                    hsva: false,
-                    rgba: false,
-                    cmyk: false,
-
-                    input: true,
-                    cancel: true,
-                    save: false,
-                    clear: false
-                }
-            },
-
-            strings: {
-                cancel: "Reset"
-            }
-        });
-
-        // save the picker for future interaction, because the defaults are strange
-        pickers[i] = {
-            handle: picker,
-            saved: value,
-        };
-
-        // allocate a fresh `i` copy for each button
-        picker.on('change', (function (i) {
-            return (value) => onColorChanged(i, value);
-        })(i));
-        picker.on('hide', (function (i) {
-            return () => onColorPickerHide(i);
-        })(i));
-        picker.on('cancel', (function (i) {
-            return () => onColorReset(i);
-        })(i));
-
-        i++;
-    }
+    // create Pickr UI for each initial palette entry
+    colors.forEach(addColor);
 
     // set the radio state to reflect the selected JS color
     const colorIndex = Math.min(ui.selectedColor, quilt.colorSet.length - 1);
     if (colorIndex > -1) {
         document.getElementById(`color${colorIndex}`).checked = true;
     }
+}
+
+function addColor(value) {
+    const i = quilt.colorSet.length;
+    const item = ui.colorTemplate.content.cloneNode(true);
+
+    // configure sub-DOM
+    const dataNode = item.querySelector('.color-active');
+    const button = item.querySelector('.color-button');
+    if (!(dataNode && button)) {
+        console.error("Cannot find '.color-active' and '.color-button' in ui.colorTemplate");
+        return;
+    }
+
+    dataNode.setAttribute('data-color-id', i);
+    dataNode.id = `color${i}`;
+
+    // define the color
+    quilt.colorSet[i] = value;
+
+    // activate the picker
+    const picker = Pickr.create({
+        el: button,
+        theme: 'nano',
+        lockOpacity: true,
+        default: value,
+        defaultRepresentation: 'HSLA',
+        adjustableNumbers: true,
+
+        components: {
+            preview: true,
+            hue: true,
+            interaction: {
+                hex: true,
+                hsla: true,
+                hsva: false,
+                rgba: false,
+                cmyk: false,
+
+                input: true,
+                cancel: true,
+                save: false,
+                clear: false
+            }
+        },
+
+        strings: {
+            cancel: "Reset"
+        }
+    });
+
+    // set up events
+    picker.on('change', newValue => onColorChanged(i, newValue));
+    picker.on('hide', () => onColorPickerHide(i));
+    picker.on('cancel', () => onColorReset(i));
+
+    // insert the whole template into the DOM
+    ui.colorBox.appendChild(item);
+
+    // save the picker for future interaction
+    pickers[i] = {
+        handle: picker,
+        saved: value,
+    };
 }
 
 function onColorPickerHide(i) {
