@@ -10,13 +10,16 @@ body {
 #controls {
     margin: auto auto 1em;
     padding: 0.6em;
+    display: flex;
+    flex-wrap: wrap;
 }
 
-#controls ul {
-    list-style-type: none;
-    float: left;
-    width: 200px;
-    margin-right: 1em;
+#controls .color-item {
+    order: 1;
+}
+
+#controls .tool-item {
+    order: 9;
 }
 
 #app > .clear {
@@ -27,14 +30,6 @@ button {
     background-color: #ffffff;
     border: 1px solid #000000;
     border-radius: 3px;
-}
-
-#colors {
-    margin: 0 0 1em;
-}
-
-#colors .color-active {
-    transform: translateY(50%); /* vertically center */
 }
 
 div.pickr {

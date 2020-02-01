@@ -107,8 +107,7 @@ function initTools() {
         button.addEventListener('click', onToolChange);
     }
 
-    const colors = document.getElementById('colors');
-    const colorRadios = colors.getElementsByClassName('color-active');
+    const colorRadios = ui.colorBox.querySelectorAll('.color-active');
     for (const radio of colorRadios) {
         radio.addEventListener('click', onColorRadioClick);
     }
@@ -117,7 +116,7 @@ function initTools() {
 function initColors() {
     // set up global data for addColor
     ui.colorTemplate = document.getElementById('color-item');
-    ui.colorBox = document.getElementById('colors');
+    ui.colorBox = document.getElementById('controls');
 
     // double-check that our requirements are fulfilled
     if (!(ui.colorTemplate && ui.colorBox)) {
