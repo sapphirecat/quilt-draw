@@ -3,7 +3,7 @@
 /**
  * @typedef {Object} Cell
  * @property {Array<number>} colors
- * @property {number} shape
+ * @property {number} angle
  */
 
 /**
@@ -33,12 +33,19 @@ const preview = document.getElementById('preview');
 const CANVAS_WIDTH = 480;
 const CANVAS_HEIGHT = 480;
 
-const SHAPE_RISING = 1;
-const SHAPE_FALLING = 2;
-const SHAPES = [SHAPE_RISING, SHAPE_FALLING];
+// TOP = color 0 in the top-left; color 1 in the bottom-right (seam rising)
+// RIGHT = color 0 in the top-right; color 1 in the bottom-left (seam falling)
+// BOTTOM = color 0 in the bottom-right; color 1 in the top-left (seam rising)
+// LEFT = color 0 in the bottom-left; color 1 in the top-right (seam falling)
+// Thus, TOP/BOTTOM are color-swaps of each other, as are RIGHT/LEFT.
+const ANGLE_TOP = 0;
+const ANGLE_RIGHT = 1;
+const ANGLE_BOTTOM = 2;
+const ANGLE_LEFT = 3;
+const ANGLES = [ANGLE_TOP, ANGLE_RIGHT, ANGLE_BOTTOM, ANGLE_LEFT];
 
 const TOOL_PAINT = 'paint';
-const TOOL_FLIP = 'flip';
+const TOOL_SPIN = 'spin';
 
 const pickers = [];
 
@@ -76,8 +83,8 @@ function initJs() {
 }
 
 function initQuiltBlock() {
-    const shapeCount = Math.floor(SHAPES.length);
-    const colorCount = Math.floor(quilt.colorSet.length);
+    const angleCount = Math.floor(ANGLES.length);
+    const colorCount = Math.floor(quilt.colorSet.length) - 1;
 
     // generate a random size from 3 to 5 cells
     quilt.size = 3 + Math.floor(Math.random() * 3.0);
@@ -85,11 +92,11 @@ function initQuiltBlock() {
     for (let column = 0; column < quilt.size; column++) {
         for (let row = 0; row < quilt.size; row++) {
             // Pick a random direction
-            const shape = SHAPES[Math.floor(Math.random() * shapeCount)];
-            const color1 = Math.floor(Math.random() * colorCount);
-            const color2 = Math.floor(Math.random() * colorCount);
+            const angle = ANGLES[Math.floor(Math.random() * angleCount)];
+            const color1 = 1 + Math.floor(Math.random() * colorCount);
+            const color2 = 1 + Math.floor(Math.random() * colorCount);
 
-            quilt.block.push(cell2(shape, color1, color2));
+            quilt.block.push(cell2(angle, color1, color2));
         }
     }
 
@@ -230,33 +237,25 @@ function onColorReset(i) {
 /**
  * Cell constructor
  *
- * @param {number} shape
+ * @param {number} angle
  * @param {number} topColor
  * @param {number} bottomColor
  * @returns {Cell}
  */
-function cell2(shape, topColor, bottomColor) {
+function cell2(angle, topColor, bottomColor) {
     return {
-        shape: shape,
+        angle: angle,
         colors: [topColor, bottomColor],
     };
 }
 
 
 /**
- * @param {number} shape
+ * @param {number} angle
  * @returns {number}
  */
-function flipShape(shape) {
-    switch (shape) {
-    case SHAPE_FALLING:
-        return SHAPE_RISING;
-    case SHAPE_RISING:
-        return SHAPE_FALLING;
-    default:
-        console.error("invalid shape %d", shape);
-        return shape;
-    }
+function spinCell(angle) {
+    return (angle + 1) % ANGLES.length;
 }
 
 /**
@@ -279,27 +278,38 @@ function onEditorClick(ev) {
     // act on the hit
     switch (ui.selectedTool) {
     case TOOL_PAINT:
-        // we need to find what sub-shape was hit
+        // translate coordinates to cell-relative
         const top = _(index / sz) * cH;
         const left = _(index % sz) * cW;
-        const cX = x - left; // cX/cY = cell-relative coordinates
-        const cY = y - top;
-        let colorIndex = 0; // assume top section
+        const hitX = x - left;
+        const hitY = y - top;
+        let colorIndex;
 
-        // if it's actually the bottom section, change index
-        if (cell.shape === SHAPE_FALLING && cX < cY) {
-            colorIndex = 1;
-        }
-        if (cell.shape === SHAPE_RISING && cX > (cH - cY)) {
-            colorIndex = 1;
+        // determine which color of the cell was hit
+        switch (cell.angle) {
+        case ANGLE_TOP:
+            colorIndex = hitX < (cH - hitY) ? 0 : 1;
+            break;
+        case ANGLE_BOTTOM:
+            colorIndex = hitX > (cH - hitY) ? 0 : 1;
+            break;
+        case ANGLE_LEFT:
+            colorIndex = (hitX < hitY) ? 0 : 1;
+            break;
+        case ANGLE_RIGHT:
+            colorIndex = (hitX > hitY) ? 0 : 1;
+            break;
+        default:
+            console.error("Unknown angle %d", cell.angle);
+            colorIndex = 0;
         }
 
         // apply color to the index that was hit
         cell.colors[colorIndex] = ui.selectedColor;
 
         break;
-    case TOOL_FLIP:
-        cell.shape = flipShape(cell.shape);
+    case TOOL_SPIN:
+        cell.angle = spinCell(cell.angle);
         break;
     default:
         console.error("Unknown tool selected: %s", ui.selectedTool)
@@ -486,17 +496,30 @@ function drawCellAt(ctx, oX, oY, cW, cH, palette, cell) {
     const tr = [oX + cW, oY];
     const bl = [oX, oY + cH];
     const br = [oX + cW, oY + cH];
+    let coordinates;
 
-    switch (cell.shape) {
-    case SHAPE_RISING:
-        drawTriangle(ctx, [tr, br, bl], palette[cell.colors[1]]);
+    // coordinates here are clockwise, hypotenuse last. this makes the values
+    // flow through the arrays in order (each literal shares two of the
+    // previous angle's coordinates, in the same order.)
+    switch (cell.angle) {
+    case ANGLE_TOP:
+        coordinates = [tr, br, bl];
         break;
-    case SHAPE_FALLING:
-        drawTriangle(ctx, [tl, bl, br], palette[cell.colors[1]]);
+    case ANGLE_RIGHT:
+        coordinates = [br, bl, tl];
+        break;
+    case ANGLE_BOTTOM:
+        coordinates = [bl, tl, tr];
+        break;
+    case ANGLE_LEFT:
+        coordinates = [tl, tr, br];
         break;
     default:
-        console.error("Unknown shape");
+        console.error("[render] Unknown angle %d", cell.angle);
+        return;
     }
+
+    drawTriangle(ctx, coordinates, palette[cell.colors[1]]);
 }
 
 /**
