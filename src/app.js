@@ -70,6 +70,21 @@ function setPaintColor(i) {
     document.getElementById(`color${i}`).checked = true
 }
 
+/**
+ * @returns {Cell}
+ */
+function randomCell() {
+    const angleCount = Math.floor(ANGLES.length);
+    const colorCount = Math.floor(quilt.colorSet.length) - 1;
+
+    // Pick a random direction
+    const angle = ANGLES[Math.floor(Math.random() * angleCount)];
+    const color1 = 1 + Math.floor(Math.random() * colorCount);
+    const color2 = 1 + Math.floor(Math.random() * colorCount);
+
+    return cell2(angle, color1, color2);
+}
+
 function initJs() {
     // set up UI
     initColors();
@@ -83,20 +98,12 @@ function initJs() {
 }
 
 function initQuiltBlock() {
-    const angleCount = Math.floor(ANGLES.length);
-    const colorCount = Math.floor(quilt.colorSet.length) - 1;
-
     // generate a random size from 3 to 5 cells
     quilt.size = 3 + Math.floor(Math.random() * 3.0);
 
     for (let column = 0; column < quilt.size; column++) {
         for (let row = 0; row < quilt.size; row++) {
-            // Pick a random direction
-            const angle = ANGLES[Math.floor(Math.random() * angleCount)];
-            const color1 = 1 + Math.floor(Math.random() * colorCount);
-            const color2 = 1 + Math.floor(Math.random() * colorCount);
-
-            quilt.block.push(cell2(angle, color1, color2));
+            quilt.block.push(randomCell());
         }
     }
 
