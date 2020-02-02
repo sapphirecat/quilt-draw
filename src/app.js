@@ -60,7 +60,7 @@ const quilt = {
 const ui = {
     colorTemplate: null,
     colorBox: null,
-    selectedColor: 1,
+    selectedColor: 2,
     selectedTool: TOOL_PAINT
 };
 
