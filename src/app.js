@@ -385,21 +385,21 @@ function onRollerClick(ev) {
 }
 
 
-function rollCore(block, mappingFn) {
-    const rolled = new Array(block.length);
+function blockTransform(block, mappingFn) {
+    const output = new Array(block.length);
     const size = Math.sqrt(block.length);
 
-    // walk across rolled. ask the mapping function where the data for the
-    // row/column of rolled is located in block, by row/column.
+    // walk across output in order. ask the mapping function where the data
+    // for the row/column of output is located in the source, by row/column.
     let i = 0;
     for (let row = 0; row < size; row++) {
         for (let col = 0; col < size; col++) {
             const [readRow, readCol] = mappingFn(row, col, size);
-            rolled[i++] = block[readCol + (readRow * size)];
+            output[i++] = block[readCol + (readRow * size)];
         }
     }
 
-    return rolled;
+    return output;
 }
 
 /**
@@ -409,7 +409,7 @@ function rollCore(block, mappingFn) {
  * @returns {Block}
  */
 function rollLeft(block) {
-    return rollCore(block, function (row, col, size) {
+    return blockTransform(block, function (row, col, size) {
         return [row, (col + 1) % size];
     });
 }
@@ -421,7 +421,7 @@ function rollLeft(block) {
  * @returns {Block}
  */
 function rollRight(block) {
-    return rollCore(block, function (row, col, size) {
+    return blockTransform(block, function (row, col, size) {
         return [row, col ? col - 1 : size - 1];
     });
 }
@@ -433,7 +433,7 @@ function rollRight(block) {
  * @returns {Block}
  */
 function rollDown(block) {
-    return rollCore(block, function (row, col, size) {
+    return blockTransform(block, function (row, col, size) {
         return [row ? row - 1 : size - 1, col];
     });
 }
@@ -445,7 +445,7 @@ function rollDown(block) {
  * @returns {Block}
  */
 function rollUp(block) {
-    return rollCore(block, function (row, col, size) {
+    return blockTransform(block, function (row, col, size) {
         return [(row + 1) % size, col];
     });
 }
