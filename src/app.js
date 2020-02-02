@@ -569,16 +569,15 @@ function drawTriangle(ctx, points, fillStyle) {
  * @param {Cell} cell
  */
 function drawCellAt(ctx, oX, oY, cW, cH, palette, cell) {
-    // basic fill: draw a full rectangle here, if it's not the background color already
-    if (cell.colors[0] !== 0) {
-        ctx.fillStyle = palette[cell.colors[0]];
-        ctx.fillRect(oX, oY, cW, cH);
-    }
+    // basic fill: draw a full rectangle here
+    ctx.fillStyle = palette[cell.colors[0]];
+    ctx.fillRect(oX, oY, cW, cH);
 
     if (cell.colors[1] === cell.colors[0]) {
         return; // that was all for a solid square
     }
 
+    // figure out where to draw the other triangle
     const tl = [oX, oY];
     const tr = [oX + cW, oY];
     const bl = [oX, oY + cH];
@@ -606,6 +605,7 @@ function drawCellAt(ctx, oX, oY, cW, cH, palette, cell) {
         return;
     }
 
+    // draw in the other triangle, to complete this cell
     drawTriangle(ctx, coordinates, palette[cell.colors[1]]);
 }
 
@@ -625,8 +625,7 @@ function updateEditor(quilt, block) {
 
     // canvas 2D context
     const ctx = editor.getContext('2d');
-    ctx.fillStyle = quilt.colorSet[0];
-    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
     // process cells
     iBlock = 0; // index into block array
