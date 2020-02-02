@@ -564,21 +564,27 @@ function updatePreview(source, borderColor, borderSize) {
     const scale = bSize / source.width; // convert to scaling factor
     const antiScale = source.width / bSize; // reversed scaling factor
 
-    // determine the draw width/height
-    const dW = 4 * bSize + borderSize;
-    const dH = 5 * bSize + borderSize;
+    if (!borderSize) {
+        // no border: hide all traces of the color
+        ctx.clearRect(0, 0, preview.width, preview.height);
+    } else {
+        // determine the draw width/height
+        const dW = 4 * bSize + borderSize;
+        const dH = 5 * bSize + borderSize;
 
-    // clear out-of-bounds
-    if (dW < preview.width) {
-        ctx.clearRect(dW, 0, preview.width - dW, preview.height);
-    }
-    if (dH < preview.height) {
-        ctx.clearRect(0, dH, preview.width, dH - preview.height);
+        // clear out-of-bounds
+        if (dW < preview.width) {
+            ctx.clearRect(dW, 0, preview.width - dW, preview.height);
+        }
+        if (dH < preview.height) {
+            ctx.clearRect(0, dH, preview.width, dH - preview.height);
+        }
+
+        // fill the border (and everything else) with the base color
+        ctx.fillStyle = borderColor;
+        ctx.fillRect(0, 0, dW, dH);
     }
 
-    // fill the border (and everything else) with the base color
-    ctx.fillStyle = borderColor;
-    ctx.fillRect(0, 0, dW, dH);
     ctx.scale(scale, scale); // set the scale factor on the canvas
 
     // draw the 5x4 blocks, inset by the half-border-width padSize
