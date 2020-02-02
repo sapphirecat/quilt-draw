@@ -69,9 +69,13 @@ footer {
     border-color: #627178;
 }
 
+#transforms .transform {
+    display: inline-block;
+    margin-right: 0.6em;
+}
+
 #rollers {
     position: relative;
-    box-sizing: border-box;
     width: 4.5em;
     height: 4.5em;
 }
@@ -101,6 +105,28 @@ footer {
 #roll-down {
     left: 1.5rem;
     top: 3rem;
+}
+
+#resize {
+    position: relative;
+    height: 4.5em;
+    width: 3.0em;
+}
+
+#resize button {
+    position: absolute;
+    height: 1.5rem;
+    width: 100%;
+    padding: 0;
+    left: 0;
+}
+
+#resize-up {
+    top: 0.5rem;
+}
+
+#resize-down {
+    top: 2.5rem;
 }
 
 #view {

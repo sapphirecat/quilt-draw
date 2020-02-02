@@ -329,6 +329,9 @@ function onEditorClick(ev) {
  * @param {InputEvent} ev
  */
 function onBorderSize(ev) {
+    if (!(ev.target instanceof HTMLInputElement)) {
+        return;
+    }
     quilt.borderSize = parseInt(ev.target.value, 10);
     updatePreview(editor, quilt.colorSet[0], quilt.borderSize);
 }
@@ -351,6 +354,8 @@ function onControlClick(ev) {
         onToolChange(ev);
     } else if (classes.contains('roll')) {
         onRollerClick(ev);
+    } else if (classes.contains('resize')) {
+        onResizeClick(ev);
     }
 }
 
@@ -384,11 +389,86 @@ function onRollerClick(ev) {
         "roll-right": rollRight
     };
 
+    if (!(ev.target instanceof Element)) {
+        return;
+    }
+
     const callback = movers[ev.target.id];
     if (callback) {
         quilt.block = callback(quilt.block);
         updateView();
     }
+}
+
+/**
+ * Resize the quilt's cells-per-block.
+ *
+ * @param {MouseEvent} ev
+ */
+function onResizeClick(ev) {
+    const node = ev.target;
+    if (!(node instanceof Element)) {
+        return;
+    }
+
+    const newSize = (node.id === 'resize-up' ? 1 : -1) + quilt.size;
+    // block size range: 2x2 to 10x10
+    if (newSize < 2 || newSize > 10) {
+        return;
+    }
+
+    quilt.block = blockResize(quilt.block, quilt.size, newSize);
+    quilt.size = newSize;
+    updateView();
+}
+
+
+function blockResizeUp(block, currentSize, newSize) {
+    const output = new Array(newSize * newSize);
+
+    let i = 0;
+    let row, col;
+    // copy the cells across, into the top-left
+    for (row = 0; row < currentSize; row++) {
+        for (col = 0; col < currentSize; col++) {
+            output[i++] = block[row * currentSize + col];
+        }
+        // finish out the remaining columns with random cells
+        for (; col < newSize; col++) {
+            output[i++] = randomCell();
+        }
+    }
+    // finish out the remaining rows with random cells
+    for (; row < newSize; row++) {
+        for (col = 0; col < newSize; col++) {
+            output[i++] = randomCell();
+        }
+    }
+
+    return output;
+}
+
+function blockResizeDown(block, currentSize, newSize) {
+    const output = new Array(newSize * newSize);
+
+    let i = 0;
+    for (let row = 0; row < newSize; row++) {
+        for (let col = 0; col < newSize; col++) {
+            output[i++] = block[row * currentSize + col];
+        }
+    }
+
+    return output;
+}
+
+function blockResize(block, currentSize, newSize) {
+    if (newSize === currentSize) {
+        console.error("blockResize: no change requested");
+        return block;
+    }
+
+    const op = newSize > currentSize ? blockResizeUp : blockResizeDown;
+    return op(block, currentSize, newSize);
 }
 
 
