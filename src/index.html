@@ -42,7 +42,7 @@
             </template>
         </div>
         <label class="color-new control">
-            <button id="color-new">+</button>
+            <button id="color-new">New Color</button>
         </label>
         <label class="tool-item control">
             <input class="tool-active" id="tool-spin" name="tool_select" type="radio">
@@ -68,15 +68,12 @@
         </div>
     </div>
 
-    <div class="clear"></div>
+    <div id="editorArea">
+        <canvas height="540" id="editor" width="540"></canvas>
+    </div>
 
-    <div id="view">
-        <div class="panel panel-left" id="editorArea">
-            <canvas height="480" id="editor" width="480"></canvas>
-        </div>
-        <div class="panel panel-right" id="previewArea">
-            <canvas height="576" id="preview" width="480"></canvas>
-        </div>
+    <div id="previewArea">
+        <canvas height="800" id="preview" width="600"></canvas>
     </div>
 </div>
 

@@ -12,14 +12,15 @@ body {
     text-align: center;
 }
 
-#app > .clear {
-    clear: both;
-}
-
 button {
     background-color: #ffffff;
     border: 1px solid #000000;
     border-radius: 3px;
+}
+
+canvas {
+    margin: 0 auto;
+    display: block;
 }
 
 footer {
@@ -28,15 +29,21 @@ footer {
     font-size: 75%;
 }
 
+#app {
+    display: grid;
+    grid-template-columns: 1fr 2fr 2fr;
+}
+
 #controls {
-    margin: auto auto 1em;
+    margin: 0 auto 1em;
     padding: 0.6em;
     display: flex;
-    flex-wrap: wrap;
+    flex-direction: column;
+    align-items: center;
 }
 
 #controls > .control {
-    margin-right: 1.0em;
+    margin-bottom: 1.0em;
 }
 
 #controls #colors {
