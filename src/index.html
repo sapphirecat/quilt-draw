@@ -32,44 +32,59 @@
 </noscript>
 
 <div class="hide" id="app">
-    <div id="controls">
-        <div class="control" data-initial-palette="#ffbfd4,#f3f3f3,#0066cc,#c665c6" id="colors">
-            <template class="hide" id="color-item">
-                <label class="color-item">
-                    <input class="color-active" name="tool_select" type="radio">
-                    <button class="color-button">&nbsp;</button>
+    <div class="controls" id="controls">
+        <div class="control" id="colors">
+            <div class="column">
+                <p>Colors</p>
+                <label class="color-new control">
+                    <button id="color-new">Add</button>
                 </label>
-            </template>
+            </div>
+            <div data-initial-palette="#ffbfd4,#f3f3f3,#0066cc,#c665c6" id="color-items">
+                <template class="hide" id="color-item">
+                    <label class="color-item">
+                        <input class="color-active" name="tool_select" type="radio">
+                        <button class="color-button">&nbsp;</button>
+                    </label>
+                </template>
+            </div>
         </div>
-        <label class="color-new control">
-            <button id="color-new">New Color</button>
-        </label>
-        <label class="tool-item control">
-            <input class="tool-active" id="tool-spin" name="tool_select" type="radio">
-            Spin
-        </label>
+
+        <div class="control" id="tools">
+            <p>Tools</p>
+            <label class="tool-item">
+                <input class="tool-active" id="tool-spin" name="tool_select" type="radio">
+                Spin
+            </label>
+        </div>
+
         <div class="control" id="borders">
+            <p>Border</p>
             <label class="center-text">
-                Border width<br>
+                Width
                 <input id="border-width" max="96" min="0" step="8" type="range" value="96">
             </label>
         </div>
-        <div class="control" id="transforms">
+
+    </div>
+
+    <div id="editorArea">
+        <canvas height="540" id="editor" width="540"></canvas>
+
+        <div class="controls" id="transforms">
+            <p class="transform-title">Move</p>
             <div class="transform" id="rollers">
                 <button class="roll" id="roll-up">&uarr;</button>
                 <button class="roll" id="roll-left">&larr;</button>
                 <button class="roll" id="roll-down">&darr;</button>
                 <button class="roll" id="roll-right">&rarr;</button>
             </div>
+
+            <p class="transform-title">Resize</p>
             <div class="transform" id="resize">
-                <button class="resize" id="resize-up">More</button>
-                <button class="resize" id="resize-down">Less</button>
+                <input class="resize" id="cell-size" max="12" min="2" type="range" value="4">
             </div>
         </div>
-    </div>
-
-    <div id="editorArea">
-        <canvas height="540" id="editor" width="540"></canvas>
     </div>
 
     <div id="previewArea">

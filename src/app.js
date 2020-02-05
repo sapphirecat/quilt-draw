@@ -7,7 +7,9 @@
  */
 
 /**
- * @typedef {Array<Cell>} Block
+ * @typedef {Object} BlockInfo
+ * @property {Array<Cell>} cells
+ * @property {number} size
  */
 
 /**
@@ -15,23 +17,20 @@
  */
 
 /**
- * @typedef {object} BlockStructure
+ * @typedef {object} Quilt
  * @property {number} size
  * @property {number} borderSize
  * @property {Palette} colorSet
- * @property {Block} block
+ * @property {BlockInfo} block
+ * @property {BlockInfo} savedBlock
  */
 
 /**
  * @typedef {[number, number]} Point
  */
 
-    //** @type {HTMLCanvasElement} editor */
 const editor = document.getElementById('editor');
 const preview = document.getElementById('preview');
-
-const CANVAS_WIDTH = 480;
-const CANVAS_HEIGHT = 480;
 
 // TOP = color 0 in the top-left; color 1 in the bottom-right (seam rising)
 // RIGHT = color 0 in the top-right; color 1 in the bottom-left (seam falling)
@@ -49,12 +48,13 @@ const TOOL_SPIN = 'spin';
 
 const pickers = [];
 
-/** @type BlockStructure quilt */
+/** @type Quilt quilt */
 const quilt = {
     size: 0,
     borderSize: 0,
     colorSet: [],
-    block: []
+    block: {size: 0, cells: []},
+    savedBlock: {size: 0, cells: []}
 };
 
 const ui = {
@@ -98,14 +98,21 @@ function initJs() {
 }
 
 function initQuiltBlock() {
-    // generate a random size from 3 to 5 cells
-    quilt.size = 3 + Math.floor(Math.random() * 3.0);
+    // get initial size from the HTML
+    const sizeInput = document.getElementById('cell-size');
+    const size = sizeInput && sizeInput instanceof HTMLInputElement ?
+        parseInt(sizeInput.value, 10) :
+        5;
+    const cells = [];
 
-    for (let column = 0; column < quilt.size; column++) {
-        for (let row = 0; row < quilt.size; row++) {
-            quilt.block.push(randomCell());
+    for (let column = 0; column < size; column++) {
+        for (let row = 0; row < size; row++) {
+            cells.push(randomCell());
         }
     }
+
+    quilt.savedBlock = {cells, size};
+    quilt.block = quilt.savedBlock;
 
     // choose a random border size
     const borderControl = document.getElementById('border-width');
@@ -120,14 +127,19 @@ function initQuiltBlock() {
 function initTools() {
     // connect events
     editor.addEventListener('click', onEditorClick);
-    document.getElementById('controls').addEventListener('click', onControlClick);
     document.getElementById('border-width').addEventListener('input', onBorderSize);
+    for (const node of document.querySelectorAll('.controls')) {
+        node.addEventListener('click', onControlClick);
+    }
+    for (const node of document.querySelectorAll('#transforms input[type=range]')) {
+        node.addEventListener('input', onControlClick);
+    }
 }
 
 function initColors() {
     // set up global data for addColor
     ui.colorTemplate = document.getElementById('color-item');
-    ui.colorBox = document.getElementById('colors');
+    ui.colorBox = document.getElementById('color-items');
 
     // double-check that our requirements are fulfilled
     if (!(ui.colorTemplate && ui.colorBox)) {
@@ -275,12 +287,12 @@ function onEditorClick(ev) {
     const _ = Math.floor;
 
     // calculate hit positions
-    const sz = quilt.size;
+    const sz = quilt.block.size;
     const cW = _(editor.width / sz);
     const cH = _(editor.height / sz);
 
     const index = _(x / cW) + (sz * _(y / cH));
-    const cell = quilt.block[index];
+    const cell = quilt.block.cells[index];
 
     // act on the hit
     switch (ui.selectedTool) {
@@ -355,7 +367,7 @@ function onControlClick(ev) {
     } else if (classes.contains('roll')) {
         onRollerClick(ev);
     } else if (classes.contains('resize')) {
-        onResizeClick(ev);
+        onResizeInput(ev);
     }
 }
 
@@ -395,7 +407,12 @@ function onRollerClick(ev) {
 
     const callback = movers[ev.target.id];
     if (callback) {
-        quilt.block = callback(quilt.block);
+        quilt.savedBlock = callback(quilt.savedBlock);
+        if (quilt.savedBlock.size > quilt.block.size) {
+            quilt.block = blockResizeDown(quilt.savedBlock, quilt.block.size);
+        } else {
+            quilt.block = quilt.savedBlock;
+        }
         updateView();
     }
 }
@@ -405,25 +422,44 @@ function onRollerClick(ev) {
  *
  * @param {MouseEvent} ev
  */
-function onResizeClick(ev) {
+function onResizeInput(ev) {
     const node = ev.target;
-    if (!(node instanceof Element)) {
+    if (!(node instanceof HTMLInputElement)) {
         return;
     }
 
-    const newSize = (node.id === 'resize-up' ? 1 : -1) + quilt.size;
-    // block size range: 2x2 to 10x10
-    if (newSize < 2 || newSize > 10) {
-        return;
+    // perform the resizing operation
+    const saved = quilt.savedBlock;
+    const newSize = parseInt(node.value, 10);
+
+    // decide how we need to resize the saved block
+    if (newSize > saved.size) {
+        // if we need to expand it, save it back to ui.savedBlock
+        quilt.block = blockResizeUp(saved, newSize);
+        quilt.savedBlock = quilt.block;
+    } else if (newSize < saved.size) {
+        // if we're going down, shrink our max-sized block
+        quilt.block = blockResizeDown(saved, newSize);
+    } else if (newSize === saved.size) {
+        // going nowhere, use the max-sized block as-is
+        quilt.block = quilt.savedBlock;
     }
 
-    quilt.block = blockResize(quilt.block, quilt.size, newSize);
-    quilt.size = newSize;
+    // update the view
     updateView();
 }
 
-
-function blockResizeUp(block, currentSize, newSize) {
+/**
+ * Resize a block to be larger.
+ *
+ * New rows/columns will be filled with random colors and shapes.
+ *
+ * @param {BlockInfo} block
+ * @param {number} newSize
+ * @return {BlockInfo}
+ */
+function blockResizeUp(block, newSize) {
+    const currentSize = block.size;
     const output = new Array(newSize * newSize);
 
     let i = 0;
@@ -431,7 +467,7 @@ function blockResizeUp(block, currentSize, newSize) {
     // copy the cells across, into the top-left
     for (row = 0; row < currentSize; row++) {
         for (col = 0; col < currentSize; col++) {
-            output[i++] = block[row * currentSize + col];
+            output[i++] = block.cells[row * currentSize + col];
         }
         // finish out the remaining columns with random cells
         for (; col < newSize; col++) {
@@ -445,95 +481,99 @@ function blockResizeUp(block, currentSize, newSize) {
         }
     }
 
-    return output;
+    return {cells: output, size: newSize};
 }
 
-function blockResizeDown(block, currentSize, newSize) {
+/**
+ * Resize a block to be smaller.
+ *
+ * @param {BlockInfo} block
+ * @param {number} newSize
+ * @return {BlockInfo}
+ */
+function blockResizeDown(block, newSize) {
+    const currentSize = block.size;
     const output = new Array(newSize * newSize);
 
     let i = 0;
     for (let row = 0; row < newSize; row++) {
         for (let col = 0; col < newSize; col++) {
-            output[i++] = block[row * currentSize + col];
+            output[i++] = block.cells[row * currentSize + col];
         }
     }
 
-    return output;
-}
-
-function blockResize(block, currentSize, newSize) {
-    if (newSize === currentSize) {
-        console.error("blockResize: no change requested");
-        return block;
-    }
-
-    const op = newSize > currentSize ? blockResizeUp : blockResizeDown;
-    return op(block, currentSize, newSize);
+    return {cells: output, size: newSize};
 }
 
 
+/**
+ *
+ * @param {BlockInfo} block
+ * @param mappingFn
+ * @return {BlockInfo}
+ */
 function blockTransform(block, mappingFn) {
-    const output = new Array(block.length);
-    const size = Math.sqrt(block.length);
+    const output = new Array(block.cells.length);
+    const size = block.size;
 
     // walk across output in order. ask the mapping function where the data
     // for the row/column of output is located in the source, by row/column.
     let i = 0;
     for (let row = 0; row < size; row++) {
         for (let col = 0; col < size; col++) {
-            const [readRow, readCol] = mappingFn(row, col, size);
-            output[i++] = block[readCol + (readRow * size)];
+            const [readRow, readCol] = mappingFn(row, col);
+            output[i++] = block.cells[readCol + (readRow * size)];
         }
     }
 
-    return output;
+    return {cells: output, size: size};
 }
 
 /**
  * Move all cells to the left, wrapping the leftmost column to the right
  *
- * @param {Block} block
- * @returns {Block}
+ * @param {BlockInfo} block
+ * @returns {BlockInfo}
  */
 function rollLeft(block) {
-    return blockTransform(block, function (row, col, size) {
-        return [row, (col + 1) % size];
+    return blockTransform(block, function (row, col) {
+        return [row, (col + 1) % block.size];
     });
 }
 
 /**
  * Move all cells to the right, wrapping the rightmost column to the left.
  *
- * @param {Block} block
- * @returns {Block}
+ * @param {BlockInfo} block
+ * @returns {BlockInfo}
  */
 function rollRight(block) {
-    return blockTransform(block, function (row, col, size) {
-        return [row, col ? col - 1 : size - 1];
+    return blockTransform(block, function (row, col) {
+        return [row, col ? col - 1 : block.size - 1];
     });
 }
 
 /**
  * Move all cells down, wrapping the bottommost row to the top.
  *
- * @param {Block} block
- * @returns {Block}
+ * @param {BlockInfo} block
+ * @returns {BlockInfo}
  */
 function rollDown(block) {
-    return blockTransform(block, function (row, col, size) {
-        return [row ? row - 1 : size - 1, col];
+    return blockTransform(block, function (row, col) {
+        return [row ? row - 1 : block.size - 1, col];
     });
 }
 
 /**
  * Move all cells up, wrapping the topmost row to the bottom.
  *
- * @param {Block} block
- * @returns {Block}
+ * @param {BlockInfo} block
+ * @returns {BlockInfo}
  */
 function rollUp(block) {
-    return blockTransform(block, function (row, col, size) {
-        return [(row + 1) % size, col];
+    return blockTransform(block, function (row, col) {
+        return [(row + 1) % block.size, col];
     });
 }
 
@@ -612,28 +652,29 @@ function drawCellAt(ctx, oX, oY, cW, cH, palette, cell) {
 /**
  * Draw a block into the editor area of the canvas.
  *
- * @param {BlockStructure} quilt
- * @param {Block} block
+ * @param {Palette} colors
+ * @param {BlockInfo} block
  */
-function updateEditor(quilt, block) {
+function updateEditor(colors, block) {
     // cell width and height
-    const cW = Math.floor(editor.width / quilt.size);
-    const cH = Math.floor(editor.height / quilt.size);
+    const cW = Math.floor(editor.width / block.size);
+    const cH = Math.floor(editor.height / block.size);
+    const cells = block.cells;
 
     // cell origin and current block index
     let oX, oY, iBlock;
 
     // canvas 2D context
     const ctx = editor.getContext('2d');
-    ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    ctx.clearRect(0, 0, editor.width, editor.height);
 
     // process cells
     iBlock = 0; // index into block array
-    for (let cY = 0; cY < quilt.size; ++cY) {
+    for (let cY = 0; cY < block.size; ++cY) {
         oY = cY * cH; // Y-origin = cell Y-index (row) times cell height
-        for (let cX = 0; cX < quilt.size; ++cX) {
+        for (let cX = 0; cX < block.size; ++cX) {
             oX = cX * cW;
-            drawCellAt(ctx, oX, oY, cW, cH, quilt.colorSet, block[iBlock++]);
+            drawCellAt(ctx, oX, oY, cW, cH, colors, cells[iBlock++]);
         }
     }
 }
@@ -680,7 +721,7 @@ function updatePreview(source, borderColor, borderSize) {
 }
 
 function updateView() {
-    updateEditor(quilt, quilt.block);
+    updateEditor(quilt.colorSet, quilt.block);
     updatePreview(editor, quilt.colorSet[0], quilt.borderSize);
 }
 
