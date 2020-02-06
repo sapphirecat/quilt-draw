@@ -353,7 +353,7 @@ function onBorderSize(ev) {
         return;
     }
     quilt.borderSize = parseInt(ev.target.value, 10);
-    updatePreview(editor, quilt.colorSet[0], quilt.borderSize);
+    updatePreview(editor, quilt.colorSet[0], quilt.borderSize, quilt.block.size);
 }
 
 /**
@@ -687,15 +687,26 @@ function updateEditor(colors, block) {
     }
 }
 
-function updatePreview(source, borderColor, borderSize) {
+function updatePreview(source, borderColor, borderUnits, blockSize) {
     const ctx = preview.getContext('2d');
     // save and restore the state, or else scale() accumulates
     ctx.save();
 
-    // Size border to user request (values of 0-1 block, by steps of 2)
+    const BLOCKS_HORIZ = 4;
+    const BLOCKS_VERT = 5;
+
+    // "Border units" is in half-cells, so figure out the pixel size based on blockSize.
+    // Determine the number of cells horizontally and vertically.  This is determining the total
+    // border: borderUnits=1 means 1/2 cell * 2 sides.
+    const cHoriz = (blockSize * BLOCKS_HORIZ + borderUnits);
+    const cVert = (blockSize * BLOCKS_VERT + borderUnits);
+    const cellSize = Math.min(preview.width / cHoriz, preview.height / cVert);
+    const borderSize = cellSize * borderUnits;
+
+    // Size border to user request
     const padSize = borderSize / 2.0; // half on each side
     // Determine the block size within the remaining area
-    const bSize = Math.min((preview.height - borderSize) / 5, (preview.width - borderSize) / 4);
+    const bSize = Math.min((preview.height - borderSize) / BLOCKS_VERT, (preview.width - borderSize) / BLOCKS_HORIZ);
     const scale = bSize / source.width; // convert to scaling factor
     const antiScale = source.width / bSize; // reversed scaling factor
 
@@ -704,8 +715,8 @@ function updatePreview(source, borderColor, borderSize) {
 
     if (borderSize) {
         // determine the draw width/height
-        const dW = 4 * bSize + borderSize;
-        const dH = 5 * bSize + borderSize;
+        const dW = BLOCKS_HORIZ * bSize + borderSize;
+        const dH = BLOCKS_VERT * bSize + borderSize;
 
         // fill the border (and interior) with the base color
         ctx.fillStyle = borderColor;
@@ -715,8 +726,8 @@ function updatePreview(source, borderColor, borderSize) {
     ctx.scale(scale, scale); // set the scale factor on the canvas
 
     // draw the 5x4 blocks, inset by the half-border-width padSize
-    for (let col = 0; col < 4; col++) {
-        for (let row = 0; row < 5; row++) {
+    for (let col = 0; col < BLOCKS_HORIZ; col++) {
+        for (let row = 0; row < BLOCKS_VERT; row++) {
             // determine the current block's origin X/Y in unscaled space
             const oX = padSize + (col * bSize);
             const oY = padSize + (row * bSize);
@@ -730,7 +741,7 @@ function updatePreview(source, borderColor, borderSize) {
 
 function updateView() {
     updateEditor(quilt.colorSet, quilt.block);
-    updatePreview(editor, quilt.colorSet[0], quilt.borderSize);
+    updatePreview(editor, quilt.colorSet[0], quilt.borderSize, quilt.block.size);
 }
 
 if (editor && preview) {
