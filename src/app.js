@@ -43,6 +43,8 @@ const ANGLE_BOTTOM = 2;
 const ANGLE_LEFT = 3;
 const ANGLES = [ANGLE_TOP, ANGLE_RIGHT, ANGLE_BOTTOM, ANGLE_LEFT];
 
+const COLOR_LIMIT = 9;
+
 const TOOL_PAINT = 'paint';
 const TOOL_SPIN = 'spin';
 
@@ -67,7 +69,7 @@ const ui = {
 function setPaintColor(i) {
     ui.selectedColor = i;
     ui.selectedTool = TOOL_PAINT;
-    document.getElementById(`color${i}`).checked = true
+    document.getElementById(`color${i}`).checked = true;
 }
 
 /**
@@ -165,6 +167,11 @@ function initColors() {
 }
 
 function createColor() {
+    if (quilt.colorSet.length >= COLOR_LIMIT) {
+        alert("That's just too many colors.");
+        return;
+    }
+
     const hue = Math.floor(Math.random() * 360);
     const sat = 55 + Math.floor(Math.random() * 25);
     const i = addColor(`hsla(${hue}, ${sat}%, 60%, 1.0)`);
