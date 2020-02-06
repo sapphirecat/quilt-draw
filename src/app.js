@@ -173,8 +173,9 @@ function createColor() {
     }
 
     const hue = Math.floor(Math.random() * 360);
-    const sat = 55 + Math.floor(Math.random() * 25);
-    const i = addColor(`hsla(${hue}, ${sat}%, 60%, 1.0)`);
+    const sat = 45 + Math.floor(Math.random() * 35);
+    const lns = 35 + Math.floor(Math.random() * 40);
+    const i = addColor(`hsla(${hue}, ${sat}%, ${lns}%, 1.0)`);
     setPaintColor(i);
 }
 
