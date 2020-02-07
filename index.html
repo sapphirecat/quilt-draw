@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Quilt Draw - Designer</title>
+
+    <link href="app.css" rel="stylesheet" type="text/css">
+    <link href="pickr/nano.min.css" rel="stylesheet" type="text/css">
+</head>
+<body>
+
+<noscript>
+    <h1>Welcome!</h1>
+
+    <p>It looks like you do not have JavaScript available and enabled.
+        In order to use our app, you'll need to allow JavaScript for our domain,
+        and for our delivery network:</p>
+
+    <ul>
+        <li>[TBD] this-site.com</li>
+        <li>TBD.cloudfront.net</li>
+    </ul>
+
+    <canvas id="detect">
+        <p>You will also need full support for <code>&lt;canvas&gt;</code>,
+            or to enable it for our domain.</p>
+    </canvas>
+
+    <p>If these requirements don't work for you, try the <a
+        href="https://www.freequiltpatterns.info/custom/quilt-pattern-playground/quilt-pattern-playground.php"
+    >Quilter Pattern Playground</a> instead!</p>
+</noscript>
+
+<div class="hide" id="app">
+    <div class="controls" id="controls">
+        <div class="control" id="colors">
+            <div class="column">
+                <p>Colors</p>
+                <label class="color-new control">
+                    <button id="color-new">Add</button>
+                </label>
+            </div>
+            <div data-initial-palette="#ffbfd4,#f3f3f3,#0066cc,#c665c6" id="color-items">
+                <template class="hide" id="color-item">
+                    <label class="color-item">
+                        <input class="color-active" name="tool_select" type="radio">
+                        <button class="color-button">&nbsp;</button>
+                    </label>
+                </template>
+            </div>
+        </div>
+
+        <div class="control" id="tools">
+            <p>Tools</p>
+            <label class="tool-item">
+                <input class="tool-active" id="tool-spin" name="tool_select" type="radio">
+                Spin
+            </label>
+        </div>
+
+        <div class="control" id="borders">
+            <p>Border</p>
+            <label class="center-text">
+                Width
+                <input id="border-width" max="8" min="0" type="range" value="0">
+            </label>
+        </div>
+
+    </div>
+
+    <div id="editorArea">
+        <canvas height="540" id="editor" width="540"></canvas>
+
+        <div class="controls" id="transforms">
+            <p class="transform-title">Move</p>
+            <div class="transform" id="rollers">
+                <button class="roll" id="roll-up">&uarr;</button>
+                <button class="roll" id="roll-left">&larr;</button>
+                <button class="roll" id="roll-down">&darr;</button>
+                <button class="roll" id="roll-right">&rarr;</button>
+            </div>
+
+            <p class="transform-title">Resize</p>
+            <div class="transform" id="resize">
+                <input class="resize" id="cell-size" max="12" min="2" type="range" value="4">
+            </div>
+        </div>
+    </div>
+
+    <div id="previewArea">
+        <canvas height="800" id="preview" width="600"></canvas>
+    </div>
+</div>
+
+<script src="pickr/pickr.min.js"></script>
+<script src="app.js"></script>
+
+<footer>
+    Made with ❤ in <a href="https://www.jetbrains.com/phpstorm/">PHPStorm</a>
+</footer>
+
+</body>
+</html>
