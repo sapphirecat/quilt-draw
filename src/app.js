@@ -162,6 +162,7 @@ function initTools() {
     editor.addEventListener('mousedown', onEditorMouse);
     editor.addEventListener('mouseup', onEditorMouseRelease);
     editor.addEventListener('contextmenu', (ev) => ev.preventDefault());
+
     document.getElementById('border-width').addEventListener('input', onBorderSize);
     for (const node of document.querySelectorAll('.controls')) {
         node.addEventListener('click', onControlClick);
@@ -442,6 +443,8 @@ function onControlClick(ev) {
         onRollerClick(ev);
     } else if (classes.contains('resize')) {
         onResizeInput(ev);
+    } else if (classes.contains('download')) {
+        onDownload(ev);
     }
 }
 
@@ -466,6 +469,29 @@ function onColorRadioClick(ev) {
     const node = ev.target;
     const colorIndex = parseInt(node.getAttribute('data-color-id'), 10);
     setPaintColor(colorIndex);
+}
+
+/**
+ * @param {MouseEvent} ev
+ */
+function onDownload(ev) {
+    const node = ev.target;
+    ev.preventDefault();
+
+    if (!(node instanceof HTMLButtonElement)) {
+        return;
+    }
+
+    // figure out what we're downloading
+    const isPreview = node.id === 'download-preview';
+    const source = isPreview ? preview : editor;
+    const basename = isPreview ? 'quilt' : 'block';
+
+    // generate download
+    const link = document.createElement('a');
+    link.href = source.toDataURL('image/png');
+    link.download = `${basename}.png`;
+    link.click();
 }
 
 /**
