@@ -51,6 +51,9 @@
 const editor = document.getElementById('editor');
 const preview = document.getElementById('preview');
 
+const PREVIEW_MAX_WIDTH = preview.width;
+const PREVIEW_MAX_HEIGHT = preview.height;
+
 // TOP = color 0 in the top-left; color 1 in the bottom-right (seam rising)
 // RIGHT = color 0 in the top-right; color 1 in the bottom-left (seam falling)
 // BOTTOM = color 0 in the bottom-right; color 1 in the top-left (seam rising)
@@ -766,10 +769,7 @@ function updateEditor(colors, block) {
 }
 
 function updatePreview(source, borderColor, borderUnits, blockSize) {
-    const ctx = preview.getContext('2d');
-    // save and restore the state, or else scale() accumulates
-    ctx.save();
-
+    // calculate draw dimensions
     const BLOCKS_HORIZ = 4;
     const BLOCKS_VERT = 5;
 
@@ -778,8 +778,19 @@ function updatePreview(source, borderColor, borderUnits, blockSize) {
     // border: borderUnits=1 means 1/2 cell * 2 sides.
     const cHoriz = (blockSize * BLOCKS_HORIZ + borderUnits);
     const cVert = (blockSize * BLOCKS_VERT + borderUnits);
-    const cellSize = Math.min(preview.width / cHoriz, preview.height / cVert);
+    const cellSize = Math.min(PREVIEW_MAX_WIDTH / cHoriz, PREVIEW_MAX_HEIGHT / cVert);
     const borderSize = cellSize * borderUnits;
+
+    // resize the canvas to the draw dimensions
+    preview.width = (cellSize * cHoriz) | 0;
+    preview.height = (cellSize * cVert) | 0;
+    preview.style.width = preview.width;
+    preview.style.height = preview.height;
+
+    // start drawing
+    const ctx = preview.getContext('2d');
+    // save and restore the state, or else scale() accumulates
+    ctx.save();
 
     // Size border to user request
     const padSize = borderSize / 2.0; // half on each side
@@ -788,17 +799,13 @@ function updatePreview(source, borderColor, borderUnits, blockSize) {
     const scale = bSize / source.width; // convert to scaling factor
     const antiScale = source.width / bSize; // reversed scaling factor
 
-    // hide all traces of the previous frame
-    ctx.clearRect(0, 0, preview.width, preview.height);
-
     if (borderSize) {
-        // determine the draw width/height
-        const dW = BLOCKS_HORIZ * bSize + borderSize;
-        const dH = BLOCKS_VERT * bSize + borderSize;
-
         // fill the border (and interior) with the base color
         ctx.fillStyle = borderColor;
-        ctx.fillRect(0, 0, dW, dH);
+        ctx.fillRect(0, 0, preview.width, preview.height);
+    } else {
+        // just hide all traces of the previous frame
+        ctx.clearRect(0, 0, preview.width, preview.height);
     }
 
     ctx.scale(scale, scale); // set the scale factor on the canvas
