@@ -148,7 +148,8 @@ function initQuiltBlock() {
 
 function initTools() {
     // connect events
-    editor.addEventListener('click', onEditorClick);
+    editor.addEventListener('mousedown', onEditorMouse);
+    editor.addEventListener('contextmenu', (ev) => ev.preventDefault());
     document.getElementById('border-width').addEventListener('input', onBorderSize);
     for (const node of document.querySelectorAll('.controls')) {
         node.addEventListener('click', onControlClick);
@@ -299,16 +300,23 @@ function cell2(angle, topColor, bottomColor) {
 
 /**
  * @param {number} angle
+ * @param {boolean} reverse
  * @returns {number}
  */
-function spinCell(angle) {
-    return (angle + 1) % ANGLES.length;
+function spinCell(angle, reverse) {
+    if (reverse && angle === 0) {
+        return ANGLES.length - 1;
+    }
+
+    return reverse ? angle - 1 : (angle + 1) % ANGLES.length;
 }
 
 /**
  * @param {MouseEvent} ev
  */
-function onEditorClick(ev) {
+function onEditorMouse(ev) {
+    ev.preventDefault();
+
     const rect = editor.getBoundingClientRect();
     const x = ev.clientX - rect.left;
     const y = ev.clientY - rect.top;
@@ -353,7 +361,7 @@ function onEditorClick(ev) {
 
         break;
     case TOOL_SPIN:
-        cell.angle = spinCell(cell.angle);
+        cell.angle = spinCell(cell.angle, (ev.buttons & 1) === 0);
         break;
     default:
         console.error("Unknown tool selected: %s", ui.selectedTool)
