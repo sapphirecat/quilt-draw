@@ -64,6 +64,10 @@ const ANGLES = [ANGLE_TOP, ANGLE_RIGHT, ANGLE_BOTTOM, ANGLE_LEFT];
 
 const COLOR_LIMIT = 9;
 
+const MOVE_IGNORE = 0;
+const MOVE_ALLOW = 1;
+const MOVE_TRACKING = 2;
+
 const TOOL_PAINT = 'paint';
 const TOOL_SPIN = 'spin';
 
@@ -79,9 +83,10 @@ const quilt = {
 };
 
 const ui = {
+    cellPx: null, // editor cell size in pixels (width & height)
     colorTemplate: null,
     colorBox: null,
-    cellPx: null, // editor cell size in pixels (width & height)
+    moveStatus: MOVE_ALLOW, // paint allows moves
     selectedColor: 2,
     selectedTool: TOOL_PAINT
 };
@@ -89,6 +94,9 @@ const ui = {
 function setPaintColor(i) {
     ui.selectedColor = i;
     ui.selectedTool = TOOL_PAINT;
+    if (ui.moveStatus === MOVE_IGNORE) {
+        ui.moveStatus = MOVE_ALLOW;
+    }
     document.getElementById(`color${i}`).checked = true;
 }
 
@@ -149,6 +157,7 @@ function initQuiltBlock() {
 function initTools() {
     // connect events
     editor.addEventListener('mousedown', onEditorMouse);
+    editor.addEventListener('mouseup', onEditorMouseRelease);
     editor.addEventListener('contextmenu', (ev) => ev.preventDefault());
     document.getElementById('border-width').addEventListener('input', onBorderSize);
     for (const node of document.querySelectorAll('.controls')) {
@@ -311,11 +320,40 @@ function spinCell(angle, reverse) {
     return reverse ? angle - 1 : (angle + 1) % ANGLES.length;
 }
 
+
+function editorClearMoveHandler() {
+    editor.removeEventListener('mousemove', onEditorMouse);
+    ui.moveStatus = MOVE_ALLOW;
+}
+
+function editorSetMoveHandler() {
+    ui.moveStatus = MOVE_TRACKING;
+    editor.addEventListener('mousemove', onEditorMouse);
+}
+
+function onEditorMouseRelease(ev) {
+    ev.preventDefault();
+    if (ui.moveStatus) {
+        editorClearMoveHandler();
+    }
+}
+
 /**
  * @param {MouseEvent} ev
  */
 function onEditorMouse(ev) {
     ev.preventDefault();
+
+    // if the mouse was released out-of-canvas, cancel ourselves
+    if (!ev.buttons) {
+        editorClearMoveHandler();
+        return;
+    }
+
+    // if this is the first mousedown, set us up to be called on move
+    if (ui.moveStatus === MOVE_ALLOW) {
+        editorSetMoveHandler();
+    }
 
     const rect = editor.getBoundingClientRect();
     const x = ev.clientX - rect.left;
@@ -410,6 +448,12 @@ function onControlClick(ev) {
 function onToolChange(ev) {
     const node = ev.target;
     ui.selectedTool = node.id.replace(/^tool-/, '');
+
+    // update movement state
+    if (ui.moveStatus === MOVE_TRACKING) {
+        editorClearMoveHandler();
+    }
+    ui.moveStatus = node.getAttribute('data-move-tracking') === '1' ? MOVE_ALLOW : MOVE_IGNORE;
 }
 
 /**
