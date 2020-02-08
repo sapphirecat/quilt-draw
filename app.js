@@ -64,6 +64,10 @@ const ANGLES = [ANGLE_TOP, ANGLE_RIGHT, ANGLE_BOTTOM, ANGLE_LEFT];
 
 const COLOR_LIMIT = 9;
 
+const MOVE_IGNORE = 0;
+const MOVE_ALLOW = 1;
+const MOVE_TRACKING = 2;
+
 const TOOL_PAINT = 'paint';
 const TOOL_SPIN = 'spin';
 
@@ -79,8 +83,10 @@ const quilt = {
 };
 
 const ui = {
+    cellPx: null, // editor cell size in pixels (width & height)
     colorTemplate: null,
     colorBox: null,
+    moveStatus: MOVE_ALLOW, // paint allows moves
     selectedColor: 2,
     selectedTool: TOOL_PAINT
 };
@@ -88,6 +94,9 @@ const ui = {
 function setPaintColor(i) {
     ui.selectedColor = i;
     ui.selectedTool = TOOL_PAINT;
+    if (ui.moveStatus === MOVE_IGNORE) {
+        ui.moveStatus = MOVE_ALLOW;
+    }
     document.getElementById(`color${i}`).checked = true;
 }
 
@@ -147,7 +156,9 @@ function initQuiltBlock() {
 
 function initTools() {
     // connect events
-    editor.addEventListener('click', onEditorClick);
+    editor.addEventListener('mousedown', onEditorMouse);
+    editor.addEventListener('mouseup', onEditorMouseRelease);
+    editor.addEventListener('contextmenu', (ev) => ev.preventDefault());
     document.getElementById('border-width').addEventListener('input', onBorderSize);
     for (const node of document.querySelectorAll('.controls')) {
         node.addEventListener('click', onControlClick);
@@ -298,16 +309,52 @@ function cell2(angle, topColor, bottomColor) {
 
 /**
  * @param {number} angle
+ * @param {boolean} reverse
  * @returns {number}
  */
-function spinCell(angle) {
-    return (angle + 1) % ANGLES.length;
+function spinCell(angle, reverse) {
+    if (reverse && angle === 0) {
+        return ANGLES.length - 1;
+    }
+
+    return reverse ? angle - 1 : (angle + 1) % ANGLES.length;
+}
+
+
+function editorClearMoveHandler() {
+    editor.removeEventListener('mousemove', onEditorMouse);
+    ui.moveStatus = MOVE_ALLOW;
+}
+
+function editorSetMoveHandler() {
+    ui.moveStatus = MOVE_TRACKING;
+    editor.addEventListener('mousemove', onEditorMouse);
+}
+
+function onEditorMouseRelease(ev) {
+    ev.preventDefault();
+    if (ui.moveStatus) {
+        editorClearMoveHandler();
+    }
 }
 
 /**
  * @param {MouseEvent} ev
  */
-function onEditorClick(ev) {
+function onEditorMouse(ev) {
+    ev.preventDefault();
+
+    // if the mouse was released out-of-canvas, cancel ourselves
+    if (!ev.buttons) {
+        editorClearMoveHandler();
+        return;
+    }
+
+    // if this is the first mousedown, set us up to be called on move
+    if (ui.moveStatus === MOVE_ALLOW) {
+        editorSetMoveHandler();
+    }
+
     const rect = editor.getBoundingClientRect();
     const x = ev.clientX - rect.left;
     const y = ev.clientY - rect.top;
@@ -315,18 +362,15 @@ function onEditorClick(ev) {
 
     // calculate hit positions
     const sz = quilt.block.size;
-    const cW = _(editor.width / sz);
-    const cH = _(editor.height / sz);
-
-    const index = _(x / cW) + (sz * _(y / cH));
+    const index = _(x / ui.cellPx) + (sz * _(y / ui.cellPx));
     const cell = quilt.block.cells[index];
 
     // act on the hit
     switch (ui.selectedTool) {
     case TOOL_PAINT:
         // translate coordinates to cell-relative
-        const top = _(index / sz) * cH;
-        const left = _(index % sz) * cW;
+        const top = _(index / sz) * ui.cellPx;
+        const left = _(index % sz) * ui.cellPx;
         const hitX = x - left;
         const hitY = y - top;
         let colorIndex;
@@ -334,10 +378,10 @@ function onEditorClick(ev) {
         // determine which color of the cell was hit
         switch (cell.angle) {
         case ANGLE_TOP:
-            colorIndex = hitX < (cH - hitY) ? 0 : 1;
+            colorIndex = hitX < (ui.cellPx - hitY) ? 0 : 1;
             break;
         case ANGLE_BOTTOM:
-            colorIndex = hitX > (cH - hitY) ? 0 : 1;
+            colorIndex = hitX > (ui.cellPx - hitY) ? 0 : 1;
             break;
         case ANGLE_LEFT:
             colorIndex = (hitX < hitY) ? 0 : 1;
@@ -355,7 +399,7 @@ function onEditorClick(ev) {
 
         break;
     case TOOL_SPIN:
-        cell.angle = spinCell(cell.angle);
+        cell.angle = spinCell(cell.angle, (ev.buttons & 1) === 0);
         break;
     default:
         console.error("Unknown tool selected: %s", ui.selectedTool)
@@ -404,6 +448,12 @@ function onControlClick(ev) {
 function onToolChange(ev) {
     const node = ev.target;
     ui.selectedTool = node.id.replace(/^tool-/, '');
+
+    // update movement state
+    if (ui.moveStatus === MOVE_TRACKING) {
+        editorClearMoveHandler();
+    }
+    ui.moveStatus = node.getAttribute('data-move-tracking') === '1' ? MOVE_ALLOW : MOVE_IGNORE;
 }
 
 /**
@@ -434,12 +484,14 @@ function onRollerClick(ev) {
 
     const callback = movers[ev.target.id];
     if (callback) {
-        quilt.savedBlock = callback(quilt.savedBlock);
+        // Rolling is very unintuitive if we bring invisible parts into view.
+        // Shrink-wrap the block before rolling.
         if (quilt.savedBlock.size > quilt.block.size) {
-            quilt.block = blockResizeDown(quilt.savedBlock, quilt.block.size);
-        } else {
-            quilt.block = quilt.savedBlock;
+            quilt.savedBlock = quilt.block;
         }
+
+        quilt.savedBlock = callback(quilt.savedBlock);
+        quilt.block = quilt.savedBlock;
         updateView();
     }
 }
@@ -630,15 +682,14 @@ function drawTriangle(ctx, points, fillStyle) {
  * @param {CanvasRenderingContext2D} ctx
  * @param {number} oX
  * @param {number} oY
- * @param {number} cW
- * @param {number} cH
+ * @param {number} cellPx
  * @param {Palette} palette
  * @param {Cell} cell
  */
-function drawCellAt(ctx, oX, oY, cW, cH, palette, cell) {
+function drawCellAt(ctx, oX, oY, cellPx, palette, cell) {
     // basic fill: draw a full rectangle here
     ctx.fillStyle = palette[cell.colors[0]];
-    ctx.fillRect(oX, oY, cW, cH);
+    ctx.fillRect(oX, oY, cellPx, cellPx);
 
     if (cell.colors[1] === cell.colors[0]) {
         return; // that was all for a solid square
@@ -646,9 +697,9 @@ function drawCellAt(ctx, oX, oY, cW, cH, palette, cell) {
 
     // figure out where to draw the other triangle
     const tl = [oX, oY];
-    const tr = [oX + cW, oY];
-    const bl = [oX, oY + cH];
-    const br = [oX + cW, oY + cH];
+    const tr = [oX + cellPx, oY];
+    const bl = [oX, oY + cellPx];
+    const br = [oX + cellPx, oY + cellPx];
     let coordinates;
 
     // coordinates here are clockwise, hypotenuse last. this makes the values
@@ -677,16 +728,24 @@ function drawCellAt(ctx, oX, oY, cW, cH, palette, cell) {
 }
 
 /**
+ * @param {BlockInfo} block
+ */
+function updateUiState(block) {
+    const cW = Math.floor(editor.width / block.size);
+    const cH = Math.floor(editor.height / block.size);
+    ui.cellPx = Math.min(cW, cH);
+}
+
+
+/**
  * Draw a block into the editor area of the canvas.
  *
  * @param {Palette} colors
  * @param {BlockInfo} block
  */
 function updateEditor(colors, block) {
-    // cell width and height
-    const cW = Math.floor(editor.width / block.size);
-    const cH = Math.floor(editor.height / block.size);
     const cells = block.cells;
+    const size = block.size;
 
     // cell origin and current block index
     let oX, oY, iBlock;
@@ -697,11 +756,11 @@ function updateEditor(colors, block) {
 
     // process cells
     iBlock = 0; // index into block array
-    for (let cY = 0; cY < block.size; ++cY) {
-        oY = cY * cH; // Y-origin = cell Y-index (row) times cell height
-        for (let cX = 0; cX < block.size; ++cX) {
-            oX = cX * cW;
-            drawCellAt(ctx, oX, oY, cW, cH, colors, cells[iBlock++]);
+    for (let cY = 0; cY < size; ++cY) {
+        oY = cY * ui.cellPx; // Y-origin = cell Y-index (row) times cell height
+        for (let cX = 0; cX < size; ++cX) {
+            oX = cX * ui.cellPx;
+            drawCellAt(ctx, oX, oY, ui.cellPx, colors, cells[iBlock++]);
         }
     }
 }
@@ -759,6 +818,7 @@ function updatePreview(source, borderColor, borderUnits, blockSize) {
 }
 
 function updateView() {
+    updateUiState(quilt.block);
     updateEditor(quilt.colorSet, quilt.block);
     updatePreview(editor, quilt.colorSet[0], quilt.borderSize, quilt.block.size);
 }
