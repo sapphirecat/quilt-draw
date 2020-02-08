@@ -12,6 +12,10 @@ body {
     text-align: center;
 }
 
+p {
+    margin-top: 0;
+}
+
 button {
     background-color: #ffffff;
     border: 1px solid #000000;
@@ -60,6 +64,13 @@ footer {
 
 .color-item, .tool-item {
     white-space: nowrap;
+}
+
+.border-row {
+    display: grid;
+    grid-template-columns: 1fr 3fr;
+    margin: auto 0;
+    align-items: center;
 }
 
 #tools button {
@@ -126,16 +137,6 @@ footer {
 
 #roll-down {
     grid-area: 3 / 2 / 4 / 3;
-}
-
-#resize {
-    grid-template-columns: 1fr;
-}
-
-#resize button {
-    height: 1.5rem;
-    width: 100%;
-    padding: 0;
 }
 
 
