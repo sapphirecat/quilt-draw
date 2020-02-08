@@ -81,6 +81,7 @@ const quilt = {
 const ui = {
     colorTemplate: null,
     colorBox: null,
+    cellPx: null, // editor cell size in pixels (width & height)
     selectedColor: 2,
     selectedTool: TOOL_PAINT
 };
@@ -315,18 +316,15 @@ function onEditorClick(ev) {
 
     // calculate hit positions
     const sz = quilt.block.size;
-    const cW = _(editor.width / sz);
-    const cH = _(editor.height / sz);
-
-    const index = _(x / cW) + (sz * _(y / cH));
+    const index = _(x / ui.cellPx) + (sz * _(y / ui.cellPx));
     const cell = quilt.block.cells[index];
 
     // act on the hit
     switch (ui.selectedTool) {
     case TOOL_PAINT:
         // translate coordinates to cell-relative
-        const top = _(index / sz) * cH;
-        const left = _(index % sz) * cW;
+        const top = _(index / sz) * ui.cellPx;
+        const left = _(index % sz) * ui.cellPx;
         const hitX = x - left;
         const hitY = y - top;
         let colorIndex;
@@ -334,10 +332,10 @@ function onEditorClick(ev) {
         // determine which color of the cell was hit
         switch (cell.angle) {
         case ANGLE_TOP:
-            colorIndex = hitX < (cH - hitY) ? 0 : 1;
+            colorIndex = hitX < (ui.cellPx - hitY) ? 0 : 1;
             break;
         case ANGLE_BOTTOM:
-            colorIndex = hitX > (cH - hitY) ? 0 : 1;
+            colorIndex = hitX > (ui.cellPx - hitY) ? 0 : 1;
             break;
         case ANGLE_LEFT:
             colorIndex = (hitX < hitY) ? 0 : 1;
@@ -632,15 +630,14 @@ function drawTriangle(ctx, points, fillStyle) {
  * @param {CanvasRenderingContext2D} ctx
  * @param {number} oX
  * @param {number} oY
- * @param {number} cW
- * @param {number} cH
+ * @param {number} cellPx
  * @param {Palette} palette
  * @param {Cell} cell
  */
-function drawCellAt(ctx, oX, oY, cW, cH, palette, cell) {
+function drawCellAt(ctx, oX, oY, cellPx, palette, cell) {
     // basic fill: draw a full rectangle here
     ctx.fillStyle = palette[cell.colors[0]];
-    ctx.fillRect(oX, oY, cW, cH);
+    ctx.fillRect(oX, oY, cellPx, cellPx);
 
     if (cell.colors[1] === cell.colors[0]) {
         return; // that was all for a solid square
@@ -648,9 +645,9 @@ function drawCellAt(ctx, oX, oY, cW, cH, palette, cell) {
 
     // figure out where to draw the other triangle
     const tl = [oX, oY];
-    const tr = [oX + cW, oY];
-    const bl = [oX, oY + cH];
-    const br = [oX + cW, oY + cH];
+    const tr = [oX + cellPx, oY];
+    const bl = [oX, oY + cellPx];
+    const br = [oX + cellPx, oY + cellPx];
     let coordinates;
 
     // coordinates here are clockwise, hypotenuse last. this makes the values
@@ -679,16 +676,24 @@ function drawCellAt(ctx, oX, oY, cW, cH, palette, cell) {
 }
 
 /**
+ * @param {BlockInfo} block
+ */
+function updateUiState(block) {
+    const cW = Math.floor(editor.width / block.size);
+    const cH = Math.floor(editor.height / block.size);
+    ui.cellPx = Math.min(cW, cH);
+}
+
+
+/**
  * Draw a block into the editor area of the canvas.
  *
  * @param {Palette} colors
  * @param {BlockInfo} block
  */
 function updateEditor(colors, block) {
-    // cell width and height
-    const cW = Math.floor(editor.width / block.size);
-    const cH = Math.floor(editor.height / block.size);
     const cells = block.cells;
+    const size = block.size;
 
     // cell origin and current block index
     let oX, oY, iBlock;
@@ -699,11 +704,11 @@ function updateEditor(colors, block) {
 
     // process cells
     iBlock = 0; // index into block array
-    for (let cY = 0; cY < block.size; ++cY) {
-        oY = cY * cH; // Y-origin = cell Y-index (row) times cell height
-        for (let cX = 0; cX < block.size; ++cX) {
-            oX = cX * cW;
-            drawCellAt(ctx, oX, oY, cW, cH, colors, cells[iBlock++]);
+    for (let cY = 0; cY < size; ++cY) {
+        oY = cY * ui.cellPx; // Y-origin = cell Y-index (row) times cell height
+        for (let cX = 0; cX < size; ++cX) {
+            oX = cX * ui.cellPx;
+            drawCellAt(ctx, oX, oY, ui.cellPx, colors, cells[iBlock++]);
         }
     }
 }
@@ -761,6 +766,7 @@ function updatePreview(source, borderColor, borderUnits, blockSize) {
 }
 
 function updateView() {
+    updateUiState(quilt.block);
     updateEditor(quilt.colorSet, quilt.block);
     updatePreview(editor, quilt.colorSet[0], quilt.borderSize, quilt.block.size);
 }
