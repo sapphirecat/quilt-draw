@@ -434,12 +434,14 @@ function onRollerClick(ev) {
 
     const callback = movers[ev.target.id];
     if (callback) {
-        quilt.savedBlock = callback(quilt.savedBlock);
+        // Rolling is very unintuitive if we bring invisible parts into view.
+        // Shrink-wrap the block before rolling.
         if (quilt.savedBlock.size > quilt.block.size) {
-            quilt.block = blockResizeDown(quilt.savedBlock, quilt.block.size);
-        } else {
-            quilt.block = quilt.savedBlock;
+            quilt.savedBlock = quilt.block;
         }
+
+        quilt.savedBlock = callback(quilt.savedBlock);
+        quilt.block = quilt.savedBlock;
         updateView();
     }
 }
