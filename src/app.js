@@ -211,6 +211,10 @@ function createColor() {
     const lns = 35 + Math.floor(Math.random() * 40);
     const i = addColor(`hsla(${hue}, ${sat}%, ${lns}%, 1.0)`);
     setPaintColor(i);
+
+    if (i + 1 >= COLOR_LIMIT) {
+        document.getElementById('color-new').classList.add('hide');
+    }
 }
 
 function addColor(value) {
