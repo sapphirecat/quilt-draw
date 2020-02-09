@@ -20,8 +20,12 @@
 
 
 /**
+ * @typedef {Array<number>} ColorList
+ */
+
+/**
  * @typedef {Object} Cell
- * @property {Array<number>} colors
+ * @property {ColorList} colors
  * @property {number} angle
  */
 
@@ -36,10 +40,17 @@
  */
 
 /**
+ * @typedef {object} SashInfo
+ * @property {number} levels
+ * @property {Palette} colors
+ */
+
+/**
  * @typedef {object} Quilt
  * @property {number} size
  * @property {number} borderSize
  * @property {Palette} colorSet
+ * @property {SashInfo} sash
  * @property {BlockInfo} block
  * @property {BlockInfo} savedBlock
  */
@@ -50,6 +61,9 @@
 
 const editor = document.getElementById('editor');
 const preview = document.getElementById('preview');
+
+const PREVIEW_MAX_WIDTH = preview.width;
+const PREVIEW_MAX_HEIGHT = preview.height;
 
 // TOP = color 0 in the top-left; color 1 in the bottom-right (seam rising)
 // RIGHT = color 0 in the top-right; color 1 in the bottom-left (seam falling)
@@ -63,6 +77,10 @@ const ANGLE_LEFT = 3;
 const ANGLES = [ANGLE_TOP, ANGLE_RIGHT, ANGLE_BOTTOM, ANGLE_LEFT];
 
 const COLOR_LIMIT = 9;
+
+const SASH_NONE = 0; // sash disabled
+const SASH_SINGLE = 1; // all one color
+const SASH_DOUBLE = 2; // second color at intersections
 
 const MOVE_IGNORE = 0;
 const MOVE_ALLOW = 1;
@@ -78,6 +96,7 @@ const quilt = {
     size: 0,
     borderSize: 0,
     colorSet: [],
+    sash: {levels: SASH_NONE, colors: []},
     block: {size: 0, cells: []},
     savedBlock: {size: 0, cells: []}
 };
@@ -113,6 +132,15 @@ function randomCell() {
     const color2 = 1 + Math.floor(Math.random() * colorCount);
 
     return cell2(angle, color1, color2);
+}
+
+/**
+ * @param {string} id Element ID
+ * @return {boolean} Whether the element is present and checked.
+ */
+function isChecked(id) {
+    const node = document.getElementById(id);
+    return node && node.checked;
 }
 
 function initJs() {
@@ -159,12 +187,39 @@ function initTools() {
     editor.addEventListener('mousedown', onEditorMouse);
     editor.addEventListener('mouseup', onEditorMouseRelease);
     editor.addEventListener('contextmenu', (ev) => ev.preventDefault());
+
+    // set up main controls
     document.getElementById('border-width').addEventListener('input', onBorderSize);
     for (const node of document.querySelectorAll('.controls')) {
         node.addEventListener('click', onControlClick);
     }
     for (const node of document.querySelectorAll('#transforms input[type=range]')) {
         node.addEventListener('input', onControlClick);
+    }
+
+    // set up sashing colors
+    initSashColors();
+    if (isChecked('sash-on')) {
+        quilt.sash.levels = isChecked('sash-cross-on') ? SASH_DOUBLE : SASH_SINGLE;
+    }
+}
+
+function initSashColors() {
+    const colors = document.getElementById('sashing').getAttribute('data-initial-palette').split(',');
+    const targets = ['main-sash-color', 'cross-sash-color'];
+    if (colors.length !== targets.length) {
+        console.error("Sash palette length %d does not match UI element count %d",
+            colors.length, targets.length);
+        return;
+    }
+
+    for (let i = 0; i < targets.length; i++) {
+        const node = document.getElementById(targets[i]);
+        if (!node) {
+            console.error(`Target element id=${targets[i]} not found`);
+            break; // fail somewhat gracefully
+        }
+        addSashColor(i, node, colors[i]);
     }
 }
 
@@ -207,28 +262,14 @@ function createColor() {
     const lns = 35 + Math.floor(Math.random() * 40);
     const i = addColor(`hsla(${hue}, ${sat}%, ${lns}%, 1.0)`);
     setPaintColor(i);
+
+    if (i + 1 >= COLOR_LIMIT) {
+        document.getElementById('color-new').classList.add('hide');
+    }
 }
 
-function addColor(value) {
-    const i = quilt.colorSet.length;
-    const item = ui.colorTemplate.content.cloneNode(true);
-
-    // configure sub-DOM
-    const dataNode = item.querySelector('.color-active');
-    const button = item.querySelector('.color-button');
-    if (!(dataNode && button)) {
-        console.error("Cannot find '.color-active' and '.color-button' in ui.colorTemplate");
-        return;
-    }
-
-    dataNode.setAttribute('data-color-id', `${i}`);
-    dataNode.id = `color${i}`;
-
-    // define the color
-    quilt.colorSet[i] = value;
-
-    // activate the picker
-    const picker = Pickr.create({
+function newColorPicker(button, value) {
+    return Pickr.create({
         el: button,
         theme: 'nano',
         lockOpacity: true,
@@ -257,6 +298,28 @@ function addColor(value) {
             cancel: "Reset"
         }
     });
+}
+
+function addColor(value) {
+    const i = quilt.colorSet.length;
+    const item = ui.colorTemplate.content.cloneNode(true);
+
+    // configure sub-DOM
+    const dataNode = item.querySelector('.color-active');
+    const button = item.querySelector('.color-button');
+    if (!(dataNode && button)) {
+        console.error("Cannot find '.color-active' and '.color-button' in ui.colorTemplate");
+        return;
+    }
+
+    dataNode.setAttribute('data-color-id', `${i}`);
+    dataNode.id = `color${i}`;
+
+    // define the color
+    quilt.colorSet[i] = value;
+
+    // activate the picker
+    const picker = newColorPicker(button, value);
 
     // set up events
     picker.on('change', newValue => onColorChanged(i, newValue));
@@ -289,6 +352,32 @@ function onColorChanged(i, value) {
 function onColorReset(i) {
     quilt.colorSet[i] = pickers[i].saved;
     updateView();
+}
+
+function onSashColorPickerHide(i) {
+    pickers[`sash.${i}`].saved = quilt.sash.colors[i]; // save color for next cancel button click
+    pickers[`sash.${i}`].handle.applyColor(true); // save color to button, without firing a save event
+}
+
+function onSashColorChanged(i, value) {
+    quilt.sash.colors[i] = value.toHSLA().toString();
+    updatePreview(editor, quilt);
+}
+
+function onSashColorReset(i) {
+    quilt.sash.colors[i] = pickers[`sash.${i}`].saved;
+    updatePreview(editor, quilt);
+}
+
+function addSashColor(i, button, value) {
+    const picker = newColorPicker(button, value);
+
+    picker.on('change', newValue => onSashColorChanged(i, newValue));
+    picker.on('hide', () => onSashColorPickerHide(i));
+    picker.on('cancel', () => onSashColorReset(i));
+
+    pickers[`sash.${i}`] = {handle: picker, saved: value};
+    quilt.sash.colors[i] = value;
 }
 
 /**
@@ -416,7 +505,7 @@ function onBorderSize(ev) {
         return;
     }
     quilt.borderSize = parseInt(ev.target.value, 10);
-    updatePreview(editor, quilt.colorSet[0], quilt.borderSize, quilt.block.size);
+    updatePreview(editor, quilt);
 }
 
 /**
@@ -431,14 +520,18 @@ function onControlClick(ev) {
     }
 
     const classes = target.classList;
-    if (classes.contains('color-active')) {
+    if (classes.contains('resize')) {
+        onResizeInput(ev);
+    } else if (classes.contains('sash-select')) {
+        onSashChange(ev);
+    } else if (classes.contains('color-active')) {
         onColorRadioClick(ev);
     } else if (classes.contains('tool-active')) {
         onToolChange(ev);
     } else if (classes.contains('roll')) {
         onRollerClick(ev);
-    } else if (classes.contains('resize')) {
-        onResizeInput(ev);
+    } else if (classes.contains('download')) {
+        onDownload(ev);
     }
 }
 
@@ -459,10 +552,44 @@ function onToolChange(ev) {
 /**
  * @param {MouseEvent} ev
  */
+function onSashChange(ev) {
+    const main = document.getElementById('sash-on');
+    const cross = document.getElementById('sash-cross-on');
+
+    quilt.sash.levels = main.checked ? (cross.checked ? SASH_DOUBLE : SASH_SINGLE) : SASH_NONE;
+    updatePreview(editor, quilt);
+}
+
+/**
+ * @param {MouseEvent} ev
+ */
 function onColorRadioClick(ev) {
     const node = ev.target;
     const colorIndex = parseInt(node.getAttribute('data-color-id'), 10);
     setPaintColor(colorIndex);
+}
+
+/**
+ * @param {MouseEvent} ev
+ */
+function onDownload(ev) {
+    const node = ev.target;
+    ev.preventDefault();
+
+    if (!(node instanceof HTMLButtonElement)) {
+        return;
+    }
+
+    // figure out what we're downloading
+    const isPreview = node.id === 'download-preview';
+    const source = isPreview ? preview : editor;
+    const basename = isPreview ? 'quilt' : 'block';
+
+    // generate download
+    const link = document.createElement('a');
+    link.href = source.toDataURL('image/png');
+    link.download = `${basename}.png`;
+    link.click();
 }
 
 /**
@@ -765,62 +892,95 @@ function updateEditor(colors, block) {
     }
 }
 
-function updatePreview(source, borderColor, borderUnits, blockSize) {
-    const ctx = preview.getContext('2d');
-    // save and restore the state, or else scale() accumulates
-    ctx.save();
+/**
+ * @param {HTMLElement} source
+ * @param {Quilt} quilt
+ */
+function updatePreview(source, quilt) {
+    // shorten some names
+    const sash = quilt.sash;
+    const palette = quilt.colorSet;
 
+    // calculate draw dimensions
     const BLOCKS_HORIZ = 4;
     const BLOCKS_VERT = 5;
+    const hasSash = sash.levels !== SASH_NONE;
+    const blockSize = quilt.block.size;
+    const borderUnits = quilt.borderSize;
 
     // "Border units" is in half-cells, so figure out the pixel size based on blockSize.
     // Determine the number of cells horizontally and vertically.  This is determining the total
-    // border: borderUnits=1 means 1/2 cell * 2 sides.
-    const cHoriz = (blockSize * BLOCKS_HORIZ + borderUnits);
-    const cVert = (blockSize * BLOCKS_VERT + borderUnits);
-    const cellSize = Math.min(preview.width / cHoriz, preview.height / cVert);
+    // border: borderUnits=1 means 1/2 cell * 2 sides.  Sashing goes between blocks only, and it
+    // is a fixed 1-cell width for the moment.  Thus, it adds blocks-1 cells to each dimension
+    // when present.
+    const cHoriz = (blockSize * BLOCKS_HORIZ + borderUnits + (hasSash ? BLOCKS_HORIZ - 1 : 0));
+    const cVert = (blockSize * BLOCKS_VERT + borderUnits + (hasSash ? BLOCKS_VERT - 1 : 0));
+    const cellSize = Math.min(PREVIEW_MAX_WIDTH / cHoriz, PREVIEW_MAX_HEIGHT / cVert);
     const borderSize = cellSize * borderUnits;
+    const borderColor = palette[0]; // fixed border color for the moment
+
+    if (!(source instanceof HTMLCanvasElement)) {
+        return;
+    }
+
+    // resize the canvas to the draw dimensions
+    preview.width = (cellSize * cHoriz) | 0;
+    preview.height = (cellSize * cVert) | 0;
+    preview.style.width = preview.width;
+    preview.style.height = preview.height;
+
+    // start drawing
+    const ctx = preview.getContext('2d');
 
     // Size border to user request
     const padSize = borderSize / 2.0; // half on each side
+    const sashSizeHoriz = hasSash ? cellSize * (BLOCKS_HORIZ - 1) : 0;
+    const sashSizeVert = hasSash ? cellSize * (BLOCKS_VERT - 1) : 0;
     // Determine the block size within the remaining area
-    const bSize = Math.min((preview.height - borderSize) / BLOCKS_VERT, (preview.width - borderSize) / BLOCKS_HORIZ);
-    const scale = bSize / source.width; // convert to scaling factor
-    const antiScale = source.width / bSize; // reversed scaling factor
-
-    // hide all traces of the previous frame
-    ctx.clearRect(0, 0, preview.width, preview.height);
+    const bSize = Math.min(
+        (preview.width - borderSize - sashSizeHoriz) / BLOCKS_HORIZ,
+        (preview.height - borderSize - sashSizeVert) / BLOCKS_VERT
+    );
 
     if (borderSize) {
-        // determine the draw width/height
-        const dW = BLOCKS_HORIZ * bSize + borderSize;
-        const dH = BLOCKS_VERT * bSize + borderSize;
-
         // fill the border (and interior) with the base color
         ctx.fillStyle = borderColor;
-        ctx.fillRect(0, 0, dW, dH);
+        ctx.fillRect(0, 0, preview.width, preview.height);
+    } else {
+        // just hide all traces of the previous frame
+        ctx.clearRect(0, 0, preview.width, preview.height);
     }
 
-    ctx.scale(scale, scale); // set the scale factor on the canvas
+    if (hasSash) {
+        // fill all the main sashing in one call
+        ctx.fillStyle = sash.colors[0];
+        ctx.fillRect(padSize, padSize, preview.width - borderSize, preview.height - borderSize);
+    }
 
     // draw the 5x4 blocks, inset by the half-border-width padSize
+    const sashSpacing = hasSash ? cellSize : 0;
+    const doubleSash = sash.levels === SASH_DOUBLE;
+    ctx.fillStyle = sash.colors[1];
     for (let col = 0; col < BLOCKS_HORIZ; col++) {
         for (let row = 0; row < BLOCKS_VERT; row++) {
             // determine the current block's origin X/Y in unscaled space
-            const oX = padSize + (col * bSize);
-            const oY = padSize + (row * bSize);
+            const oX = padSize + (col * bSize) + (sashSpacing * col);
+            const oY = padSize + (row * bSize) + (sashSpacing * row);
             // reverse the scaling on the coordinates to draw where intended
-            ctx.drawImage(source, oX * antiScale, oY * antiScale);
+            ctx.drawImage(source, oX, oY, bSize, bSize);
+
+            // draw in the cross color of the sashing, if needed
+            if (doubleSash && row && col) {
+                ctx.fillRect(oX - sashSpacing, oY - sashSpacing, sashSpacing, sashSpacing);
+            }
         }
     }
-
-    ctx.restore();
 }
 
 function updateView() {
     updateUiState(quilt.block);
     updateEditor(quilt.colorSet, quilt.block);
-    updatePreview(editor, quilt.colorSet[0], quilt.borderSize, quilt.block.size);
+    updatePreview(editor, quilt);
 }
 
 if (editor && preview) {

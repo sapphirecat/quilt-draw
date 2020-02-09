@@ -12,10 +12,36 @@ body {
     text-align: center;
 }
 
+p {
+    margin-top: 0;
+}
+
 button {
-    background-color: #ffffff;
-    border: 1px solid #000000;
-    border-radius: 3px;
+    background: #ffffff linear-gradient(#ffffff, #ffffff 60%, #ebdfeb);
+    border: 1px solid #c0a0c0;
+    border-radius: 4px;
+    height: 1.5rem;
+}
+
+input[type=radio] {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+
+    border-radius: 50%;
+    width: 16px;
+    height: 16px;
+
+    border: 1px solid #c0a0c0;
+    transition: 0.1s all linear;
+    margin-right: 5px;
+
+    position: relative;
+    top: 4px;
+}
+
+input[type=radio]:checked {
+    background: #c0a0c0;
 }
 
 canvas {
@@ -62,6 +88,20 @@ footer {
     white-space: nowrap;
 }
 
+.border-row {
+    display: grid;
+    grid-template-columns: 1fr 3fr;
+    margin: auto 0;
+    align-items: center;
+}
+
+.sash-grid {
+    display: grid;
+    grid-template-columns: 16px 6em auto;
+    grid-gap: 0.2em 0.4em;
+    align-items: center;
+}
+
 #tools button {
     border-color: #dcdcdc;
 }
@@ -86,7 +126,7 @@ footer {
     display: grid;
     grid-template-rows: 1fr 3fr;
     grid-template-columns: 1fr 1fr;
-    margin: auto;
+    margin: 1em auto auto;
 }
 
 .transform-title {
@@ -126,16 +166,6 @@ footer {
 
 #roll-down {
     grid-area: 3 / 2 / 4 / 3;
-}
-
-#resize {
-    grid-template-columns: 1fr;
-}
-
-#resize button {
-    height: 1.5rem;
-    width: 100%;
-    padding: 0;
 }
 
 

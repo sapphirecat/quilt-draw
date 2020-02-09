@@ -60,10 +60,31 @@
 
         <div class="control" id="borders">
             <p>Border</p>
-            <label class="center-text">
-                Width
+            <div class="border-row">
+                <label for="border-width">Width</label>
                 <input id="border-width" max="8" min="0" type="range" value="0">
-            </label>
+            </div>
+        </div>
+
+        <div class="control" data-initial-palette="#d0ccfa,#749d6c" id="sashing">
+            <p>Sashing</p>
+            <div class="sash-grid">
+                <input class="sash-select" id="sash-on" type="checkbox">
+                <label for="sash-on">Main</label>
+                <button class="color-button" id="main-sash-color">&nbsp;</button>
+                <input class="sash-select" id="sash-cross-on" type="checkbox">
+                <label for="sash-cross-on">Cross</label>
+                <button class="color-button" id="cross-sash-color">&nbsp;</button>
+            </div>
+        </div>
+
+        <div class="control" id="downloads">
+            <p>Downloads</p>
+
+            <div class="download-buttons column">
+                <button class="download" id="download-block">Block</button>
+                <button class="download" id="download-preview">Preview</button>
+            </div>
         </div>
 
     </div>
@@ -88,7 +109,7 @@
     </div>
 
     <div id="previewArea">
-        <canvas height="800" id="preview" width="600"></canvas>
+        <canvas height="750" id="preview" width="600"></canvas>
     </div>
 </div>
 
