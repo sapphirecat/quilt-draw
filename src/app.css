@@ -17,9 +17,31 @@ p {
 }
 
 button {
-    background-color: #ffffff;
-    border: 1px solid #000000;
-    border-radius: 3px;
+    background: #ffffff linear-gradient(#ffffff, #ffffff 60%, #ebdfeb);
+    border: 1px solid #c0a0c0;
+    border-radius: 4px;
+    height: 1.5rem;
+}
+
+input[type=radio] {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+
+    border-radius: 50%;
+    width: 16px;
+    height: 16px;
+
+    border: 1px solid #c0a0c0;
+    transition: 0.1s all linear;
+    margin-right: 5px;
+
+    position: relative;
+    top: 4px;
+}
+
+input[type=radio]:checked {
+    background: #c0a0c0;
 }
 
 canvas {
@@ -97,7 +119,7 @@ footer {
     display: grid;
     grid-template-rows: 1fr 3fr;
     grid-template-columns: 1fr 1fr;
-    margin: auto;
+    margin: 1em auto auto;
 }
 
 .transform-title {
