@@ -95,6 +95,13 @@ footer {
     align-items: center;
 }
 
+.sash-grid {
+    display: grid;
+    grid-template-columns: 16px 6em auto;
+    grid-gap: 0.2em 0.4em;
+    align-items: center;
+}
+
 #tools button {
     border-color: #dcdcdc;
 }
