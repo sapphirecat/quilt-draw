@@ -76,7 +76,7 @@ const ANGLE_BOTTOM = 2;
 const ANGLE_LEFT = 3;
 const ANGLES = [ANGLE_TOP, ANGLE_RIGHT, ANGLE_BOTTOM, ANGLE_LEFT];
 
-const COLOR_LIMIT = 9;
+const COLOR_LIMIT = 12;
 
 const SASH_NONE = 0; // sash disabled
 const SASH_SINGLE = 1; // all one color
