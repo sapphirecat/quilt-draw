@@ -3,6 +3,19 @@ body {
     color: #000000;
 }
 
+#logo {
+    background-image: linear-gradient(transparent, transparent 38%, #85aa6c 38%, #85aa6c 43%, transparent 43%,
+    transparent 48%, #85aa6c 48%, #85aa6c 53%, transparent 53%, transparent);
+    margin-bottom: 1em;
+}
+
+#logo h1 {
+    background-color: #ffffff;
+    margin: auto;
+    text-align: center;
+    width: 350px;
+}
+
 .hide {
     display: none;
 }

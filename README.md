@@ -1,4 +1,4 @@
-# QuiltDraw
+# ![Quilt Draw](src/logo.svg "Quilt Draw")
 
 Half-square triangle design assistant
 
