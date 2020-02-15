@@ -76,7 +76,7 @@ const ANGLE_BOTTOM = 2;
 const ANGLE_LEFT = 3;
 const ANGLES = [ANGLE_TOP, ANGLE_RIGHT, ANGLE_BOTTOM, ANGLE_LEFT];
 
-const COLOR_LIMIT = 9;
+const COLOR_LIMIT = 12;
 
 const SASH_NONE = 0; // sash disabled
 const SASH_SINGLE = 1; // all one color
@@ -85,6 +85,9 @@ const SASH_DOUBLE = 2; // second color at intersections
 const MOVE_IGNORE = 0;
 const MOVE_ALLOW = 1;
 const MOVE_TRACKING = 2;
+
+const CLICK_ALLOW = 0;
+const CLICK_IGNORE = 1;
 
 const TOOL_PAINT = 'paint';
 const TOOL_SPIN = 'spin';
@@ -103,35 +106,78 @@ const quilt = {
 
 const ui = {
     cellPx: null, // editor cell size in pixels (width & height)
+    colorEvents: CLICK_ALLOW,
     colorTemplate: null,
     colorBox: null,
-    moveStatus: MOVE_ALLOW, // paint allows moves
-    selectedColor: 2,
+    moveStatus: MOVE_ALLOW, // paint (default tool) allows moves
+    paintColors: [2, 1], // primary/secondary paint colors
     selectedTool: TOOL_PAINT
 };
 
-function setPaintColor(i) {
-    ui.selectedColor = i;
-    ui.selectedTool = TOOL_PAINT;
-    if (ui.moveStatus === MOVE_IGNORE) {
-        ui.moveStatus = MOVE_ALLOW;
+/**
+ * Update the display of currently-selected paint colors.
+ *
+ * @param slot
+ */
+function showActiveColor(slot) {
+    const view = document.getElementById(`colorActive${slot}`);
+    if (view) {
+        const colorIndex = ui.paintColors[slot];
+        view.style.backgroundColor = quilt.colorSet[colorIndex];
+    } else {
+        console.error('No element for #colorActive%d', slot);
     }
-    document.getElementById(`color${i}`).checked = true;
 }
 
 /**
+ * Activate the paint tool with the selected palette entry.
+ *
+ * @param {number} i Palette index to be set as paint color.
+ * @param {number} [slot] A slot number to set, or the primary slot (0) by default.
+ */
+function setPaintColor(i, slot) {
+    if (slot === undefined) {
+        slot = 0;
+    } else if (slot < 0 || slot > ui.paintColors.length) {
+        console.error('invalid slot; paint color %d rejected', slot);
+        return;
+    }
+
+    const prev = ui.paintColors[slot];
+
+    ui.paintColors[slot] = i;
+    showActiveColor(slot);
+
+    // activate the tool
+    ui.selectedTool = TOOL_PAINT;
+    document.getElementById('tool-paint').checked = true;
+    if (ui.moveStatus === MOVE_IGNORE) {
+        ui.moveStatus = MOVE_ALLOW;
+    }
+
+    // move the selection hint for primary color only
+    if (slot === 0 && i !== prev) {
+        document.getElementById(`color${prev}`).classList.remove('selected');
+        document.getElementById(`color${i}`).classList.add('selected');
+    }
+}
+
+/**
+ * Generate a random cell structure/angle.
+ *
  * @returns {Cell}
  */
 function randomCell() {
     const angleCount = Math.floor(ANGLES.length);
     const colorCount = Math.floor(quilt.colorSet.length) - 1;
 
-    // Pick a random direction
-    const angle = ANGLES[Math.floor(Math.random() * angleCount)];
-    const color1 = 1 + Math.floor(Math.random() * colorCount);
-    const color2 = 1 + Math.floor(Math.random() * colorCount);
-
-    return cell2(angle, color1, color2);
+    return {
+        angle: ANGLES[Math.floor(Math.random() * angleCount)],
+        colors: [
+            (1 + Math.floor(Math.random() * colorCount)),
+            (1 + Math.floor(Math.random() * colorCount))
+        ]
+    };
 }
 
 /**
@@ -183,12 +229,19 @@ function initQuiltBlock() {
 }
 
 function initTools() {
-    // connect events
+    // connect editor events
     editor.addEventListener('mousedown', onEditorMouse);
     editor.addEventListener('mouseup', onEditorMouseRelease);
     editor.addEventListener('contextmenu', (ev) => ev.preventDefault());
 
     // set up main controls
+    // since mousedown can't prevent a click event, we use ui.colorEvents to
+    // ignore a click following a mousedown we took responsibility for.
+    const colorItems = document.getElementById('color-items');
+    colorItems.addEventListener('mousedown', onPaletteDown, {capture: true});
+    colorItems.addEventListener('click', onPaletteClick, {capture: true});
+    colorItems.addEventListener('contextmenu', (ev) => ev.preventDefault());
+
     document.getElementById('border-width').addEventListener('input', onBorderSize);
     for (const node of document.querySelectorAll('.controls')) {
         node.addEventListener('click', onControlClick);
@@ -242,10 +295,13 @@ function initColors() {
     colors.forEach(addColor);
 
     // set the radio state to reflect the selected JS color
-    const colorIndex = Math.min(ui.selectedColor, quilt.colorSet.length - 1);
+    const colorIndex = Math.min(ui.paintColors[0], quilt.colorSet.length - 1);
     if (colorIndex > -1) {
-        document.getElementById(`color${colorIndex}`).checked = true;
+        document.getElementById(`color${colorIndex}`).classList.add('selected');
+        showActiveColor(0);
     }
+
+    showActiveColor(1);
 
     // set up "New Color" button
     document.getElementById('color-new').addEventListener('click', createColor);
@@ -305,13 +361,13 @@ function addColor(value) {
     const item = ui.colorTemplate.content.cloneNode(true);
 
     // configure sub-DOM
-    const dataNode = item.querySelector('.color-active');
     const button = item.querySelector('.color-button');
-    if (!(dataNode && button)) {
-        console.error("Cannot find '.color-active' and '.color-button' in ui.colorTemplate");
+    if (!button) {
+        console.error("Cannot find '.color-button' in ui.colorTemplate");
         return;
     }
 
+    const dataNode = button.parentElement; // label.color-item
     dataNode.setAttribute('data-color-id', `${i}`);
     dataNode.id = `color${i}`;
 
@@ -341,6 +397,7 @@ function addColor(value) {
 function onColorPickerHide(i) {
     pickers[i].saved = quilt.colorSet[i]; // save color for next cancel button click
     pickers[i].handle.applyColor(true); // save color to button, without firing a save event
+    document.getElementById('color-items').focus({preventScroll: true});
     setPaintColor(i);
 }
 
@@ -381,22 +438,6 @@ function addSashColor(i, button, value) {
 }
 
 /**
- * Cell constructor
- *
- * @param {number} angle
- * @param {number} topColor
- * @param {number} bottomColor
- * @returns {Cell}
- */
-function cell2(angle, topColor, bottomColor) {
-    return {
-        angle: angle,
-        colors: [topColor, bottomColor],
-    };
-}
-
-
-/**
  * @param {number} angle
  * @param {boolean} reverse
  * @returns {number}
@@ -409,6 +450,30 @@ function spinCell(angle, reverse) {
     return reverse ? angle - 1 : (angle + 1) % ANGLES.length;
 }
 
+
+/**
+ * @param {MouseEvent} ev
+ * @return {boolean}
+ */
+function isButtonRelevant(ev) {
+    return !!(ev.buttons && ev.buttons < 3);
+}
+
+/**
+ * @param {MouseEvent} ev
+ * @return {boolean}
+ */
+function isPrimaryButton(ev) {
+    return ev.buttons === 1;
+}
+
+/**
+ * @param {MouseEvent} ev
+ * @return {boolean}
+ */
+function isSecondaryButton(ev) {
+    return ev.buttons === 2;
+}
 
 function editorClearMoveHandler() {
     editor.removeEventListener('mousemove', onEditorMouse);
@@ -431,6 +496,13 @@ function onEditorMouseRelease(ev) {
  * @param {MouseEvent} ev
  */
 function onEditorMouse(ev) {
+    // if multiple buttons or a higher (aux etc.) button was pressed, ignore
+    // everything. don't even prevent default.
+    if (ev.buttons && !isButtonRelevant(ev)) {
+        return;
+    }
+
+    // we are taking responsibility for this event
     ev.preventDefault();
 
     // if the mouse was released out-of-canvas, cancel ourselves
@@ -455,6 +527,7 @@ function onEditorMouse(ev) {
     const cell = quilt.block.cells[index];
 
     // act on the hit
+    const isSecondaryClick = isSecondaryButton(ev);
     switch (ui.selectedTool) {
     case TOOL_PAINT:
         // translate coordinates to cell-relative
@@ -484,11 +557,11 @@ function onEditorMouse(ev) {
         }
 
         // apply color to the index that was hit
-        cell.colors[colorIndex] = ui.selectedColor;
+        cell.colors[colorIndex] = ui.paintColors[isSecondaryClick ? 1 : 0];
 
         break;
     case TOOL_SPIN:
-        cell.angle = spinCell(cell.angle, (ev.buttons & 1) === 0);
+        cell.angle = spinCell(cell.angle, isSecondaryClick);
         break;
     default:
         console.error("Unknown tool selected: %s", ui.selectedTool)
@@ -524,8 +597,6 @@ function onControlClick(ev) {
         onResizeInput(ev);
     } else if (classes.contains('sash-select')) {
         onSashChange(ev);
-    } else if (classes.contains('color-active')) {
-        onColorRadioClick(ev);
     } else if (classes.contains('tool-active')) {
         onToolChange(ev);
     } else if (classes.contains('roll')) {
@@ -533,6 +604,59 @@ function onControlClick(ev) {
     } else if (classes.contains('download')) {
         onDownload(ev);
     }
+}
+
+/**
+ * Capturing event handler for palette
+ *
+ * @param ev
+ */
+function onPaletteDown(ev) {
+    ui.colorEvents = CLICK_ALLOW; // by default, we do not have full responsibility
+    if (!isButtonRelevant(ev)) {
+        return; // we don't handle this button/combo
+    }
+
+    // walk up the DOM until we find the label.color-item
+    let node = ev.target;
+    let found = false;
+    while (node !== this && !found) {
+        if (node.tagName === 'LABEL' && node.classList.contains('color-item')) {
+            found = true;
+        } else {
+            node = node.parentElement;
+        }
+    }
+    if (!found) {
+        console.error("label element not found in event stack");
+        return;
+    }
+
+    const colorIndex = parseInt(node.getAttribute('data-color-id'), 10);
+
+    // if this is a PRIMARY click on a SELECTED color, pass the event through
+    // to Pickr. we'll update the color when the picker is closed.
+    if (isPrimaryButton(ev) && colorIndex === ui.paintColors[0]) {
+        return;
+    }
+
+    // SECONDARY click or NON-SELECTED color. Take over the event ourselves.
+    ev.preventDefault();
+    ev.stopPropagation();
+    ui.colorEvents = CLICK_IGNORE; // reject a 'click' if it is also generated
+    setPaintColor(colorIndex, isSecondaryButton(ev) ? 1 : 0);
+}
+
+/**
+ * @param {MouseEvent} ev
+ */
+function onPaletteClick(ev) {
+    if (ui.colorEvents === CLICK_IGNORE) {
+        ev.stopPropagation();
+        ev.preventDefault();
+    }
+
+    ui.colorEvents = CLICK_ALLOW;
 }
 
 /**
@@ -558,15 +682,6 @@ function onSashChange(ev) {
 
     quilt.sash.levels = main.checked ? (cross.checked ? SASH_DOUBLE : SASH_SINGLE) : SASH_NONE;
     updatePreview(editor, quilt);
-}
-
-/**
- * @param {MouseEvent} ev
- */
-function onColorRadioClick(ev) {
-    const node = ev.target;
-    const colorIndex = parseInt(node.getAttribute('data-color-id'), 10);
-    setPaintColor(colorIndex);
 }
 
 /**
