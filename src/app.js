@@ -105,18 +105,29 @@ const ui = {
     cellPx: null, // editor cell size in pixels (width & height)
     colorTemplate: null,
     colorBox: null,
-    moveStatus: MOVE_ALLOW, // paint allows moves
-    selectedColor: 2,
+    moveStatus: MOVE_ALLOW, // paint (default tool) allows moves
+    paintColors: [2, 1], // primary/secondary paint colors
     selectedTool: TOOL_PAINT
 };
 
-function setPaintColor(i) {
-    ui.selectedColor = i;
+/**
+ *
+ * @param {number} i
+ * @param {boolean} [isSecondary]
+ */
+function setPaintColor(i, isSecondary) {
+    const slot = isSecondary ? 1 : 0;
+    const prev = ui.paintColors[slot];
+
+    ui.paintColors[slot] = i;
     ui.selectedTool = TOOL_PAINT;
     if (ui.moveStatus === MOVE_IGNORE) {
         ui.moveStatus = MOVE_ALLOW;
     }
-    document.getElementById(`color${i}`).checked = true;
+
+    if (!isSecondary) {
+        document.getElementById(`color${i}`).checked = true;
+    }
 }
 
 /**
@@ -242,7 +253,7 @@ function initColors() {
     colors.forEach(addColor);
 
     // set the radio state to reflect the selected JS color
-    const colorIndex = Math.min(ui.selectedColor, quilt.colorSet.length - 1);
+    const colorIndex = Math.min(ui.paintColors[0], quilt.colorSet.length - 1);
     if (colorIndex > -1) {
         document.getElementById(`color${colorIndex}`).checked = true;
     }
@@ -455,6 +466,7 @@ function onEditorMouse(ev) {
     const cell = quilt.block.cells[index];
 
     // act on the hit
+    const isSecondaryClick = (ev.buttons & 1) === 0;
     switch (ui.selectedTool) {
     case TOOL_PAINT:
         // translate coordinates to cell-relative
@@ -484,11 +496,11 @@ function onEditorMouse(ev) {
         }
 
         // apply color to the index that was hit
-        cell.colors[colorIndex] = ui.selectedColor;
+        cell.colors[colorIndex] = ui.paintColors[isSecondaryClick ? 1 : 0];
 
         break;
     case TOOL_SPIN:
-        cell.angle = spinCell(cell.angle, (ev.buttons & 1) === 0);
+        cell.angle = spinCell(cell.angle, isSecondaryClick);
         break;
     default:
         console.error("Unknown tool selected: %s", ui.selectedTool)
