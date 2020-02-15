@@ -47,7 +47,6 @@
             <div data-initial-palette="#ffbfd4,#f3f3f3,#0066cc,#c665c6" id="color-items">
                 <template class="hide" id="color-item">
                     <label class="color-item">
-                        <input class="color-active" name="tool_select" type="radio">
                         <button class="color-button">&nbsp;</button>
                     </label>
                 </template>
@@ -56,10 +55,21 @@
 
         <div class="control" id="tools">
             <p>Tools</p>
-            <label class="tool-item">
-                <input class="tool-active" id="tool-spin" name="tool_select" type="radio">
-                Spin
-            </label>
+
+            <div class="column">
+                <div class="palette-row">
+                    <label class="tool-item">
+                        <input class="tool-active" id="tool-paint" name="tool_select" type="radio">
+                        Paint
+                    </label>
+                    <button class="palette-select" id="colorActive0">&nbsp;</button>
+                    <button class="palette-select" id="colorActive1">&nbsp;</button>
+                </div>
+                <label class="tool-item">
+                    <input class="tool-active" id="tool-spin" name="tool_select" type="radio">
+                    Spin
+                </label>
+            </div>
         </div>
 
         <div class="control" id="borders">

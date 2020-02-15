@@ -46,7 +46,7 @@ input[type=radio] {
     height: 16px;
 
     border: 1px solid #c0a0c0;
-    transition: 0.1s all linear;
+    transition: all 90ms linear;
     margin-right: 5px;
 
     position: relative;
@@ -101,11 +101,29 @@ footer {
     white-space: nowrap;
 }
 
+.color-item.selected .pcr-button {
+    border: 3px double #c0a0c0;
+}
+
 .border-row {
     display: grid;
     grid-template-columns: 1fr 3fr;
     margin: auto 0;
     align-items: center;
+}
+
+.palette-row {
+    display: grid;
+    grid-template-columns: 5fr 1fr 1fr;
+    margin: auto 0;
+}
+
+button.palette-select {
+    width: 1.5rem;
+    height: 1.5rem;
+    border: 1px solid rgba(50%, 50%, 50%, 0.2);
+    background: transparent;
+    transition: all 50ms linear;
 }
 
 .sash-grid {
