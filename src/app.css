@@ -3,6 +3,17 @@ body {
     color: #000000;
 }
 
+a {
+    color: dodgerblue;
+    text-decoration: none;
+    border-bottom: 1px dotted;
+}
+
+a:hover, a:focus {
+    color: blue;
+    border-bottom-style: solid;
+}
+
 #logo {
     background-image: linear-gradient(transparent, transparent 38%, #85aa6c 38%, #85aa6c 43%, transparent 43%,
     transparent 48%, #85aa6c 48%, #85aa6c 53%, transparent 53%, transparent);
@@ -208,4 +219,11 @@ button.palette-select {
 div.pickr {
     display: inline-block;
     width: 2.0em;
+}
+
+#legal blockquote {
+    font-family: monospace;
+    max-width: 600px;
+    padding: 1em;
+    background-color: #f0f0f0;
 }
