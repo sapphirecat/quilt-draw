@@ -1,6 +1,11 @@
 body {
     background-color: #ffffff;
     color: #000000;
+    font-family: sans-serif;
+}
+
+h1, h2 {
+    font-family: "Palatino Linotype", Palatino, Cambria, Georgia, serif;
 }
 
 a {
@@ -25,6 +30,10 @@ a:hover, a:focus {
     margin: auto;
     text-align: center;
     width: 350px;
+}
+
+#logo a {
+    border-bottom: 0;
 }
 
 .hide {
