@@ -1061,6 +1061,7 @@ function updatePreview(source, quilt) {
         (preview.width - borderSize - sashSizeHoriz) / BLOCKS_HORIZ,
         (preview.height - borderSize - sashSizeVert) / BLOCKS_VERT
     );
+    const blockDraw = Math.ceil(blockSize);
 
     if (borderSize) {
         // fill the border (and interior) with the base color
@@ -1071,28 +1072,45 @@ function updatePreview(source, quilt) {
         ctx.clearRect(0, 0, preview.width, preview.height);
     }
 
-    if (hasSash) {
-        // fill all the main sashing in one call
-        ctx.fillStyle = sash.colors[0];
-        ctx.fillRect(padSize, padSize, preview.width - borderSize, preview.height - borderSize);
-    }
-
-    // draw the 5x4 blocks, inset by the half-border-width padSize
+    // draw the 5x4 blocks, inset by the half-border-width padSize, and offset
+    // by sashing if specified
     const sashSpacing = hasSash ? cellSize : 0;
-    const doubleSash = sash.levels === SASH_DOUBLE;
-    ctx.fillStyle = sash.colors[1];
     for (let col = 0; col < BLOCKS_HORIZ; col++) {
         for (let row = 0; row < BLOCKS_VERT; row++) {
-            // determine the current block's origin X/Y in unscaled space
+            // determine the current block's origin X/Y
             const oX = padSize + (col * blockSize) + (sashSpacing * col);
             const oY = padSize + (row * blockSize) + (sashSpacing * row);
-            // reverse the scaling on the coordinates to draw where intended
-            ctx.drawImage(source, 0, 0, whSource, whSource, oX, oY, blockSize, blockSize);
+            // draw at the un-rounded origin, but using rounded-up size
+            ctx.drawImage(source, 0, 0, whSource, whSource, oX, oY, blockDraw, blockDraw);
+        }
+    }
 
-            // draw in the cross color of the sashing, if needed
-            if (doubleSash && row && col) {
-                ctx.fillRect(oX - sashSpacing, oY - sashSpacing, sashSpacing, sashSpacing);
-            }
+
+    // draw main sashing, if applicable
+    if (!hasSash) {
+        return;
+    }
+    ctx.fillStyle = sash.colors[0];
+    for (let col = 1; col < BLOCKS_HORIZ; col++) {
+        const oX = padSize + (col * blockSize) + (sashSpacing * col);
+        ctx.fillRect(oX - sashSpacing, padSize, sashSpacing, preview.height - borderSize);
+    }
+    for (let row = 1; row < BLOCKS_VERT; row++) {
+        const oY = padSize + (row * blockSize) + (sashSpacing * row);
+        ctx.fillRect(padSize, oY - sashSpacing, preview.width - borderSize, sashSpacing);
+    }
+
+    // draw cross sashing, if applicable
+    if (sash.levels !== SASH_DOUBLE) {
+        return;
+    }
+    ctx.fillStyle = sash.colors[1];
+    for (let col = 1; col < BLOCKS_HORIZ; col++) {
+        for (let row = 1; row < BLOCKS_VERT; row++) {
+            const oX = padSize + (col * blockSize) + (sashSpacing * col);
+            const oY = padSize + (row * blockSize) + (sashSpacing * row);
+            // draw cross sash: above left
+            ctx.fillRect(oX - sashSpacing, oY - sashSpacing, sashSpacing, sashSpacing);
         }
     }
 }
