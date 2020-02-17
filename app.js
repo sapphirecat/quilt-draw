@@ -190,6 +190,15 @@ function isChecked(id) {
 }
 
 function initJs() {
+    // make the canvas drawings sharper on HiDPI displays
+    const DPR = window.devicePixelRatio;
+    if (DPR > 1.0) {
+        editor.width *= DPR;
+        editor.height *= DPR;
+        preview.width *= DPR;
+        preview.height *= DPR;
+    }
+
     // set up UI
     initColors();
     initTools();
@@ -242,6 +251,7 @@ function initTools() {
     colorItems.addEventListener('click', onPaletteClick, {capture: true});
     colorItems.addEventListener('contextmenu', (ev) => ev.preventDefault());
 
+    document.getElementById('tool-paint').checked = true;
     document.getElementById('border-width').addEventListener('input', onBorderSize);
     for (const node of document.querySelectorAll('.controls')) {
         node.addEventListener('click', onControlClick);
@@ -1012,15 +1022,20 @@ function updateEditor(colors, block) {
  * @param {Quilt} quilt
  */
 function updatePreview(source, quilt) {
+    if (!(source instanceof HTMLCanvasElement)) {
+        return;
+    }
+
     // shorten some names
     const sash = quilt.sash;
     const palette = quilt.colorSet;
 
     // calculate draw dimensions
+    const DPR = Math.max(window.devicePixelRatio, 1.0);
     const BLOCKS_HORIZ = 4;
     const BLOCKS_VERT = 5;
     const hasSash = sash.levels !== SASH_NONE;
-    const blockSize = quilt.block.size;
+    const blockCells = quilt.block.size;
     const borderUnits = quilt.borderSize;
 
     // "Border units" is in half-cells, so figure out the pixel size based on blockSize.
@@ -1028,21 +1043,23 @@ function updatePreview(source, quilt) {
     // border: borderUnits=1 means 1/2 cell * 2 sides.  Sashing goes between blocks only, and it
     // is a fixed 1-cell width for the moment.  Thus, it adds blocks-1 cells to each dimension
     // when present.
-    const cHoriz = (blockSize * BLOCKS_HORIZ + borderUnits + (hasSash ? BLOCKS_HORIZ - 1 : 0));
-    const cVert = (blockSize * BLOCKS_VERT + borderUnits + (hasSash ? BLOCKS_VERT - 1 : 0));
-    const cellSize = Math.min(PREVIEW_MAX_WIDTH / cHoriz, PREVIEW_MAX_HEIGHT / cVert);
+    const cHoriz = (blockCells * BLOCKS_HORIZ + borderUnits + (hasSash ? BLOCKS_HORIZ - 1 : 0));
+    const cVert = (blockCells * BLOCKS_VERT + borderUnits + (hasSash ? BLOCKS_VERT - 1 : 0));
+    // PREVIEW_MAX_WIDTH/HEIGHT were set before we ever looked at DPR.
+    const cellSize = DPR * Math.min(PREVIEW_MAX_WIDTH / cHoriz, PREVIEW_MAX_HEIGHT / cVert);
     const borderSize = cellSize * borderUnits;
     const borderColor = palette[0]; // fixed border color for the moment
 
-    if (!(source instanceof HTMLCanvasElement)) {
-        return;
-    }
+    // width and height of the source drawing area to copy: the editor rounds,
+    // so that it is always crisp. if we copy the whole area, we may introduce
+    // a visible gap below/right of the blocks where we copy in transparency.
+    const whSource = Math.floor(source.width / blockCells) * blockCells;
 
     // resize the canvas to the draw dimensions
     preview.width = (cellSize * cHoriz) | 0;
     preview.height = (cellSize * cVert) | 0;
-    preview.style.width = preview.width;
-    preview.style.height = preview.height;
+    preview.style.width = `${Math.floor(preview.width / DPR)}px`;
+    preview.style.height = `${Math.floor(preview.height / DPR)}px`;
 
     // start drawing
     const ctx = preview.getContext('2d');
@@ -1052,10 +1069,11 @@ function updatePreview(source, quilt) {
     const sashSizeHoriz = hasSash ? cellSize * (BLOCKS_HORIZ - 1) : 0;
     const sashSizeVert = hasSash ? cellSize * (BLOCKS_VERT - 1) : 0;
     // Determine the block size within the remaining area
-    const bSize = Math.min(
+    const blockSize = Math.min(
         (preview.width - borderSize - sashSizeHoriz) / BLOCKS_HORIZ,
         (preview.height - borderSize - sashSizeVert) / BLOCKS_VERT
     );
+    const blockDraw = Math.ceil(blockSize);
 
     if (borderSize) {
         // fill the border (and interior) with the base color
@@ -1066,28 +1084,45 @@ function updatePreview(source, quilt) {
         ctx.clearRect(0, 0, preview.width, preview.height);
     }
 
-    if (hasSash) {
-        // fill all the main sashing in one call
-        ctx.fillStyle = sash.colors[0];
-        ctx.fillRect(padSize, padSize, preview.width - borderSize, preview.height - borderSize);
-    }
-
-    // draw the 5x4 blocks, inset by the half-border-width padSize
+    // draw the 5x4 blocks, inset by the half-border-width padSize, and offset
+    // by sashing if specified
     const sashSpacing = hasSash ? cellSize : 0;
-    const doubleSash = sash.levels === SASH_DOUBLE;
-    ctx.fillStyle = sash.colors[1];
     for (let col = 0; col < BLOCKS_HORIZ; col++) {
         for (let row = 0; row < BLOCKS_VERT; row++) {
-            // determine the current block's origin X/Y in unscaled space
-            const oX = padSize + (col * bSize) + (sashSpacing * col);
-            const oY = padSize + (row * bSize) + (sashSpacing * row);
-            // reverse the scaling on the coordinates to draw where intended
-            ctx.drawImage(source, oX, oY, bSize, bSize);
+            // determine the current block's origin X/Y
+            const oX = padSize + (col * blockSize) + (sashSpacing * col);
+            const oY = padSize + (row * blockSize) + (sashSpacing * row);
+            // draw at the un-rounded origin, but using rounded-up size
+            ctx.drawImage(source, 0, 0, whSource, whSource, oX, oY, blockDraw, blockDraw);
+        }
+    }
 
-            // draw in the cross color of the sashing, if needed
-            if (doubleSash && row && col) {
-                ctx.fillRect(oX - sashSpacing, oY - sashSpacing, sashSpacing, sashSpacing);
-            }
+
+    // draw main sashing, if applicable
+    if (!hasSash) {
+        return;
+    }
+    ctx.fillStyle = sash.colors[0];
+    for (let col = 1; col < BLOCKS_HORIZ; col++) {
+        const oX = padSize + (col * blockSize) + (sashSpacing * col);
+        ctx.fillRect(oX - sashSpacing, padSize, sashSpacing, preview.height - borderSize);
+    }
+    for (let row = 1; row < BLOCKS_VERT; row++) {
+        const oY = padSize + (row * blockSize) + (sashSpacing * row);
+        ctx.fillRect(padSize, oY - sashSpacing, preview.width - borderSize, sashSpacing);
+    }
+
+    // draw cross sashing, if applicable
+    if (sash.levels !== SASH_DOUBLE) {
+        return;
+    }
+    ctx.fillStyle = sash.colors[1];
+    for (let col = 1; col < BLOCKS_HORIZ; col++) {
+        for (let row = 1; row < BLOCKS_VERT; row++) {
+            const oX = padSize + (col * blockSize) + (sashSpacing * col);
+            const oY = padSize + (row * blockSize) + (sashSpacing * row);
+            // draw cross sash: above left
+            ctx.fillRect(oX - sashSpacing, oY - sashSpacing, sashSpacing, sashSpacing);
         }
     }
 }

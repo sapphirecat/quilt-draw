@@ -1,6 +1,22 @@
 body {
     background-color: #ffffff;
     color: #000000;
+    font-family: sans-serif;
+}
+
+h1, h2 {
+    font-family: "Palatino Linotype", Palatino, Cambria, Georgia, serif;
+}
+
+a {
+    color: dodgerblue;
+    text-decoration: none;
+    border-bottom: 1px dotted;
+}
+
+a:hover, a:focus {
+    color: blue;
+    border-bottom-style: solid;
 }
 
 #logo {
@@ -16,6 +32,10 @@ body {
     width: 350px;
 }
 
+#logo a {
+    border-bottom: 0;
+}
+
 .hide {
     display: none;
 }
@@ -26,7 +46,7 @@ body {
 }
 
 p {
-    margin-top: 0;
+    margin: 0;
 }
 
 button {
@@ -66,6 +86,7 @@ footer {
     margin: 2rem 0;
     text-align: center;
     font-size: 75%;
+    line-height: 2.0;
 }
 
 #app {
@@ -92,6 +113,7 @@ footer {
 .control {
     display: grid;
     grid-template-columns: 1fr 3fr;
+    align-items: baseline;
     grid-gap: 0.3em;
     margin: auto 0;
     width: 100%;
@@ -173,6 +195,7 @@ button.palette-select {
     display: grid;
     grid-template-rows: repeat(3, 1fr);
     grid-template-columns: repeat(3, 1fr);
+    align-items: center;
     margin: 0 auto auto;
 }
 
@@ -202,10 +225,24 @@ button.palette-select {
 
 #editor {
     cursor: pointer;
+    width: 540px;
+    height: 540px;
+}
+
+#preview {
+    width: 600px;
+    max-height: 750px;
 }
 
 
 div.pickr {
     display: inline-block;
     width: 2.0em;
+}
+
+#legal blockquote {
+    font-family: monospace;
+    max-width: 600px;
+    padding: 1em;
+    background-color: #f0f0f0;
 }
