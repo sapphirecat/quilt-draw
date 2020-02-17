@@ -251,6 +251,7 @@ function initTools() {
     colorItems.addEventListener('click', onPaletteClick, {capture: true});
     colorItems.addEventListener('contextmenu', (ev) => ev.preventDefault());
 
+    document.getElementById('tool-paint').checked = true;
     document.getElementById('border-width').addEventListener('input', onBorderSize);
     for (const node of document.querySelectorAll('.controls')) {
         node.addEventListener('click', onControlClick);
