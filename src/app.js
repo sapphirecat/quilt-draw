@@ -190,6 +190,15 @@ function isChecked(id) {
 }
 
 function initJs() {
+    // make the canvas drawings sharper on HiDPI displays
+    const DPR = window.devicePixelRatio;
+    if (DPR > 1.0) {
+        editor.width *= DPR;
+        editor.height *= DPR;
+        preview.width *= DPR;
+        preview.height *= DPR;
+    }
+
     // set up UI
     initColors();
     initTools();
@@ -1021,6 +1030,7 @@ function updatePreview(source, quilt) {
     const palette = quilt.colorSet;
 
     // calculate draw dimensions
+    const DPR = Math.max(window.devicePixelRatio, 1.0);
     const BLOCKS_HORIZ = 4;
     const BLOCKS_VERT = 5;
     const hasSash = sash.levels !== SASH_NONE;
@@ -1034,7 +1044,8 @@ function updatePreview(source, quilt) {
     // when present.
     const cHoriz = (blockCells * BLOCKS_HORIZ + borderUnits + (hasSash ? BLOCKS_HORIZ - 1 : 0));
     const cVert = (blockCells * BLOCKS_VERT + borderUnits + (hasSash ? BLOCKS_VERT - 1 : 0));
-    const cellSize = Math.min(PREVIEW_MAX_WIDTH / cHoriz, PREVIEW_MAX_HEIGHT / cVert);
+    // PREVIEW_MAX_WIDTH/HEIGHT were set before we ever looked at DPR.
+    const cellSize = DPR * Math.min(PREVIEW_MAX_WIDTH / cHoriz, PREVIEW_MAX_HEIGHT / cVert);
     const borderSize = cellSize * borderUnits;
     const borderColor = palette[0]; // fixed border color for the moment
 
@@ -1046,8 +1057,8 @@ function updatePreview(source, quilt) {
     // resize the canvas to the draw dimensions
     preview.width = (cellSize * cHoriz) | 0;
     preview.height = (cellSize * cVert) | 0;
-    preview.style.width = preview.width;
-    preview.style.height = preview.height;
+    preview.style.width = `${Math.floor(preview.width / DPR)}px`;
+    preview.style.height = `${Math.floor(preview.height / DPR)}px`;
 
     // start drawing
     const ctx = preview.getContext('2d');
