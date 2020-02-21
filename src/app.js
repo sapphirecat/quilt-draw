@@ -46,9 +46,16 @@
  */
 
 /**
+ * @typedef {object} Border
+ * @property {number} cellWidth
+ * @property {string} color
+ * @property {boolean} visible
+ */
+
+/**
  * @typedef {object} Quilt
  * @property {number} size
- * @property {number} borderSize
+ * @property {Array<Border>} borders
  * @property {Palette} colorSet
  * @property {SashInfo} sash
  * @property {BlockInfo} block
@@ -97,7 +104,7 @@ const pickers = [];
 /** @type Quilt quilt */
 const quilt = {
     size: 0,
-    borderSize: 0,
+    borders: [{cellWidth: 0, color: '#000000', visible: true}],
     colorSet: [],
     sash: {levels: SASH_NONE, colors: []},
     block: {size: 0, cells: []},
@@ -234,7 +241,7 @@ function initQuiltBlock() {
     const width = step + Math.floor(Math.random() * (maxBase + 1));
 
     borderControl.value = width;
-    quilt.borderSize = width;
+    quilt.borders[0].cellWidth = width;
 }
 
 function initTools() {
@@ -587,7 +594,7 @@ function onBorderSize(ev) {
     if (!(ev.target instanceof HTMLInputElement)) {
         return;
     }
-    quilt.borderSize = parseInt(ev.target.value, 10);
+    quilt.borders[0].cellWidth = parseInt(ev.target.value, 10);
     updatePreview(editor, quilt);
 }
 
@@ -1036,7 +1043,13 @@ function updatePreview(source, quilt) {
     const BLOCKS_VERT = 5;
     const hasSash = sash.levels !== SASH_NONE;
     const blockCells = quilt.block.size;
-    const borderUnits = quilt.borderSize;
+    let borderUnits = 0;
+
+    for (const border of quilt.borders) {
+        if (border.visible) {
+            borderUnits += border.cellWidth;
+        }
+    }
 
     // "Border units" is in half-cells, so figure out the pixel size based on blockSize.
     // Determine the number of cells horizontally and vertically.  This is determining the total
