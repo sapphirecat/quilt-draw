@@ -49,7 +49,6 @@
  * @typedef {object} Border
  * @property {number} cellWidth
  * @property {string} color
- * @property {boolean} visible
  */
 
 /**
@@ -99,12 +98,12 @@ const CLICK_IGNORE = 1;
 const TOOL_PAINT = 'paint';
 const TOOL_SPIN = 'spin';
 
-const pickers = [];
+const pickers = {};
 
 /** @type Quilt quilt */
 const quilt = {
     size: 0,
-    borders: [{cellWidth: 0, color: '#000000', visible: true}],
+    borders: [],
     colorSet: [],
     sash: {levels: SASH_NONE, colors: []},
     block: {size: 0, cells: []},
@@ -116,8 +115,9 @@ const ui = {
     colorEvents: CLICK_ALLOW,
     colorTemplate: null,
     colorBox: null,
+    borderTemplate: null,
     moveStatus: MOVE_ALLOW, // paint (default tool) allows moves
-    paintColors: [2, 1], // primary/secondary paint colors
+    paintColors: [1, 0], // primary/secondary paint colors
     selectedTool: TOOL_PAINT
 };
 
@@ -169,6 +169,13 @@ function setPaintColor(i, slot) {
     }
 }
 
+function randomColor() {
+    const hue = Math.floor(Math.random() * 360);
+    const sat = 45 + Math.floor(Math.random() * 35);
+    const lns = 35 + Math.floor(Math.random() * 40);
+    return `hsla(${hue}, ${sat}%, ${lns}%, 1.0)`;
+}
+
 /**
  * Generate a random cell structure/angle.
  *
@@ -176,15 +183,24 @@ function setPaintColor(i, slot) {
  */
 function randomCell() {
     const angleCount = Math.floor(ANGLES.length);
-    const colorCount = Math.floor(quilt.colorSet.length) - 1;
+    const colorCount = Math.floor(quilt.colorSet.length);
 
     return {
         angle: ANGLES[Math.floor(Math.random() * angleCount)],
         colors: [
-            (1 + Math.floor(Math.random() * colorCount)),
-            (1 + Math.floor(Math.random() * colorCount))
+            (Math.floor(Math.random() * colorCount)),
+            (Math.floor(Math.random() * colorCount))
         ]
     };
+}
+
+function getPalette(element) {
+    if (!element) {
+        return ['#00ccff'];
+    }
+
+    const colorText = element.getAttribute('data-initial-palette') || '#ff00ff';
+    return colorText.split(/,\s*/);
 }
 
 /**
@@ -208,6 +224,7 @@ function initJs() {
 
     // set up UI
     initColors();
+    initBorders();
     initTools();
 
     // generate a random initial quilt
@@ -233,15 +250,6 @@ function initQuiltBlock() {
 
     quilt.savedBlock = {cells, size};
     quilt.block = quilt.savedBlock;
-
-    // choose a random border size
-    const borderControl = document.getElementById('border-width');
-    const step = parseInt(borderControl.getAttribute('step') || '1', 10);
-    const maxBase = parseInt(borderControl.getAttribute('max')) / step;
-    const width = step + Math.floor(Math.random() * (maxBase + 1));
-
-    borderControl.value = width;
-    quilt.borders[0].cellWidth = width;
 }
 
 function initTools() {
@@ -259,7 +267,6 @@ function initTools() {
     colorItems.addEventListener('contextmenu', (ev) => ev.preventDefault());
 
     document.getElementById('tool-paint').checked = true;
-    document.getElementById('border-width').addEventListener('input', onBorderSize);
     for (const node of document.querySelectorAll('.controls')) {
         node.addEventListener('click', onControlClick);
     }
@@ -274,8 +281,18 @@ function initTools() {
     }
 }
 
+function initBorders() {
+    // create the default border
+    ui.borderTemplate = document.getElementById('border-item');
+    getPalette(ui.borderTemplate).forEach(addBorder);
+
+    // set up events
+    const root = ui.borderTemplate.parentElement;
+    root.addEventListener('input', onBorderSize);
+}
+
 function initSashColors() {
-    const colors = document.getElementById('sashing').getAttribute('data-initial-palette').split(',');
+    const colors = getPalette(document.getElementById('sashing'));
     const targets = ['main-sash-color', 'cross-sash-color'];
     if (colors.length !== targets.length) {
         console.error("Sash palette length %d does not match UI element count %d",
@@ -304,12 +321,10 @@ function initColors() {
         return;
     }
 
-    // parse the initial palette data
-    const colorText = ui.colorBox.getAttribute('data-initial-palette') || '#ff00ff';
-    const colors = colorText.split(',');
 
+    // parse the initial palette data and create Pickr UI
     // create Pickr UI for each initial palette entry
-    colors.forEach(addColor);
+    getPalette(ui.colorBox).forEach(addColor);
 
     // set the radio state to reflect the selected JS color
     const colorIndex = Math.min(ui.paintColors[0], quilt.colorSet.length - 1);
@@ -330,10 +345,7 @@ function createColor() {
         return;
     }
 
-    const hue = Math.floor(Math.random() * 360);
-    const sat = 45 + Math.floor(Math.random() * 35);
-    const lns = 35 + Math.floor(Math.random() * 40);
-    const i = addColor(`hsla(${hue}, ${sat}%, ${lns}%, 1.0)`);
+    const i = addColor(randomColor());
     setPaintColor(i);
 
     if (i + 1 >= COLOR_LIMIT) {
@@ -452,6 +464,45 @@ function addSashColor(i, button, value) {
 
     pickers[`sash.${i}`] = {handle: picker, saved: value};
     quilt.sash.colors[i] = value;
+}
+
+function onBorderColorPickerHide(i) {
+    pickers[`border.${i}`].saved = quilt.borders[i].color; // save color for next cancel button click
+    pickers[`border.${i}`].handle.applyColor(true); // save color to button, without firing a save event
+}
+
+function onBorderColorChanged(i, value) {
+    quilt.borders[i].color = value.toHSLA().toString();
+    updatePreview(editor, quilt);
+}
+
+function onBorderColorReset(i) {
+    quilt.borders[i].color = pickers[i].saved;
+    updatePreview(editor, quilt);
+}
+
+
+function addBorder(color) {
+    const i = quilt.borders.length;
+    const item = ui.borderTemplate.content.cloneNode(true);
+    const range = item.querySelector("input[type=range]");
+
+    item.querySelector('p').appendChild(document.createTextNode(`${i + 1}`));
+
+    quilt.borders[i] = {cellWidth: 2, color: color};
+    range.id = `borderWidth${i}`;
+    range.setAttribute('data-border-index', `${i}`);
+    range.value = quilt.borders[i].cellWidth;
+
+    const picker = newColorPicker(item.querySelector(".color-button"), color);
+    // set up events
+    picker.on('change', newValue => onBorderColorChanged(i, newValue));
+    picker.on('hide', () => onBorderColorPickerHide(i));
+    picker.on('cancel', () => onBorderColorReset(i));
+
+    // commit changes
+    pickers[`border.${i}`] = {handle: picker, saved: color};
+    ui.borderTemplate.parentElement.appendChild(item);
 }
 
 /**
@@ -594,7 +645,9 @@ function onBorderSize(ev) {
     if (!(ev.target instanceof HTMLInputElement)) {
         return;
     }
-    quilt.borders[0].cellWidth = parseInt(ev.target.value, 10);
+
+    const i = parseInt(ev.target.getAttribute('data-border-index') || '0', 10) || 0;
+    quilt.borders[i].cellWidth = parseInt(ev.target.value, 10);
     updatePreview(editor, quilt);
 }
 
@@ -1035,7 +1088,6 @@ function updatePreview(source, quilt) {
 
     // shorten some names
     const sash = quilt.sash;
-    const palette = quilt.colorSet;
 
     // calculate draw dimensions
     const DPR = Math.max(window.devicePixelRatio, 1.0);
@@ -1046,9 +1098,7 @@ function updatePreview(source, quilt) {
     let borderUnits = 0;
 
     for (const border of quilt.borders) {
-        if (border.visible) {
-            borderUnits += border.cellWidth;
-        }
+        borderUnits += border.cellWidth;
     }
 
     // "Border units" is in half-cells, so figure out the pixel size based on blockSize.
@@ -1061,7 +1111,6 @@ function updatePreview(source, quilt) {
     // PREVIEW_MAX_WIDTH/HEIGHT were set before we ever looked at DPR.
     const cellSize = DPR * Math.min(PREVIEW_MAX_WIDTH / cHoriz, PREVIEW_MAX_HEIGHT / cVert);
     const borderSize = cellSize * borderUnits;
-    const borderColor = palette[0]; // fixed border color for the moment
 
     // width and height of the source drawing area to copy: the editor rounds,
     // so that it is always crisp. if we copy the whole area, we may introduce
@@ -1089,9 +1138,28 @@ function updatePreview(source, quilt) {
     const blockDraw = Math.ceil(blockSize);
 
     if (borderSize) {
-        // fill the border (and interior) with the base color
-        ctx.fillStyle = borderColor;
-        ctx.fillRect(0, 0, preview.width, preview.height);
+        let oX = 0;
+        let oY = 0;
+        let w = preview.width;
+        let h = preview.height;
+
+        for (const border of quilt.borders) {
+            // skip everything if this border is not visible
+            if (border.cellWidth === 0) {
+                continue;
+            }
+
+            // fill the border (and interior) with the base color
+            ctx.fillStyle = border.color;
+            ctx.fillRect(oX, oY, w, h);
+
+            // adjust next drawing area
+            const delta = border.cellWidth * cellSize / 2;
+            oX += delta;
+            oY -= delta;
+            w -= delta;
+            h -= delta;
+        }
     } else {
         // just hide all traces of the previous frame
         ctx.clearRect(0, 0, preview.width, preview.height);
