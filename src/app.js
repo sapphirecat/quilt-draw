@@ -289,6 +289,12 @@ function initBorders() {
     // set up events
     const root = ui.borderTemplate.parentElement;
     root.addEventListener('input', onBorderSize);
+
+    const newBorder = () => {
+        addBorder();
+        updatePreview(editor, quilt);
+    };
+    document.getElementById('border-new').addEventListener('click', newBorder);
 }
 
 function initSashColors() {
@@ -482,26 +488,32 @@ function onBorderColorReset(i) {
 }
 
 
+/**
+ * Add another border layer
+ * @param {string} [color]
+ */
 function addBorder(color) {
     const i = quilt.borders.length;
     const item = ui.borderTemplate.content.cloneNode(true);
     const range = item.querySelector("input[type=range]");
+    const width = 1 + Math.floor(Math.random() * 3);
+    const border = {cellWidth: width, color: color || randomColor()};
 
     item.querySelector('p').appendChild(document.createTextNode(`${i + 1}`));
 
-    quilt.borders[i] = {cellWidth: 2, color: color};
     range.id = `borderWidth${i}`;
     range.setAttribute('data-border-index', `${i}`);
-    range.value = quilt.borders[i].cellWidth;
+    range.value = border.cellWidth;
 
-    const picker = newColorPicker(item.querySelector(".color-button"), color);
+    const picker = newColorPicker(item.querySelector(".color-button"), border.color);
     // set up events
     picker.on('change', newValue => onBorderColorChanged(i, newValue));
     picker.on('hide', () => onBorderColorPickerHide(i));
     picker.on('cancel', () => onBorderColorReset(i));
 
     // commit changes
-    pickers[`border.${i}`] = {handle: picker, saved: color};
+    quilt.borders[i] = border;
+    pickers[`border.${i}`] = {handle: picker, saved: border.color};
     ui.borderTemplate.parentElement.appendChild(item);
 }
 
