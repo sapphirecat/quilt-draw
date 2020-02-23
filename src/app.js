@@ -82,6 +82,7 @@ const ANGLE_BOTTOM = 2;
 const ANGLE_LEFT = 3;
 const ANGLES = [ANGLE_TOP, ANGLE_RIGHT, ANGLE_BOTTOM, ANGLE_LEFT];
 
+const BORDER_LIMIT = 6;
 const COLOR_LIMIT = 12;
 
 const SASH_NONE = 0; // sash disabled
@@ -293,6 +294,9 @@ function initBorders() {
     const newBorder = () => {
         addBorder();
         updatePreview(editor, quilt);
+        if (quilt.borders.length >= BORDER_LIMIT) {
+            document.getElementById('border-new').classList.add('hide');
+        }
     };
     document.getElementById('border-new').addEventListener('click', newBorder);
 }
@@ -493,6 +497,10 @@ function onBorderColorReset(i) {
  * @param {string} [color]
  */
 function addBorder(color) {
+    if (quilt.borders.length >= BORDER_LIMIT) {
+        return;
+    }
+
     const i = quilt.borders.length;
     const item = ui.borderTemplate.content.cloneNode(true);
     const range = item.querySelector("input[type=range]");
