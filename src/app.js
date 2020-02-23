@@ -1083,7 +1083,7 @@ function updateEditor(colors, block) {
     let oX, oY, iBlock;
 
     // canvas 2D context
-    const ctx = editor.getContext('2d');
+    const ctx = editor.getContext('2d', {alpha: false});
     ctx.clearRect(0, 0, editor.width, editor.height);
 
     // process cells
@@ -1144,7 +1144,7 @@ function updatePreview(source, quilt) {
     preview.style.height = `${Math.floor(preview.height / DPR)}px`;
 
     // start drawing
-    const ctx = preview.getContext('2d');
+    const ctx = preview.getContext('2d', {alpha: false});
 
     // Size border to user request
     const padSize = borderSize / 2.0; // half on each side
