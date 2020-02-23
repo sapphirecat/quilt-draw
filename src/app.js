@@ -1166,9 +1166,9 @@ function updatePreview(source, quilt) {
             ctx.fillRect(oX, oY, w, h);
 
             // adjust next drawing area
-            const delta = border.cellWidth * cellSize / 2;
-            oX += delta;
-            oY -= delta;
+            const delta = border.cellWidth * cellSize;
+            oX += delta / 2;
+            oY += delta / 2;
             w -= delta;
             h -= delta;
         }
