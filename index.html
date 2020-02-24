@@ -42,7 +42,7 @@
                 <p>Colors</p>
                 <button id="color-new">Add</button>
             </div>
-            <div data-initial-palette="#ffbfd4,#f3f3f3,#0066cc,#c665c6" id="color-items">
+            <div data-initial-palette="#f3f3f3,#0066cc,#c665c6" id="color-items">
                 <template class="hide" id="color-item">
                     <label class="color-item">
                         <button class="color-button">&nbsp;</button>
@@ -71,10 +71,18 @@
         </div>
 
         <div class="control" id="borders">
-            <p>Border</p>
-            <div class="border-row">
-                <label for="border-width">Width</label>
-                <input id="border-width" max="8" min="0" type="range" value="0">
+            <div class="column">
+                <p>Border</p>
+                <button id="border-new">Add</button>
+            </div>
+            <div class="column">
+                <template class="hide" data-initial-palette="#ffbfd4" id="border-item">
+                    <div class="border-row">
+                        <p></p>
+                        <input max="8" min="0" type="range" value="0">
+                        <button class="color-button">&nbsp;</button>
+                    </div>
+                </template>
             </div>
         </div>
 

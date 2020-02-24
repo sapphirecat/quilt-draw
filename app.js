@@ -46,9 +46,15 @@
  */
 
 /**
+ * @typedef {object} Border
+ * @property {number} cellWidth
+ * @property {string} color
+ */
+
+/**
  * @typedef {object} Quilt
  * @property {number} size
- * @property {number} borderSize
+ * @property {Array<Border>} borders
  * @property {Palette} colorSet
  * @property {SashInfo} sash
  * @property {BlockInfo} block
@@ -62,6 +68,8 @@
 const editor = document.getElementById('editor');
 const preview = document.getElementById('preview');
 
+const EDITOR_MAX_WIDTH = editor.width;
+const EDITOR_MAX_HEIGHT = editor.height;
 const PREVIEW_MAX_WIDTH = preview.width;
 const PREVIEW_MAX_HEIGHT = preview.height;
 
@@ -76,6 +84,7 @@ const ANGLE_BOTTOM = 2;
 const ANGLE_LEFT = 3;
 const ANGLES = [ANGLE_TOP, ANGLE_RIGHT, ANGLE_BOTTOM, ANGLE_LEFT];
 
+const BORDER_LIMIT = 6;
 const COLOR_LIMIT = 12;
 
 const SASH_NONE = 0; // sash disabled
@@ -92,12 +101,12 @@ const CLICK_IGNORE = 1;
 const TOOL_PAINT = 'paint';
 const TOOL_SPIN = 'spin';
 
-const pickers = [];
+const pickers = {};
 
 /** @type Quilt quilt */
 const quilt = {
     size: 0,
-    borderSize: 0,
+    borders: [],
     colorSet: [],
     sash: {levels: SASH_NONE, colors: []},
     block: {size: 0, cells: []},
@@ -109,8 +118,9 @@ const ui = {
     colorEvents: CLICK_ALLOW,
     colorTemplate: null,
     colorBox: null,
+    borderTemplate: null,
     moveStatus: MOVE_ALLOW, // paint (default tool) allows moves
-    paintColors: [2, 1], // primary/secondary paint colors
+    paintColors: [1, 0], // primary/secondary paint colors
     selectedTool: TOOL_PAINT
 };
 
@@ -162,6 +172,13 @@ function setPaintColor(i, slot) {
     }
 }
 
+function randomColor() {
+    const hue = Math.floor(Math.random() * 360);
+    const sat = 45 + Math.floor(Math.random() * 35);
+    const lns = 35 + Math.floor(Math.random() * 40);
+    return `hsla(${hue}, ${sat}%, ${lns}%, 1.0)`;
+}
+
 /**
  * Generate a random cell structure/angle.
  *
@@ -169,15 +186,24 @@ function setPaintColor(i, slot) {
  */
 function randomCell() {
     const angleCount = Math.floor(ANGLES.length);
-    const colorCount = Math.floor(quilt.colorSet.length) - 1;
+    const colorCount = Math.floor(quilt.colorSet.length);
 
     return {
         angle: ANGLES[Math.floor(Math.random() * angleCount)],
         colors: [
-            (1 + Math.floor(Math.random() * colorCount)),
-            (1 + Math.floor(Math.random() * colorCount))
+            (Math.floor(Math.random() * colorCount)),
+            (Math.floor(Math.random() * colorCount))
         ]
     };
+}
+
+function getPalette(element) {
+    if (!element) {
+        return ['#00ccff'];
+    }
+
+    const colorText = element.getAttribute('data-initial-palette') || '#ff00ff';
+    return colorText.split(/,\s*/);
 }
 
 /**
@@ -190,17 +216,9 @@ function isChecked(id) {
 }
 
 function initJs() {
-    // make the canvas drawings sharper on HiDPI displays
-    const DPR = window.devicePixelRatio;
-    if (DPR > 1.0) {
-        editor.width *= DPR;
-        editor.height *= DPR;
-        preview.width *= DPR;
-        preview.height *= DPR;
-    }
-
     // set up UI
     initColors();
+    initBorders();
     initTools();
 
     // generate a random initial quilt
@@ -226,15 +244,6 @@ function initQuiltBlock() {
 
     quilt.savedBlock = {cells, size};
     quilt.block = quilt.savedBlock;
-
-    // choose a random border size
-    const borderControl = document.getElementById('border-width');
-    const step = parseInt(borderControl.getAttribute('step') || '1', 10);
-    const maxBase = parseInt(borderControl.getAttribute('max')) / step;
-    const width = step + Math.floor(Math.random() * (maxBase + 1));
-
-    borderControl.value = width;
-    quilt.borderSize = width;
 }
 
 function initTools() {
@@ -252,7 +261,6 @@ function initTools() {
     colorItems.addEventListener('contextmenu', (ev) => ev.preventDefault());
 
     document.getElementById('tool-paint').checked = true;
-    document.getElementById('border-width').addEventListener('input', onBorderSize);
     for (const node of document.querySelectorAll('.controls')) {
         node.addEventListener('click', onControlClick);
     }
@@ -267,8 +275,27 @@ function initTools() {
     }
 }
 
+function initBorders() {
+    // create the default border
+    ui.borderTemplate = document.getElementById('border-item');
+    getPalette(ui.borderTemplate).forEach(addBorder);
+
+    // set up events
+    const root = ui.borderTemplate.parentElement;
+    root.addEventListener('input', onBorderSize);
+
+    const newBorder = () => {
+        addBorder();
+        updatePreview(editor, quilt);
+        if (quilt.borders.length >= BORDER_LIMIT) {
+            document.getElementById('border-new').classList.add('hide');
+        }
+    };
+    document.getElementById('border-new').addEventListener('click', newBorder);
+}
+
 function initSashColors() {
-    const colors = document.getElementById('sashing').getAttribute('data-initial-palette').split(',');
+    const colors = getPalette(document.getElementById('sashing'));
     const targets = ['main-sash-color', 'cross-sash-color'];
     if (colors.length !== targets.length) {
         console.error("Sash palette length %d does not match UI element count %d",
@@ -297,12 +324,10 @@ function initColors() {
         return;
     }
 
-    // parse the initial palette data
-    const colorText = ui.colorBox.getAttribute('data-initial-palette') || '#ff00ff';
-    const colors = colorText.split(',');
 
+    // parse the initial palette data and create Pickr UI
     // create Pickr UI for each initial palette entry
-    colors.forEach(addColor);
+    getPalette(ui.colorBox).forEach(addColor);
 
     // set the radio state to reflect the selected JS color
     const colorIndex = Math.min(ui.paintColors[0], quilt.colorSet.length - 1);
@@ -323,10 +348,7 @@ function createColor() {
         return;
     }
 
-    const hue = Math.floor(Math.random() * 360);
-    const sat = 45 + Math.floor(Math.random() * 35);
-    const lns = 35 + Math.floor(Math.random() * 40);
-    const i = addColor(`hsla(${hue}, ${sat}%, ${lns}%, 1.0)`);
+    const i = addColor(randomColor());
     setPaintColor(i);
 
     if (i + 1 >= COLOR_LIMIT) {
@@ -445,6 +467,55 @@ function addSashColor(i, button, value) {
 
     pickers[`sash.${i}`] = {handle: picker, saved: value};
     quilt.sash.colors[i] = value;
+}
+
+function onBorderColorPickerHide(i) {
+    pickers[`border.${i}`].saved = quilt.borders[i].color; // save color for next cancel button click
+    pickers[`border.${i}`].handle.applyColor(true); // save color to button, without firing a save event
+}
+
+function onBorderColorChanged(i, value) {
+    quilt.borders[i].color = value.toHSLA().toString();
+    updatePreview(editor, quilt);
+}
+
+function onBorderColorReset(i) {
+    quilt.borders[i].color = pickers[i].saved;
+    updatePreview(editor, quilt);
+}
+
+
+/**
+ * Add another border layer
+ * @param {string} [color]
+ */
+function addBorder(color) {
+    if (quilt.borders.length >= BORDER_LIMIT) {
+        return;
+    }
+
+    const i = quilt.borders.length;
+    const item = ui.borderTemplate.content.cloneNode(true);
+    const range = item.querySelector("input[type=range]");
+    const width = 1 + Math.floor(Math.random() * 3);
+    const border = {cellWidth: width, color: color || randomColor()};
+
+    item.querySelector('p').appendChild(document.createTextNode(`${i + 1}`));
+
+    range.id = `borderWidth${i}`;
+    range.setAttribute('data-border-index', `${i}`);
+    range.value = border.cellWidth;
+
+    const picker = newColorPicker(item.querySelector(".color-button"), border.color);
+    // set up events
+    picker.on('change', newValue => onBorderColorChanged(i, newValue));
+    picker.on('hide', () => onBorderColorPickerHide(i));
+    picker.on('cancel', () => onBorderColorReset(i));
+
+    // commit changes
+    quilt.borders[i] = border;
+    pickers[`border.${i}`] = {handle: picker, saved: border.color};
+    ui.borderTemplate.parentElement.appendChild(item);
 }
 
 /**
@@ -587,7 +658,9 @@ function onBorderSize(ev) {
     if (!(ev.target instanceof HTMLInputElement)) {
         return;
     }
-    quilt.borderSize = parseInt(ev.target.value, 10);
+
+    const i = parseInt(ev.target.getAttribute('data-border-index') || '0', 10) || 0;
+    quilt.borders[i].cellWidth = parseInt(ev.target.value, 10);
     updatePreview(editor, quilt);
 }
 
@@ -909,6 +982,14 @@ function rollUp(block) {
 }
 
 
+function sizeCanvasTo(canvas, width, height) {
+    const DPR = Math.max(window.devicePixelRatio, 1);
+    canvas.width = width * DPR;
+    canvas.height = height * DPR;
+    canvas.style.width = "${width}px";
+    canvas.style.height = "${height}px";
+}
+
 /**
  * Draw a triangle at coordinates on the canvas.
  *
@@ -983,9 +1064,10 @@ function drawCellAt(ctx, oX, oY, cellPx, palette, cell) {
  * @param {BlockInfo} block
  */
 function updateUiState(block) {
-    const cW = Math.floor(editor.width / block.size);
-    const cH = Math.floor(editor.height / block.size);
+    const cW = Math.floor(EDITOR_MAX_WIDTH / block.size);
+    const cH = Math.floor(EDITOR_MAX_HEIGHT / block.size);
     ui.cellPx = Math.min(cW, cH);
+    sizeCanvasTo(editor, cW * block.size, cH * block.size);
 }
 
 
@@ -1003,7 +1085,7 @@ function updateEditor(colors, block) {
     let oX, oY, iBlock;
 
     // canvas 2D context
-    const ctx = editor.getContext('2d');
+    const ctx = editor.getContext('2d', {alpha: false});
     ctx.clearRect(0, 0, editor.width, editor.height);
 
     // process cells
@@ -1028,7 +1110,6 @@ function updatePreview(source, quilt) {
 
     // shorten some names
     const sash = quilt.sash;
-    const palette = quilt.colorSet;
 
     // calculate draw dimensions
     const DPR = Math.max(window.devicePixelRatio, 1.0);
@@ -1036,7 +1117,11 @@ function updatePreview(source, quilt) {
     const BLOCKS_VERT = 5;
     const hasSash = sash.levels !== SASH_NONE;
     const blockCells = quilt.block.size;
-    const borderUnits = quilt.borderSize;
+    let borderUnits = 0;
+
+    for (const border of quilt.borders) {
+        borderUnits += border.cellWidth;
+    }
 
     // "Border units" is in half-cells, so figure out the pixel size based on blockSize.
     // Determine the number of cells horizontally and vertically.  This is determining the total
@@ -1046,46 +1131,66 @@ function updatePreview(source, quilt) {
     const cHoriz = (blockCells * BLOCKS_HORIZ + borderUnits + (hasSash ? BLOCKS_HORIZ - 1 : 0));
     const cVert = (blockCells * BLOCKS_VERT + borderUnits + (hasSash ? BLOCKS_VERT - 1 : 0));
     // PREVIEW_MAX_WIDTH/HEIGHT were set before we ever looked at DPR.
-    const cellSize = DPR * Math.min(PREVIEW_MAX_WIDTH / cHoriz, PREVIEW_MAX_HEIGHT / cVert);
+    const cellSize = DPR * Math.floor(Math.min(PREVIEW_MAX_WIDTH / cHoriz, PREVIEW_MAX_HEIGHT / cVert) / 2) * 2;
     const borderSize = cellSize * borderUnits;
-    const borderColor = palette[0]; // fixed border color for the moment
-
-    // width and height of the source drawing area to copy: the editor rounds,
-    // so that it is always crisp. if we copy the whole area, we may introduce
-    // a visible gap below/right of the blocks where we copy in transparency.
-    const whSource = Math.floor(source.width / blockCells) * blockCells;
 
     // resize the canvas to the draw dimensions
-    preview.width = (cellSize * cHoriz) | 0;
-    preview.height = (cellSize * cVert) | 0;
-    preview.style.width = `${Math.floor(preview.width / DPR)}px`;
-    preview.style.height = `${Math.floor(preview.height / DPR)}px`;
+    sizeCanvasTo(preview, cellSize * cHoriz, cellSize * cVert);
 
     // start drawing
-    const ctx = preview.getContext('2d');
+    const ctx = preview.getContext('2d', {alpha: false});
 
     // Size border to user request
     const padSize = borderSize / 2.0; // half on each side
-    const sashSizeHoriz = hasSash ? cellSize * (BLOCKS_HORIZ - 1) : 0;
-    const sashSizeVert = hasSash ? cellSize * (BLOCKS_VERT - 1) : 0;
     // Determine the block size within the remaining area
-    const blockSize = Math.min(
-        (preview.width - borderSize - sashSizeHoriz) / BLOCKS_HORIZ,
-        (preview.height - borderSize - sashSizeVert) / BLOCKS_VERT
-    );
-    const blockDraw = Math.ceil(blockSize);
+    const blockSize = cellSize * quilt.block.size;
 
+    // draw borders if needed
     if (borderSize) {
-        // fill the border (and interior) with the base color
-        ctx.fillStyle = borderColor;
-        ctx.fillRect(0, 0, preview.width, preview.height);
-    } else {
-        // just hide all traces of the previous frame
-        ctx.clearRect(0, 0, preview.width, preview.height);
+        let oX = 0;
+        let oY = 0;
+        let w = preview.width;
+        let h = preview.height;
+
+        for (const border of quilt.borders) {
+            // skip everything if this border is not visible
+            if (border.cellWidth === 0) {
+                continue;
+            }
+
+            // fill the border with the base color
+            const delta = border.cellWidth * cellSize; // full border space
+            const strip = delta / 2; // space of one strip of the border
+
+            // draw an outer edge, then inner edge, then fill even-odd so that
+            // only the actual border pixels get painted. overdraws vastly
+            // fewer pixels than our old fillRect() code.
+            ctx.beginPath();
+            ctx.rect(oX, oY, w, h);
+            ctx.rect(oX + strip, oY + strip, w - delta, h - delta);
+            ctx.closePath();
+
+            ctx.fillStyle = border.color;
+            ctx.fill("evenodd");
+
+            // adjust next drawing area
+            oX += strip;
+            oY += strip;
+            w -= delta;
+            h -= delta;
+        }
     }
 
     // draw the 5x4 blocks, inset by the half-border-width padSize, and offset
     // by sashing if specified
+
+    // first, scale the block to an offscreen canvas...
+    const scaled = document.createElement('canvas');
+    scaled.width = blockSize;
+    scaled.height = blockSize;
+    scaled.getContext('2d', {alpha: false}).drawImage(source, 0, 0, blockSize, blockSize);
+
+    // now draw from the scaled rather than the source
     const sashSpacing = hasSash ? cellSize : 0;
     for (let col = 0; col < BLOCKS_HORIZ; col++) {
         for (let row = 0; row < BLOCKS_VERT; row++) {
@@ -1093,7 +1198,7 @@ function updatePreview(source, quilt) {
             const oX = padSize + (col * blockSize) + (sashSpacing * col);
             const oY = padSize + (row * blockSize) + (sashSpacing * row);
             // draw at the un-rounded origin, but using rounded-up size
-            ctx.drawImage(source, 0, 0, whSource, whSource, oX, oY, blockDraw, blockDraw);
+            ctx.drawImage(scaled, oX, oY, blockSize, blockSize);
         }
     }
 
