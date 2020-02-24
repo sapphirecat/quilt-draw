@@ -68,6 +68,8 @@
 const editor = document.getElementById('editor');
 const preview = document.getElementById('preview');
 
+const EDITOR_MAX_WIDTH = editor.width;
+const EDITOR_MAX_HEIGHT = editor.height;
 const PREVIEW_MAX_WIDTH = preview.width;
 const PREVIEW_MAX_HEIGHT = preview.height;
 
@@ -989,6 +991,14 @@ function rollUp(block) {
 }
 
 
+function sizeCanvasTo(canvas, width, height) {
+    const DPR = Math.max(window.devicePixelRatio, 1);
+    canvas.width = width * DPR;
+    canvas.height = height * DPR;
+    canvas.style.width = "${width}px";
+    canvas.style.height = "${height}px";
+}
+
 /**
  * Draw a triangle at coordinates on the canvas.
  *
@@ -1063,9 +1073,10 @@ function drawCellAt(ctx, oX, oY, cellPx, palette, cell) {
  * @param {BlockInfo} block
  */
 function updateUiState(block) {
-    const cW = Math.floor(editor.width / block.size);
-    const cH = Math.floor(editor.height / block.size);
+    const cW = Math.floor(EDITOR_MAX_WIDTH / block.size);
+    const cH = Math.floor(EDITOR_MAX_HEIGHT / block.size);
     ui.cellPx = Math.min(cW, cH);
+    sizeCanvasTo(editor, cW * block.size, cH * block.size);
 }
 
 
@@ -1129,7 +1140,7 @@ function updatePreview(source, quilt) {
     const cHoriz = (blockCells * BLOCKS_HORIZ + borderUnits + (hasSash ? BLOCKS_HORIZ - 1 : 0));
     const cVert = (blockCells * BLOCKS_VERT + borderUnits + (hasSash ? BLOCKS_VERT - 1 : 0));
     // PREVIEW_MAX_WIDTH/HEIGHT were set before we ever looked at DPR.
-    const cellSize = DPR * Math.min(PREVIEW_MAX_WIDTH / cHoriz, PREVIEW_MAX_HEIGHT / cVert);
+    const cellSize = DPR * Math.floor(Math.min(PREVIEW_MAX_WIDTH / cHoriz, PREVIEW_MAX_HEIGHT / cVert) / 2) * 2;
     const borderSize = cellSize * borderUnits;
 
     // width and height of the source drawing area to copy: the editor rounds,
@@ -1138,25 +1149,18 @@ function updatePreview(source, quilt) {
     const whSource = Math.floor(source.width / blockCells) * blockCells;
 
     // resize the canvas to the draw dimensions
-    preview.width = (cellSize * cHoriz) | 0;
-    preview.height = (cellSize * cVert) | 0;
-    preview.style.width = `${Math.floor(preview.width / DPR)}px`;
-    preview.style.height = `${Math.floor(preview.height / DPR)}px`;
+    sizeCanvasTo(preview, cellSize * cHoriz, cellSize * cVert);
 
     // start drawing
     const ctx = preview.getContext('2d', {alpha: false});
 
     // Size border to user request
     const padSize = borderSize / 2.0; // half on each side
-    const sashSizeHoriz = hasSash ? cellSize * (BLOCKS_HORIZ - 1) : 0;
-    const sashSizeVert = hasSash ? cellSize * (BLOCKS_VERT - 1) : 0;
     // Determine the block size within the remaining area
-    const blockSize = Math.min(
-        (preview.width - borderSize - sashSizeHoriz) / BLOCKS_HORIZ,
-        (preview.height - borderSize - sashSizeVert) / BLOCKS_VERT
-    );
+    const blockSize = cellSize * quilt.block.size;
     const blockDraw = Math.ceil(blockSize);
 
+    // draw borders if needed
     if (borderSize) {
         let oX = 0;
         let oY = 0;
@@ -1169,20 +1173,27 @@ function updatePreview(source, quilt) {
                 continue;
             }
 
-            // fill the border (and interior) with the base color
+            // fill the border with the base color
+            const delta = border.cellWidth * cellSize; // full border space
+            const strip = delta / 2; // space of one strip of the border
+
+            // draw an outer edge, then inner edge, then fill even-odd so that
+            // only the actual border pixels get painted. overdraws vastly
+            // fewer pixels than our old fillRect() code.
+            ctx.beginPath();
+            ctx.rect(oX, oY, w, h);
+            ctx.rect(oX + strip, oY + strip, w - delta, h - delta);
+            ctx.closePath();
+
             ctx.fillStyle = border.color;
-            ctx.fillRect(oX, oY, w, h);
+            ctx.fill("evenodd");
 
             // adjust next drawing area
-            const delta = border.cellWidth * cellSize;
-            oX += delta / 2;
-            oY += delta / 2;
+            oX += strip;
+            oY += strip;
             w -= delta;
             h -= delta;
         }
-    } else {
-        // just hide all traces of the previous frame
-        ctx.clearRect(0, 0, preview.width, preview.height);
     }
 
     // draw the 5x4 blocks, inset by the half-border-width padSize, and offset
