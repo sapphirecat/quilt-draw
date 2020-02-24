@@ -216,15 +216,6 @@ function isChecked(id) {
 }
 
 function initJs() {
-    // make the canvas drawings sharper on HiDPI displays
-    const DPR = window.devicePixelRatio;
-    if (DPR > 1.0) {
-        editor.width *= DPR;
-        editor.height *= DPR;
-        preview.width *= DPR;
-        preview.height *= DPR;
-    }
-
     // set up UI
     initColors();
     initBorders();
