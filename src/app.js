@@ -1134,11 +1134,6 @@ function updatePreview(source, quilt) {
     const cellSize = DPR * Math.floor(Math.min(PREVIEW_MAX_WIDTH / cHoriz, PREVIEW_MAX_HEIGHT / cVert) / 2) * 2;
     const borderSize = cellSize * borderUnits;
 
-    // width and height of the source drawing area to copy: the editor rounds,
-    // so that it is always crisp. if we copy the whole area, we may introduce
-    // a visible gap below/right of the blocks where we copy in transparency.
-    const whSource = Math.floor(source.width / blockCells) * blockCells;
-
     // resize the canvas to the draw dimensions
     sizeCanvasTo(preview, cellSize * cHoriz, cellSize * cVert);
 
@@ -1149,7 +1144,6 @@ function updatePreview(source, quilt) {
     const padSize = borderSize / 2.0; // half on each side
     // Determine the block size within the remaining area
     const blockSize = cellSize * quilt.block.size;
-    const blockDraw = Math.ceil(blockSize);
 
     // draw borders if needed
     if (borderSize) {
@@ -1189,6 +1183,14 @@ function updatePreview(source, quilt) {
 
     // draw the 5x4 blocks, inset by the half-border-width padSize, and offset
     // by sashing if specified
+
+    // first, scale the block to an offscreen canvas...
+    const scaled = document.createElement('canvas');
+    scaled.width = blockSize;
+    scaled.height = blockSize;
+    scaled.getContext('2d', {alpha: false}).drawImage(source, 0, 0, blockSize, blockSize);
+
+    // now draw from the scaled rather than the source
     const sashSpacing = hasSash ? cellSize : 0;
     for (let col = 0; col < BLOCKS_HORIZ; col++) {
         for (let row = 0; row < BLOCKS_VERT; row++) {
@@ -1196,7 +1198,7 @@ function updatePreview(source, quilt) {
             const oX = padSize + (col * blockSize) + (sashSpacing * col);
             const oY = padSize + (row * blockSize) + (sashSpacing * row);
             // draw at the un-rounded origin, but using rounded-up size
-            ctx.drawImage(source, 0, 0, whSource, whSource, oX, oY, blockDraw, blockDraw);
+            ctx.drawImage(scaled, oX, oY, blockSize, blockSize);
         }
     }
 
