@@ -655,7 +655,11 @@ function onEditorMouse(ev) {
         }
 
         // apply color to the index that was hit
-        cell.colors[colorIndex] = ui.paintColors[isSecondaryClick ? 1 : 0];
+        const colorChosen = ui.paintColors[isSecondaryClick ? 1 : 0];
+        if (cell.colors[colorIndex] === colorChosen) {
+            return; // painted same color, no updates needed
+        }
+        cell.colors[colorIndex] = colorChosen;
 
         break;
     case TOOL_SPIN:
