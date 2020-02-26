@@ -1198,19 +1198,29 @@ function drawPreviewBorders(isFull, ctx, cellSize) {
 function drawPreviewSash(ctx, sash, padSize, blockSize, sashSpacing) {
     const borderSize = 2 * padSize;
 
+    const vs = view.quilt.sash;
+    const viewColors = vs.levels === sash.levels ? vs.colors : [];
+    let drawMain = false;
+
     // draw main sashing
-    ctx.fillStyle = sash.colors[0];
-    for (let col = 1; col < BLOCKS_HORIZ; col++) {
-        const oX = padSize + (col * blockSize) + (sashSpacing * col);
-        ctx.fillRect(oX - sashSpacing, padSize, sashSpacing, preview.height - borderSize);
-    }
-    for (let row = 1; row < BLOCKS_VERT; row++) {
-        const oY = padSize + (row * blockSize) + (sashSpacing * row);
-        ctx.fillRect(padSize, oY - sashSpacing, preview.width - borderSize, sashSpacing);
+    if (!(viewColors && viewColors[0] === sash.colors[0])) {
+        drawMain = true;
+        ctx.fillStyle = sash.colors[0];
+        for (let col = 1; col < BLOCKS_HORIZ; col++) {
+            const oX = padSize + (col * blockSize) + (sashSpacing * col);
+            ctx.fillRect(oX - sashSpacing, padSize, sashSpacing, preview.height - borderSize);
+        }
+        for (let row = 1; row < BLOCKS_VERT; row++) {
+            const oY = padSize + (row * blockSize) + (sashSpacing * row);
+            ctx.fillRect(padSize, oY - sashSpacing, preview.width - borderSize, sashSpacing);
+        }
     }
 
     // draw cross sashing, if applicable
     if (sash.levels !== SASH_DOUBLE) {
+        return;
+    } else if (!drawMain && viewColors && viewColors[1] === sash.colors[1]) {
+        // cross sashing neither changed nor drawn over
         return;
     }
     ctx.fillStyle = sash.colors[1];
@@ -1262,7 +1272,7 @@ function updatePreview(source, quilt) {
     }
 
     // resize the canvas to the draw dimensions if needed
-    const layout = `${cellSize},${cHoriz},${cVert}`;
+    const layout = `${cellSize},${cHoriz},${cVert},${hasSash ? 'sash' : 'noSash'}`;
     if (layout !== view.layout) {
         view.layout = layout;
         sizeCanvasTo(preview, cellSize * cHoriz, cellSize * cVert);
@@ -1291,7 +1301,7 @@ function updatePreview(source, quilt) {
     // draw main sashing, if applicable
     if (hasSash) {
         drawPreviewSash(ctx, sash, padSize, blockSize, cellSize);
-        view.quilt.sash = deepCopy(view.quilt.sash);
+        view.quilt.sash = deepCopy(quilt.sash);
     } else if (view.quilt.sash.levels !== SASH_NONE) {
         view.quilt.sash = {levels: SASH_NONE, colors: []};
     }
