@@ -1158,25 +1158,23 @@ function drawPreviewBorders(isFull, ctx, cellSize) {
             continue;
         }
 
-        // if this is not a full redraw and the border hasn't changed, skip it
-        if (viewBorder && isBorderSame(border, viewBorder)) {
-            continue;
-        }
-
-        // fill the border with the base color
+        // determine the border sizes
         const delta = border.cellWidth * cellSize; // full border space
         const strip = delta / 2; // space of one strip of the border
 
-        // draw an outer edge, then inner edge, then fill even-odd so that
-        // only the actual border pixels get painted. overdraws vastly
-        // fewer pixels than our old fillRect() code.
-        ctx.beginPath();
-        ctx.rect(oX, oY, w, h);
-        ctx.rect(oX + strip, oY + strip, w - delta, h - delta);
-        ctx.closePath();
+        // if this is a full redraw or the border has changed, repaint it
+        if (!(viewBorder && isBorderSame(border, viewBorder))) {
+            // draw an outer edge, then inner edge, then fill even-odd so that
+            // only the actual border pixels get painted. overdraws vastly
+            // fewer pixels than our old fillRect() code.
+            ctx.beginPath();
+            ctx.rect(oX, oY, w, h);
+            ctx.rect(oX + strip, oY + strip, w - delta, h - delta);
+            ctx.closePath();
 
-        ctx.fillStyle = border.color;
-        ctx.fill("evenodd");
+            ctx.fillStyle = border.color;
+            ctx.fill("evenodd");
+        }
 
         // adjust next drawing area
         oX += strip;
