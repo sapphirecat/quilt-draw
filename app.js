@@ -1,7 +1,7 @@
 "use strict";
 
 /*
- * QuiltDraw - Half-Square Triangle Designer
+ * QuiltDraw - Quarter-Square Triangle Designer
  * Copyright (C) 2020 sapphirecat <devel@sapphirepaw.org>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -20,13 +20,8 @@
 
 
 /**
- * @typedef {Array<number>} ColorList
- */
-
-/**
  * @typedef {Object} Cell
- * @property {ColorList} colors
- * @property {number} angle
+ * @property {Array<number>} colors Palette indices of the colors of the cell
  */
 
 /**
@@ -69,40 +64,38 @@ const editor = document.getElementById('editor');
 const preview = document.getElementById('preview');
 
 const EDITOR_MAX_WIDTH = editor.width;
-const EDITOR_MAX_HEIGHT = editor.height;
+// no EDITOR_MAX_HEIGHT: it is square.
 const PREVIEW_MAX_WIDTH = preview.width;
 const PREVIEW_MAX_HEIGHT = preview.height;
 
-const BLOCKS_HORIZ = 4;
-const BLOCKS_VERT = 5;
+const BLOCKS_HORIZ = 4; // number of block copies across the preview
+const BLOCKS_VERT = 5; // number of block copies down the preview
 
-// TOP = color 0 in the top-left; color 1 in the bottom-right (seam rising)
-// RIGHT = color 0 in the top-right; color 1 in the bottom-left (seam falling)
-// BOTTOM = color 0 in the bottom-right; color 1 in the top-left (seam rising)
-// LEFT = color 0 in the bottom-left; color 1 in the top-right (seam falling)
-// Thus, TOP/BOTTOM are color-swaps of each other, as are RIGHT/LEFT.
-const ANGLE_TOP = 0;
-const ANGLE_RIGHT = 1;
-const ANGLE_BOTTOM = 2;
-const ANGLE_LEFT = 3;
-const ANGLES = [ANGLE_TOP, ANGLE_RIGHT, ANGLE_BOTTOM, ANGLE_LEFT];
-
-const BORDER_LIMIT = 6;
-const COLOR_LIMIT = 12;
+const BORDER_LIMIT = 6; // maximum number of borders that may be added
+const COLOR_LIMIT = 12; // maximum number of colors in the palette
 
 const SASH_NONE = 0; // sash disabled
 const SASH_SINGLE = 1; // all one color
 const SASH_DOUBLE = 2; // second color at intersections
 
-const MOVE_IGNORE = 0;
-const MOVE_ALLOW = 1;
-const MOVE_TRACKING = 2;
+const MOVE_IGNORE = 0; // tool does not allow holding mouse down
+const MOVE_ALLOW = 1; // tool supports holding mouse down, but handler is inactive
+const MOVE_TRACKING = 2; // mouse is down, and event handler is active
 
-const CLICK_ALLOW = 0;
-const CLICK_IGNORE = 1;
+const CLICK_ALLOW = 0; // click event should be reacted to
+const CLICK_IGNORE = 1; // click event should be suppressed
 
-const TOOL_PAINT = 'paint';
-const TOOL_SPIN = 'spin';
+const TOOL_PAINT = 'paint'; // set color of tiles
+const TOOL_SPIN = 'spin'; // turn tiles
+
+// Lookup table for calculating cell hits. A = top/right side, B = bottom/left;
+// X = bottom/right, Y = top/left.  AY = intersect(A, Y) = top.
+const CELL_QUADRANTS = {
+    "AY": 0,
+    "AX": 1,
+    "BX": 2,
+    "BY": 3
+};
 
 const pickers = {};
 
@@ -197,17 +190,17 @@ function randomColor() {
 }
 
 /**
- * Generate a random cell structure/angle.
+ * Generate a random cell structure.
  *
  * @returns {Cell}
  */
 function randomCell() {
-    const angleCount = Math.floor(ANGLES.length);
     const colorCount = Math.floor(quilt.colorSet.length);
 
     return {
-        angle: ANGLES[Math.floor(Math.random() * angleCount)],
         colors: [
+            (Math.floor(Math.random() * colorCount)),
+            (Math.floor(Math.random() * colorCount)),
             (Math.floor(Math.random() * colorCount)),
             (Math.floor(Math.random() * colorCount))
         ]
@@ -221,6 +214,34 @@ function getPalette(element) {
 
     const colorText = element.getAttribute('data-initial-palette') || '#ff00ff';
     return colorText.split(/,\s*/);
+}
+
+/**
+ * Rotate array elements "leftward": all indices down one, 0 to last position.
+ *
+ * No effect if the array length is less than 2.
+ *
+ * @param {Array<number>} ary
+ * @return void Operation is destructive, to limit GC pressure.
+ */
+function rotateLeft(ary) {
+    if (ary.length > 1) {
+        ary.push(ary.shift());
+    }
+}
+
+/**
+ * Rotate array elements "rightward": all indices up one, last position to 0.
+ *
+ * No effect if the array length is less than 2.
+ *
+ * @param {Array<number>} ary
+ * @return void Operation is destructive, to limit GC pressure.
+ */
+function rotateRight(ary) {
+    if (ary.length > 1) {
+        ary.unshift(ary.pop());
+    }
 }
 
 /**
@@ -535,19 +556,6 @@ function addBorder(color) {
     ui.borderTemplate.parentElement.appendChild(item);
 }
 
-/**
- * @param {number} angle
- * @param {boolean} reverse
- * @returns {number}
- */
-function spinCell(angle, reverse) {
-    if (reverse && angle === 0) {
-        return ANGLES.length - 1;
-    }
-
-    return reverse ? angle - 1 : (angle + 1) % ANGLES.length;
-}
-
 
 /**
  * @param {MouseEvent} ev
@@ -633,26 +641,10 @@ function onEditorMouse(ev) {
         const left = _(index % sz) * ui.cellPx;
         const hitX = x - left;
         const hitY = y - top;
-        let colorIndex;
 
-        // determine which color of the cell was hit
-        switch (cell.angle) {
-        case ANGLE_TOP:
-            colorIndex = hitX < (ui.cellPx - hitY) ? 0 : 1;
-            break;
-        case ANGLE_BOTTOM:
-            colorIndex = hitX > (ui.cellPx - hitY) ? 0 : 1;
-            break;
-        case ANGLE_LEFT:
-            colorIndex = (hitX < hitY) ? 0 : 1;
-            break;
-        case ANGLE_RIGHT:
-            colorIndex = (hitX > hitY) ? 0 : 1;
-            break;
-        default:
-            console.error("Unknown angle %d", cell.angle);
-            colorIndex = 0;
-        }
+        // determine which quadrant of the cell was hit
+        const quadrantKey = `${hitX > hitY ? "A" : "B"}${hitX > (ui.cellPx - hitY) ? "X" : "Y"}`;
+        const colorIndex = CELL_QUADRANTS[quadrantKey];
 
         // apply color to the index that was hit
         const colorChosen = ui.paintColors[isSecondaryClick ? 1 : 0];
@@ -663,7 +655,8 @@ function onEditorMouse(ev) {
 
         break;
     case TOOL_SPIN:
-        cell.angle = spinCell(cell.angle, isSecondaryClick);
+        const fn = isSecondaryClick ? rotateLeft : rotateRight;
+        fn(cell.colors);
         break;
     default:
         console.error("Unknown tool selected: %s", ui.selectedTool)
@@ -1031,6 +1024,26 @@ function drawTriangle(ctx, points, fillStyle) {
 }
 
 /**
+ * Draw a polygon at coordinates on the canvas.
+ *
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {Array<Point>} points Vertices of the polygon
+ * @param {string} fillStyle Fill color for the polygon
+ */
+function drawPoly(ctx, points, fillStyle) {
+    ctx.beginPath();
+
+    ctx.moveTo(points[0][0], points[0][1]);
+    for (let i = 1; i < points.length; i++) {
+        ctx.lineTo(points[i][0], points[i][1]);
+    }
+
+    ctx.closePath();
+    ctx.fillStyle = fillStyle;
+    ctx.fill();
+}
+
+/**
  * Draw a cell into a coordinate on the canvas.
  *
  * @param {CanvasRenderingContext2D} ctx
@@ -1041,56 +1054,23 @@ function drawTriangle(ctx, points, fillStyle) {
  * @param {Cell} cell
  */
 function drawCellAt(ctx, oX, oY, cellPx, palette, cell) {
-    // basic fill: draw a full rectangle here
-    ctx.fillStyle = palette[cell.colors[0]];
-    ctx.fillRect(oX, oY, cellPx, cellPx);
-
-    if (cell.colors[1] === cell.colors[0]) {
-        return; // that was all for a solid square
-    }
-
-    // figure out where to draw the other triangle
+    // Determine all coordinates we can draw from: top/left/bottom/right pairs, and center
     const tl = [oX, oY];
     const tr = [oX + cellPx, oY];
     const bl = [oX, oY + cellPx];
     const br = [oX + cellPx, oY + cellPx];
-    let coordinates;
+    const c = [oX + cellPx / 2, oY + cellPx / 2];
 
-    // coordinates here are clockwise, hypotenuse last. this makes the values
-    // flow through the arrays in order (each literal shares two of the
-    // previous angle's coordinates, in the same order.)
-    switch (cell.angle) {
-    case ANGLE_TOP:
-        coordinates = [tr, br, bl];
-        break;
-    case ANGLE_RIGHT:
-        coordinates = [br, bl, tl];
-        break;
-    case ANGLE_BOTTOM:
-        coordinates = [bl, tl, tr];
-        break;
-    case ANGLE_LEFT:
-        coordinates = [tl, tr, br];
-        break;
-    default:
-        console.error("[render] Unknown angle %d", cell.angle);
-        return;
-    }
-
-    // draw in the other triangle, to complete this cell
-    drawTriangle(ctx, coordinates, palette[cell.colors[1]]);
+    // Draw all four triangles into place, but eliminate seams by drawing the
+    // top and bottom first, but bigger.
+    // top-left, top-right, 1px down, 1px right-of-center, 1px left-of-center, 1px below top-left
+    drawPoly(ctx, [tl, tr, [tr[0], tr[1] + 1], [c[0] + 1, c[1]], [c[0] - 1, c[1]], [tl[0], tl[1] + 1]], palette[cell.colors[0]]);
+    // bot-left, bot-right, 1px up, 1px right-of-center, 1px left-of-center, 1px above bot-left
+    drawPoly(ctx, [bl, br, [br[0], br[1] - 1], [c[0] + 1, c[1]], [c[0] - 1, c[1]], [bl[0], bl[1] - 1]], palette[cell.colors[2]]);
+    // draw left/right triangles over the edges of the polygons
+    drawTriangle(ctx, [c, tr, br], palette[cell.colors[1]]);
+    drawTriangle(ctx, [c, bl, tl], palette[cell.colors[3]]);
 }
-
-/**
- * @param {BlockInfo} block
- */
-function updateUiState(block) {
-    const cW = Math.floor(EDITOR_MAX_WIDTH / block.size);
-    const cH = Math.floor(EDITOR_MAX_HEIGHT / block.size);
-    ui.cellPx = Math.min(cW, cH);
-    sizeCanvasTo(editor, cW * block.size, cH * block.size);
-}
-
 
 /**
  * Draw a block into the editor area of the canvas.
@@ -1103,12 +1083,19 @@ function updateEditor(colors, block) {
     const size = block.size;
     ui.editorState += 1;
 
+    // Resize editor if needed, assuming square
+    const cW = 2 * Math.floor(EDITOR_MAX_WIDTH / block.size / 2);
+    if (cW !== ui.cellPx || editor.style.width === "") {
+        const blockSize = cW * block.size;
+        ui.cellPx = cW;
+        sizeCanvasTo(editor, blockSize, blockSize);
+    }
+
     // cell origin and current block index
     let oX, oY, iBlock;
 
     // canvas 2D context
     const ctx = editor.getContext('2d', {alpha: false});
-    ctx.clearRect(0, 0, editor.width, editor.height);
 
     // process cells
     iBlock = 0; // index into block array
@@ -1312,7 +1299,6 @@ function updatePreview(source, quilt) {
 }
 
 function updateView() {
-    updateUiState(quilt.block);
     updateEditor(quilt.colorSet, quilt.block);
     updatePreview(editor, quilt);
 }
