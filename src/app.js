@@ -1186,15 +1186,24 @@ function drawPreviewBorders(isFull, ctx, cellSize) {
     }
 }
 
-function drawPreviewSash(ctx, sash, padSize, blockSize, sashSpacing) {
+/**
+ *
+ * @param {boolean} isFull
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {SashInfo} sash
+ * @param {number} padSize
+ * @param {number} blockSize
+ * @param {number} sashSpacing
+ */
+function drawPreviewSash(isFull, ctx, sash, padSize, blockSize, sashSpacing) {
     const borderSize = 2 * padSize;
 
     const vs = view.quilt.sash;
     const viewColors = vs.levels === sash.levels ? vs.colors : [];
-    let drawMain = false;
+    let drawMain = isFull;
 
     // draw main sashing
-    if (!(viewColors && viewColors[0] === sash.colors[0])) {
+    if (isFull || !(viewColors && viewColors[0] === sash.colors[0])) {
         drawMain = true;
         ctx.fillStyle = sash.colors[0];
         for (let col = 1; col < BLOCKS_HORIZ; col++) {
@@ -1291,7 +1300,7 @@ function updatePreview(source, quilt) {
 
     // draw main sashing, if applicable
     if (hasSash) {
-        drawPreviewSash(ctx, sash, padSize, blockSize, cellSize);
+        drawPreviewSash(fullRedraw, ctx, sash, padSize, blockSize, cellSize);
         view.quilt.sash = deepCopy(quilt.sash);
     } else if (view.quilt.sash.levels !== SASH_NONE) {
         view.quilt.sash = {levels: SASH_NONE, colors: []};
