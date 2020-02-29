@@ -1,7 +1,7 @@
 "use strict";
 
 /*
- * QuiltDraw - Half-Square Triangle Designer
+ * QuiltDraw - Quarter-Square Triangle Designer
  * Copyright (C) 2020 sapphirecat <devel@sapphirepaw.org>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -20,13 +20,8 @@
 
 
 /**
- * @typedef {Array<number>} ColorList
- */
-
-/**
  * @typedef {Object} Cell
- * @property {ColorList} colors
- * @property {number} angle
+ * @property {Array<number>} colors Palette indices of the colors of the cell
  */
 
 /**
@@ -69,23 +64,12 @@ const editor = document.getElementById('editor');
 const preview = document.getElementById('preview');
 
 const EDITOR_MAX_WIDTH = editor.width;
-const EDITOR_MAX_HEIGHT = editor.height;
+// no EDITOR_MAX_HEIGHT: it is square.
 const PREVIEW_MAX_WIDTH = preview.width;
 const PREVIEW_MAX_HEIGHT = preview.height;
 
 const BLOCKS_HORIZ = 4;
 const BLOCKS_VERT = 5;
-
-// TOP = color 0 in the top-left; color 1 in the bottom-right (seam rising)
-// RIGHT = color 0 in the top-right; color 1 in the bottom-left (seam falling)
-// BOTTOM = color 0 in the bottom-right; color 1 in the top-left (seam rising)
-// LEFT = color 0 in the bottom-left; color 1 in the top-right (seam falling)
-// Thus, TOP/BOTTOM are color-swaps of each other, as are RIGHT/LEFT.
-const ANGLE_TOP = 0;
-const ANGLE_RIGHT = 1;
-const ANGLE_BOTTOM = 2;
-const ANGLE_LEFT = 3;
-const ANGLES = [ANGLE_TOP, ANGLE_RIGHT, ANGLE_BOTTOM, ANGLE_LEFT];
 
 const BORDER_LIMIT = 6;
 const COLOR_LIMIT = 12;
@@ -103,6 +87,15 @@ const CLICK_IGNORE = 1;
 
 const TOOL_PAINT = 'paint';
 const TOOL_SPIN = 'spin';
+
+// Lookup table for calculating cell hits. A = top/right side, B = bottom/left;
+// X = bottom/right, Y = top/left.  AY = intersect(A, Y) = top.
+const CELL_QUADRANTS = {
+    "AY": 0,
+    "AX": 1,
+    "BX": 2,
+    "BY": 3
+};
 
 const pickers = {};
 
@@ -197,17 +190,17 @@ function randomColor() {
 }
 
 /**
- * Generate a random cell structure/angle.
+ * Generate a random cell structure.
  *
  * @returns {Cell}
  */
 function randomCell() {
-    const angleCount = Math.floor(ANGLES.length);
     const colorCount = Math.floor(quilt.colorSet.length);
 
     return {
-        angle: ANGLES[Math.floor(Math.random() * angleCount)],
         colors: [
+            (Math.floor(Math.random() * colorCount)),
+            (Math.floor(Math.random() * colorCount)),
             (Math.floor(Math.random() * colorCount)),
             (Math.floor(Math.random() * colorCount))
         ]
@@ -221,6 +214,34 @@ function getPalette(element) {
 
     const colorText = element.getAttribute('data-initial-palette') || '#ff00ff';
     return colorText.split(/,\s*/);
+}
+
+/**
+ * Rotate array elements "leftward": all indices down one, 0 to last position.
+ *
+ * No effect if the array length is less than 2.
+ *
+ * @param {Array<number>} ary
+ * @return void Operation is destructive, to limit GC pressure.
+ */
+function rotateLeft(ary) {
+    if (ary.length > 1) {
+        ary.push(ary.shift());
+    }
+}
+
+/**
+ * Rotate array elements "rightward": all indices up one, last position to 0.
+ *
+ * No effect if the array length is less than 2.
+ *
+ * @param {Array<number>} ary
+ * @return void Operation is destructive, to limit GC pressure.
+ */
+function rotateRight(ary) {
+    if (ary.length > 1) {
+        ary.unshift(ary.pop());
+    }
 }
 
 /**
@@ -535,19 +556,6 @@ function addBorder(color) {
     ui.borderTemplate.parentElement.appendChild(item);
 }
 
-/**
- * @param {number} angle
- * @param {boolean} reverse
- * @returns {number}
- */
-function spinCell(angle, reverse) {
-    if (reverse && angle === 0) {
-        return ANGLES.length - 1;
-    }
-
-    return reverse ? angle - 1 : (angle + 1) % ANGLES.length;
-}
-
 
 /**
  * @param {MouseEvent} ev
@@ -633,26 +641,10 @@ function onEditorMouse(ev) {
         const left = _(index % sz) * ui.cellPx;
         const hitX = x - left;
         const hitY = y - top;
-        let colorIndex;
 
-        // determine which color of the cell was hit
-        switch (cell.angle) {
-        case ANGLE_TOP:
-            colorIndex = hitX < (ui.cellPx - hitY) ? 0 : 1;
-            break;
-        case ANGLE_BOTTOM:
-            colorIndex = hitX > (ui.cellPx - hitY) ? 0 : 1;
-            break;
-        case ANGLE_LEFT:
-            colorIndex = (hitX < hitY) ? 0 : 1;
-            break;
-        case ANGLE_RIGHT:
-            colorIndex = (hitX > hitY) ? 0 : 1;
-            break;
-        default:
-            console.error("Unknown angle %d", cell.angle);
-            colorIndex = 0;
-        }
+        // determine which quadrant of the cell was hit
+        const quadrantKey = `${hitX > hitY ? "A" : "B"}${hitX > (ui.cellPx - hitY) ? "X" : "Y"}`;
+        const colorIndex = CELL_QUADRANTS[quadrantKey];
 
         // apply color to the index that was hit
         const colorChosen = ui.paintColors[isSecondaryClick ? 1 : 0];
@@ -663,7 +655,8 @@ function onEditorMouse(ev) {
 
         break;
     case TOOL_SPIN:
-        cell.angle = spinCell(cell.angle, isSecondaryClick);
+        const fn = isSecondaryClick ? rotateLeft : rotateRight;
+        fn(cell.colors);
         break;
     default:
         console.error("Unknown tool selected: %s", ui.selectedTool)
@@ -1041,54 +1034,29 @@ function drawTriangle(ctx, points, fillStyle) {
  * @param {Cell} cell
  */
 function drawCellAt(ctx, oX, oY, cellPx, palette, cell) {
-    // basic fill: draw a full rectangle here
-    ctx.fillStyle = palette[cell.colors[0]];
-    ctx.fillRect(oX, oY, cellPx, cellPx);
-
-    if (cell.colors[1] === cell.colors[0]) {
-        return; // that was all for a solid square
-    }
-
-    // figure out where to draw the other triangle
+    // Determine all coordinates we can draw from: top/left/bottom/right pairs, and center
     const tl = [oX, oY];
     const tr = [oX + cellPx, oY];
     const bl = [oX, oY + cellPx];
     const br = [oX + cellPx, oY + cellPx];
-    let coordinates;
+    const c = [oX + cellPx / 2, oY + cellPx / 2];
 
-    // coordinates here are clockwise, hypotenuse last. this makes the values
-    // flow through the arrays in order (each literal shares two of the
-    // previous angle's coordinates, in the same order.)
-    switch (cell.angle) {
-    case ANGLE_TOP:
-        coordinates = [tr, br, bl];
-        break;
-    case ANGLE_RIGHT:
-        coordinates = [br, bl, tl];
-        break;
-    case ANGLE_BOTTOM:
-        coordinates = [bl, tl, tr];
-        break;
-    case ANGLE_LEFT:
-        coordinates = [tl, tr, br];
-        break;
-    default:
-        console.error("[render] Unknown angle %d", cell.angle);
-        return;
-    }
-
-    // draw in the other triangle, to complete this cell
-    drawTriangle(ctx, coordinates, palette[cell.colors[1]]);
+    // Draw all four triangles into place
+    drawTriangle(ctx, [tl, tr, c], palette[cell.colors[0]]);
+    drawTriangle(ctx, [c, tr, br], palette[cell.colors[1]]);
+    drawTriangle(ctx, [br, bl, c], palette[cell.colors[2]]);
+    drawTriangle(ctx, [c, bl, tl], palette[cell.colors[3]]);
 }
 
 /**
  * @param {BlockInfo} block
  */
 function updateUiState(block) {
-    const cW = Math.floor(EDITOR_MAX_WIDTH / block.size);
-    const cH = Math.floor(EDITOR_MAX_HEIGHT / block.size);
-    ui.cellPx = Math.min(cW, cH);
-    sizeCanvasTo(editor, cW * block.size, cH * block.size);
+    // Assume a square editor
+    const cW = 2 * Math.floor(EDITOR_MAX_WIDTH / block.size / 2);
+    const blockSize = cW * block.size;
+    ui.cellPx = cW;
+    sizeCanvasTo(editor, blockSize, blockSize);
 }
 
 
@@ -1108,7 +1076,6 @@ function updateEditor(colors, block) {
 
     // canvas 2D context
     const ctx = editor.getContext('2d', {alpha: false});
-    ctx.clearRect(0, 0, editor.width, editor.height);
 
     // process cells
     iBlock = 0; // index into block array
