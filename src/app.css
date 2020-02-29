@@ -225,8 +225,8 @@ button.palette-select {
 
 #editor {
     cursor: pointer;
-    width: 540px;
-    height: 540px;
+    max-width: 540px;
+    max-height: 540px;
 }
 
 #preview {

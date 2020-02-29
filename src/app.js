@@ -68,25 +68,25 @@ const EDITOR_MAX_WIDTH = editor.width;
 const PREVIEW_MAX_WIDTH = preview.width;
 const PREVIEW_MAX_HEIGHT = preview.height;
 
-const BLOCKS_HORIZ = 4;
-const BLOCKS_VERT = 5;
+const BLOCKS_HORIZ = 4; // number of block copies across the preview
+const BLOCKS_VERT = 5; // number of block copies down the preview
 
-const BORDER_LIMIT = 6;
-const COLOR_LIMIT = 12;
+const BORDER_LIMIT = 6; // maximum number of borders that may be added
+const COLOR_LIMIT = 12; // maximum number of colors in the palette
 
 const SASH_NONE = 0; // sash disabled
 const SASH_SINGLE = 1; // all one color
 const SASH_DOUBLE = 2; // second color at intersections
 
-const MOVE_IGNORE = 0;
-const MOVE_ALLOW = 1;
-const MOVE_TRACKING = 2;
+const MOVE_IGNORE = 0; // tool does not allow holding mouse down
+const MOVE_ALLOW = 1; // tool supports holding mouse down, but handler is inactive
+const MOVE_TRACKING = 2; // mouse is down, and event handler is active
 
-const CLICK_ALLOW = 0;
-const CLICK_IGNORE = 1;
+const CLICK_ALLOW = 0; // click event should be reacted to
+const CLICK_IGNORE = 1; // click event should be suppressed
 
-const TOOL_PAINT = 'paint';
-const TOOL_SPIN = 'spin';
+const TOOL_PAINT = 'paint'; // set color of tiles
+const TOOL_SPIN = 'spin'; // turn tiles
 
 // Lookup table for calculating cell hits. A = top/right side, B = bottom/left;
 // X = bottom/right, Y = top/left.  AY = intersect(A, Y) = top.
@@ -1024,6 +1024,26 @@ function drawTriangle(ctx, points, fillStyle) {
 }
 
 /**
+ * Draw a polygon at coordinates on the canvas.
+ *
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {Array<Point>} points Vertices of the polygon
+ * @param {string} fillStyle Fill color for the polygon
+ */
+function drawPoly(ctx, points, fillStyle) {
+    ctx.beginPath();
+
+    ctx.moveTo(points[0][0], points[0][1]);
+    for (let i = 1; i < points.length; i++) {
+        ctx.lineTo(points[i][0], points[i][1]);
+    }
+
+    ctx.closePath();
+    ctx.fillStyle = fillStyle;
+    ctx.fill();
+}
+
+/**
  * Draw a cell into a coordinate on the canvas.
  *
  * @param {CanvasRenderingContext2D} ctx
@@ -1041,24 +1061,16 @@ function drawCellAt(ctx, oX, oY, cellPx, palette, cell) {
     const br = [oX + cellPx, oY + cellPx];
     const c = [oX + cellPx / 2, oY + cellPx / 2];
 
-    // Draw all four triangles into place
-    drawTriangle(ctx, [tl, tr, c], palette[cell.colors[0]]);
+    // Draw all four triangles into place, but eliminate seams by drawing the
+    // top and bottom first, but bigger.
+    // top-left, top-right, 1px down, 1px right-of-center, 1px left-of-center, 1px below top-left
+    drawPoly(ctx, [tl, tr, [tr[0], tr[1] + 1], [c[0] + 1, c[1]], [c[0] - 1, c[1]], [tl[0], tl[1] + 1]], palette[cell.colors[0]]);
+    // bot-left, bot-right, 1px up, 1px right-of-center, 1px left-of-center, 1px above bot-left
+    drawPoly(ctx, [bl, br, [br[0], br[1] - 1], [c[0] + 1, c[1]], [c[0] - 1, c[1]], [bl[0], bl[1] - 1]], palette[cell.colors[2]]);
+    // draw left/right triangles over the edges of the polygons
     drawTriangle(ctx, [c, tr, br], palette[cell.colors[1]]);
-    drawTriangle(ctx, [br, bl, c], palette[cell.colors[2]]);
     drawTriangle(ctx, [c, bl, tl], palette[cell.colors[3]]);
 }
-
-/**
- * @param {BlockInfo} block
- */
-function updateUiState(block) {
-    // Assume a square editor
-    const cW = 2 * Math.floor(EDITOR_MAX_WIDTH / block.size / 2);
-    const blockSize = cW * block.size;
-    ui.cellPx = cW;
-    sizeCanvasTo(editor, blockSize, blockSize);
-}
-
 
 /**
  * Draw a block into the editor area of the canvas.
@@ -1070,6 +1082,14 @@ function updateEditor(colors, block) {
     const cells = block.cells;
     const size = block.size;
     ui.editorState += 1;
+
+    // Resize editor if needed, assuming square
+    const cW = 2 * Math.floor(EDITOR_MAX_WIDTH / block.size / 2);
+    if (cW !== ui.cellPx || editor.style.width === "") {
+        const blockSize = cW * block.size;
+        ui.cellPx = cW;
+        sizeCanvasTo(editor, blockSize, blockSize);
+    }
 
     // cell origin and current block index
     let oX, oY, iBlock;
@@ -1279,7 +1299,6 @@ function updatePreview(source, quilt) {
 }
 
 function updateView() {
-    updateUiState(quilt.block);
     updateEditor(quilt.colorSet, quilt.block);
     updatePreview(editor, quilt);
 }
