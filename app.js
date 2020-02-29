@@ -1158,25 +1158,23 @@ function drawPreviewBorders(isFull, ctx, cellSize) {
             continue;
         }
 
-        // if this is not a full redraw and the border hasn't changed, skip it
-        if (viewBorder && isBorderSame(border, viewBorder)) {
-            continue;
-        }
-
-        // fill the border with the base color
+        // determine the border sizes
         const delta = border.cellWidth * cellSize; // full border space
         const strip = delta / 2; // space of one strip of the border
 
-        // draw an outer edge, then inner edge, then fill even-odd so that
-        // only the actual border pixels get painted. overdraws vastly
-        // fewer pixels than our old fillRect() code.
-        ctx.beginPath();
-        ctx.rect(oX, oY, w, h);
-        ctx.rect(oX + strip, oY + strip, w - delta, h - delta);
-        ctx.closePath();
+        // if this is a full redraw or the border has changed, repaint it
+        if (!(viewBorder && isBorderSame(border, viewBorder))) {
+            // draw an outer edge, then inner edge, then fill even-odd so that
+            // only the actual border pixels get painted. overdraws vastly
+            // fewer pixels than our old fillRect() code.
+            ctx.beginPath();
+            ctx.rect(oX, oY, w, h);
+            ctx.rect(oX + strip, oY + strip, w - delta, h - delta);
+            ctx.closePath();
 
-        ctx.fillStyle = border.color;
-        ctx.fill("evenodd");
+            ctx.fillStyle = border.color;
+            ctx.fill("evenodd");
+        }
 
         // adjust next drawing area
         oX += strip;
@@ -1186,15 +1184,24 @@ function drawPreviewBorders(isFull, ctx, cellSize) {
     }
 }
 
-function drawPreviewSash(ctx, sash, padSize, blockSize, sashSpacing) {
+/**
+ *
+ * @param {boolean} isFull
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {SashInfo} sash
+ * @param {number} padSize
+ * @param {number} blockSize
+ * @param {number} sashSpacing
+ */
+function drawPreviewSash(isFull, ctx, sash, padSize, blockSize, sashSpacing) {
     const borderSize = 2 * padSize;
 
     const vs = view.quilt.sash;
     const viewColors = vs.levels === sash.levels ? vs.colors : [];
-    let drawMain = false;
+    let drawMain = isFull;
 
     // draw main sashing
-    if (!(viewColors && viewColors[0] === sash.colors[0])) {
+    if (isFull || !(viewColors && viewColors[0] === sash.colors[0])) {
         drawMain = true;
         ctx.fillStyle = sash.colors[0];
         for (let col = 1; col < BLOCKS_HORIZ; col++) {
@@ -1291,7 +1298,7 @@ function updatePreview(source, quilt) {
 
     // draw main sashing, if applicable
     if (hasSash) {
-        drawPreviewSash(ctx, sash, padSize, blockSize, cellSize);
+        drawPreviewSash(fullRedraw, ctx, sash, padSize, blockSize, cellSize);
         view.quilt.sash = deepCopy(quilt.sash);
     } else if (view.quilt.sash.levels !== SASH_NONE) {
         view.quilt.sash = {levels: SASH_NONE, colors: []};
