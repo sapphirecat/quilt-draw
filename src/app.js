@@ -524,7 +524,7 @@ function onBorderColorChanged(i, value) {
 }
 
 function onBorderColorReset(i) {
-    quilt.borders[i].color = pickers[i].saved;
+    quilt.borders[i].color = pickers[`border.${i}`].saved;
     updatePreview(editor, quilt);
 }
 
