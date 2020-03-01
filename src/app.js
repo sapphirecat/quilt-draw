@@ -60,6 +60,12 @@
  * @typedef {[number, number]} Point
  */
 
+/**
+ * @typedef {object} RectSize
+ * @property {number} w Width
+ * @property {number} h Height
+ */
+
 const editor = document.getElementById('editor');
 const preview = document.getElementById('preview');
 
@@ -1141,17 +1147,23 @@ function isBorderSame(a, b) {
     return a.cellWidth === b.cellWidth && a.color === b.color;
 }
 
-function drawPreviewBorders(isFull, ctx, cellSize) {
+/**
+ *
+ * @param prevState
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {number} cellSize
+ * @param {RectSize} canvasSize
+ */
+function drawPreviewBorders(prevState, ctx, cellSize, canvasSize) {
     let oX = 0;
     let oY = 0;
-    let w = preview.width;
-    let h = preview.height;
+    let w = canvasSize.w;
+    let h = canvasSize.h;
 
     const borders = quilt.borders;
-    const viewBorders = isFull ? [] : view.quilt.borders;
     for (let i = 0; i < borders.length; i++) {
         const border = borders[i];
-        const viewBorder = i < viewBorders.length ? viewBorders[i] : null;
+        const viewBorder = prevState && i < prevState.length ? prevState[i] : null;
 
         // skip everything if this border is not visible
         if (border.cellWidth === 0) {
@@ -1186,31 +1198,33 @@ function drawPreviewBorders(isFull, ctx, cellSize) {
 
 /**
  *
- * @param {boolean} isFull
+ * @param {SashInfo|null} vs
  * @param {CanvasRenderingContext2D} ctx
  * @param {SashInfo} sash
  * @param {number} padSize
  * @param {number} blockSize
  * @param {number} sashSpacing
+ * @param {RectSize} canvasSize
  */
-function drawPreviewSash(isFull, ctx, sash, padSize, blockSize, sashSpacing) {
-    const borderSize = 2 * padSize;
+function drawPreviewSash(vs, ctx, sash, padSize, blockSize, sashSpacing, canvasSize) {
+    if (sash.levels === SASH_NONE) {
+        return;
+    }
 
-    const vs = view.quilt.sash;
-    const viewColors = vs.levels === sash.levels ? vs.colors : [];
-    let drawMain = isFull;
+    const borderSize = 2 * padSize;
+    const viewColors = vs && vs.levels === sash.levels ? vs.colors : [];
+    const drawMain = !(vs && viewColors && viewColors[0] === sash.colors[0]);
 
     // draw main sashing
-    if (isFull || !(viewColors && viewColors[0] === sash.colors[0])) {
-        drawMain = true;
+    if (drawMain) {
         ctx.fillStyle = sash.colors[0];
         for (let col = 1; col < BLOCKS_HORIZ; col++) {
             const oX = padSize + (col * blockSize) + (sashSpacing * col);
-            ctx.fillRect(oX - sashSpacing, padSize, sashSpacing, preview.height - borderSize);
+            ctx.fillRect(oX - sashSpacing, padSize, sashSpacing, canvasSize.h - borderSize);
         }
         for (let row = 1; row < BLOCKS_VERT; row++) {
             const oY = padSize + (row * blockSize) + (sashSpacing * row);
-            ctx.fillRect(padSize, oY - sashSpacing, preview.width - borderSize, sashSpacing);
+            ctx.fillRect(padSize, oY - sashSpacing, canvasSize.w - borderSize, sashSpacing);
         }
     }
 
@@ -1279,6 +1293,7 @@ function updatePreview(source, quilt) {
 
     // start drawing
     const ctx = preview.getContext('2d', {alpha: false});
+    const canvasSize = {w: preview.width, h: preview.height};
 
     // Size border to user request
     const padSize = cellSize * borderUnits / 2.0; // half on each side
@@ -1286,7 +1301,7 @@ function updatePreview(source, quilt) {
     const blockSize = cellSize * quilt.block.size;
 
     // draw changes to borders
-    drawPreviewBorders(fullRedraw, ctx, cellSize);
+    drawPreviewBorders(fullRedraw ? null : view.quilt.borders, ctx, cellSize, canvasSize);
     view.quilt.borders = deepCopy(quilt.borders);
 
     // draw the 5x4 blocks, inset by the half-border-width padSize, and offset
@@ -1298,8 +1313,8 @@ function updatePreview(source, quilt) {
 
     // draw main sashing, if applicable
     if (hasSash) {
-        drawPreviewSash(fullRedraw, ctx, sash, padSize, blockSize, cellSize);
-        view.quilt.sash = deepCopy(quilt.sash);
+        drawPreviewSash(fullRedraw ? null : view.quilt.sash, ctx, sash, padSize, blockSize, cellSize, canvasSize);
+        view.quilt.sash = deepCopy(sash);
     } else if (view.quilt.sash.levels !== SASH_NONE) {
         view.quilt.sash = {levels: SASH_NONE, colors: []};
     }
