@@ -84,6 +84,7 @@ const SASH_NONE = 0; // sash disabled
 const SASH_SINGLE = 1; // all one color
 const SASH_DOUBLE = 2; // second color at intersections
 
+const POINTER_EVENTS = 'PointerEvent' in window;
 const MOVE_IGNORE = 0; // tool does not allow holding mouse down
 const MOVE_ALLOW = 1; // tool supports holding mouse down, but handler is inactive
 const MOVE_TRACKING = 2; // mouse is down, and event handler is active
@@ -291,20 +292,36 @@ function initQuiltBlock() {
 }
 
 function initTools() {
-    // connect editor events
-    editor.addEventListener('mousedown', onEditorMouse);
-    editor.addEventListener('mouseup', onEditorMouseRelease);
-    editor.addEventListener('contextmenu', (ev) => ev.preventDefault());
-
-    // set up main controls
-    // since mousedown can't prevent a click event, we use ui.colorEvents to
-    // ignore a click following a mousedown we took responsibility for.
     const colorItems = document.getElementById('color-items');
-    colorItems.addEventListener('mousedown', onPaletteDown, {capture: true});
-    colorItems.addEventListener('click', onPaletteClick, {capture: true});
+
+    // Pointer-related events: try Pointer, fall back to Mouse.
+    if (POINTER_EVENTS) {
+        // set up editor
+        editor.addEventListener('pointerdown', onEditorMouse);
+        editor.addEventListener('pointerup', onEditorMouseRelease);
+        editor.addEventListener('pointercancel', onEditorMouseRelease);
+
+        // set up main controls
+        // we still get a click event, so we use ui.colorEvents to ignore one
+        // if it follows a mousedown we took responsibility for.
+        colorItems.addEventListener('pointerdown', onPaletteDown, {capture: true});
+        colorItems.addEventListener('click', onPaletteClick, {capture: true});
+    } else {
+        editor.addEventListener('mousedown', onEditorMouse);
+        editor.addEventListener('mouseup', onEditorMouseRelease);
+
+        colorItems.addEventListener('mousedown', onPaletteDown, {capture: true});
+        colorItems.addEventListener('click', onPaletteClick, {capture: true});
+    }
+
+    // set up the remaining (non-pointer) editor and color-picker events
+    editor.addEventListener('contextmenu', (ev) => ev.preventDefault());
     colorItems.addEventListener('contextmenu', (ev) => ev.preventDefault());
 
+    // pre-select the paint tool to match the script state
     document.getElementById('tool-paint').checked = true;
+
+    // wire in the rest of the controls' events
     for (const node of document.querySelectorAll('.controls')) {
         node.addEventListener('click', onControlClick);
     }
@@ -588,13 +605,13 @@ function isSecondaryButton(ev) {
 }
 
 function editorClearMoveHandler() {
-    editor.removeEventListener('mousemove', onEditorMouse);
+    editor.removeEventListener(POINTER_EVENTS ? 'pointermove' : 'mousemove', onEditorMouse);
     ui.moveStatus = MOVE_ALLOW;
 }
 
 function editorSetMoveHandler() {
     ui.moveStatus = MOVE_TRACKING;
-    editor.addEventListener('mousemove', onEditorMouse);
+    editor.addEventListener(POINTER_EVENTS ? 'pointermove' : 'mousemove', onEditorMouse);
 }
 
 function onEditorMouseRelease(ev) {
