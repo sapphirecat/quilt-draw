@@ -60,6 +60,24 @@
  * @typedef {[number, number]} Point
  */
 
+/**
+ * @typedef {object} RectSize
+ * @property {number} w Width
+ * @property {number} h Height
+ */
+
+/**
+ * @typedef {object} RenderData
+ * @property {number} borderUnits Total thickness of borders, in half-cells
+ * @property {number} blockCells Number of cells in a block (horiz/vert)
+ * @property {boolean} hasSash TRUE if sashes will be drawn
+ * @property {number} cHoriz Total number of cells, horizontally
+ * @property {number} cVert Total number of cells, vertically
+ * @property {number} [cellSize] Size of a cell in pixels
+ * @property {number} [padSize] Thickness of borders between the quilt edge and interior
+ * @property {number} [blockSize] Number of pixels a block will be drawn at (width/height)
+ */
+
 const editor = document.getElementById('editor');
 const preview = document.getElementById('preview');
 
@@ -67,6 +85,7 @@ const EDITOR_MAX_WIDTH = editor.width;
 // no EDITOR_MAX_HEIGHT: it is square.
 const PREVIEW_MAX_WIDTH = preview.width;
 const PREVIEW_MAX_HEIGHT = preview.height;
+const DOWNLOAD_MIN_HEIGHT = 1400;
 
 const BLOCKS_HORIZ = 4; // number of block copies across the preview
 const BLOCKS_VERT = 5; // number of block copies down the preview
@@ -78,6 +97,7 @@ const SASH_NONE = 0; // sash disabled
 const SASH_SINGLE = 1; // all one color
 const SASH_DOUBLE = 2; // second color at intersections
 
+const POINTER_EVENTS = 'PointerEvent' in window;
 const MOVE_IGNORE = 0; // tool does not allow holding mouse down
 const MOVE_ALLOW = 1; // tool supports holding mouse down, but handler is inactive
 const MOVE_TRACKING = 2; // mouse is down, and event handler is active
@@ -285,20 +305,36 @@ function initQuiltBlock() {
 }
 
 function initTools() {
-    // connect editor events
-    editor.addEventListener('mousedown', onEditorMouse);
-    editor.addEventListener('mouseup', onEditorMouseRelease);
-    editor.addEventListener('contextmenu', (ev) => ev.preventDefault());
-
-    // set up main controls
-    // since mousedown can't prevent a click event, we use ui.colorEvents to
-    // ignore a click following a mousedown we took responsibility for.
     const colorItems = document.getElementById('color-items');
-    colorItems.addEventListener('mousedown', onPaletteDown, {capture: true});
-    colorItems.addEventListener('click', onPaletteClick, {capture: true});
+
+    // Pointer-related events: try Pointer, fall back to Mouse.
+    if (POINTER_EVENTS) {
+        // set up editor
+        editor.addEventListener('pointerdown', onEditorMouse);
+        editor.addEventListener('pointerup', onEditorMouseRelease);
+        editor.addEventListener('pointercancel', onEditorMouseRelease);
+
+        // set up main controls
+        // we still get a click event, so we use ui.colorEvents to ignore one
+        // if it follows a mousedown we took responsibility for.
+        colorItems.addEventListener('pointerdown', onPaletteDown, {capture: true});
+        colorItems.addEventListener('click', onPaletteClick, {capture: true});
+    } else {
+        editor.addEventListener('mousedown', onEditorMouse);
+        editor.addEventListener('mouseup', onEditorMouseRelease);
+
+        colorItems.addEventListener('mousedown', onPaletteDown, {capture: true});
+        colorItems.addEventListener('click', onPaletteClick, {capture: true});
+    }
+
+    // set up the remaining (non-pointer) editor and color-picker events
+    editor.addEventListener('contextmenu', (ev) => ev.preventDefault());
     colorItems.addEventListener('contextmenu', (ev) => ev.preventDefault());
 
+    // pre-select the paint tool to match the script state
     document.getElementById('tool-paint').checked = true;
+
+    // wire in the rest of the controls' events
     for (const node of document.querySelectorAll('.controls')) {
         node.addEventListener('click', onControlClick);
     }
@@ -518,7 +554,7 @@ function onBorderColorChanged(i, value) {
 }
 
 function onBorderColorReset(i) {
-    quilt.borders[i].color = pickers[i].saved;
+    quilt.borders[i].color = pickers[`border.${i}`].saved;
     updatePreview(editor, quilt);
 }
 
@@ -582,13 +618,13 @@ function isSecondaryButton(ev) {
 }
 
 function editorClearMoveHandler() {
-    editor.removeEventListener('mousemove', onEditorMouse);
+    editor.removeEventListener(POINTER_EVENTS ? 'pointermove' : 'mousemove', onEditorMouse);
     ui.moveStatus = MOVE_ALLOW;
 }
 
 function editorSetMoveHandler() {
     ui.moveStatus = MOVE_TRACKING;
-    editor.addEventListener('mousemove', onEditorMouse);
+    editor.addEventListener(POINTER_EVENTS ? 'pointermove' : 'mousemove', onEditorMouse);
 }
 
 function onEditorMouseRelease(ev) {
@@ -794,7 +830,7 @@ function onDownload(ev) {
 
     // figure out what we're downloading
     const isPreview = node.id === 'download-preview';
-    const source = isPreview ? preview : editor;
+    const source = isPreview ? renderDownload(editor, quilt) : editor;
     const basename = isPreview ? 'quilt' : 'block';
 
     // generate download
@@ -1108,11 +1144,66 @@ function updateEditor(colors, block) {
     }
 }
 
+/**
+ * Determine initial number of cells in a quilt rendering.
+ *
+ * @param {Quilt} quilt
+ * @return {RenderData}
+ */
+function createRenderData(quilt) {
+    const hasSash = quilt.sash.levels !== SASH_NONE;
+    const blockCells = quilt.block.size;
+    let borderUnits = 0;
+
+    for (const border of quilt.borders) {
+        borderUnits += border.cellWidth;
+    }
+
+    // "Border units" is in half-cells, so figure out the pixel size based on blockSize.
+    // Determine the number of cells horizontally and vertically.  This is determining the total
+    // border: borderUnits=1 means 1/2 cell * 2 sides.  Sashing goes between blocks only, and it
+    // is a fixed 1-cell width for the moment.  Thus, it adds blocks-1 cells to each dimension
+    // when present.
+    const cHoriz = (blockCells * BLOCKS_HORIZ + borderUnits + (hasSash ? BLOCKS_HORIZ - 1 : 0));
+    const cVert = (blockCells * BLOCKS_VERT + borderUnits + (hasSash ? BLOCKS_VERT - 1 : 0));
+
+    return {
+        hasSash: hasSash,
+        blockCells: blockCells,
+        borderUnits: borderUnits,
+        cHoriz: cHoriz,
+        cVert: cVert
+    }
+}
+
+/**
+ * Complete calculations for RenderData with finalized cellSize information.
+ *
+ * @param {RenderData} r
+ * @param {number} cellSize
+ */
+function extendRenderData(r, cellSize) {
+    r.cellSize = cellSize;
+    r.padSize = cellSize * r.borderUnits / 2; // half on each side
+    r.blockSize = cellSize * r.blockCells;
+}
+
 function deepCopy(x) {
     return JSON.parse(JSON.stringify(x));
 }
 
-function drawPreviewBlocks(source, ctx, blockSize, padSize, sashSize) {
+/**
+ * Draw scaled blocks into a canvas.
+ * @param {CanvasImageSource|HTMLCanvasElement} source
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {RenderData} r
+ */
+function drawPreviewBlocks(source, ctx, r) {
+    // parse render data
+    const blockSize = r.blockSize;
+    const padSize = r.padSize;
+    const sashSize = r.hasSash ? r.cellSize : 0;
+
     // first, scale the block to an offscreen canvas...
     const scaled = document.createElement('canvas');
     scaled.width = blockSize;
@@ -1141,17 +1232,23 @@ function isBorderSame(a, b) {
     return a.cellWidth === b.cellWidth && a.color === b.color;
 }
 
-function drawPreviewBorders(isFull, ctx, cellSize) {
+/**
+ *
+ * @param {Object|null} prevState
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {RenderData} r
+ * @param {RectSize} canvasSize
+ */
+function drawPreviewBorders(prevState, ctx, r, canvasSize) {
     let oX = 0;
     let oY = 0;
-    let w = preview.width;
-    let h = preview.height;
+    let w = canvasSize.w;
+    let h = canvasSize.h;
 
     const borders = quilt.borders;
-    const viewBorders = isFull ? [] : view.quilt.borders;
     for (let i = 0; i < borders.length; i++) {
         const border = borders[i];
-        const viewBorder = i < viewBorders.length ? viewBorders[i] : null;
+        const viewBorder = prevState && i < prevState.length ? prevState[i] : null;
 
         // skip everything if this border is not visible
         if (border.cellWidth === 0) {
@@ -1159,7 +1256,7 @@ function drawPreviewBorders(isFull, ctx, cellSize) {
         }
 
         // determine the border sizes
-        const delta = border.cellWidth * cellSize; // full border space
+        const delta = border.cellWidth * r.cellSize; // full border space
         const strip = delta / 2; // space of one strip of the border
 
         // if this is a full redraw or the border has changed, repaint it
@@ -1186,31 +1283,34 @@ function drawPreviewBorders(isFull, ctx, cellSize) {
 
 /**
  *
- * @param {boolean} isFull
+ * @param {SashInfo|null} vs
  * @param {CanvasRenderingContext2D} ctx
  * @param {SashInfo} sash
- * @param {number} padSize
- * @param {number} blockSize
- * @param {number} sashSpacing
+ * @param {RenderData} r
+ * @param {RectSize} canvasSize
  */
-function drawPreviewSash(isFull, ctx, sash, padSize, blockSize, sashSpacing) {
-    const borderSize = 2 * padSize;
+function drawPreviewSash(vs, ctx, sash, r, canvasSize) {
+    if (sash.levels === SASH_NONE) {
+        return;
+    }
 
-    const vs = view.quilt.sash;
-    const viewColors = vs.levels === sash.levels ? vs.colors : [];
-    let drawMain = isFull;
+    const sashSpacing = r.cellSize;
+    const blockSize = r.blockSize;
+    const padSize = r.padSize;
+    const borderSize = 2 * padSize;
+    const viewColors = vs && vs.levels === sash.levels ? vs.colors : [];
+    const drawMain = !(vs && viewColors && viewColors[0] === sash.colors[0]);
 
     // draw main sashing
-    if (isFull || !(viewColors && viewColors[0] === sash.colors[0])) {
-        drawMain = true;
+    if (drawMain) {
         ctx.fillStyle = sash.colors[0];
         for (let col = 1; col < BLOCKS_HORIZ; col++) {
             const oX = padSize + (col * blockSize) + (sashSpacing * col);
-            ctx.fillRect(oX - sashSpacing, padSize, sashSpacing, preview.height - borderSize);
+            ctx.fillRect(oX - sashSpacing, padSize, sashSpacing, canvasSize.h - borderSize);
         }
         for (let row = 1; row < BLOCKS_VERT; row++) {
             const oY = padSize + (row * blockSize) + (sashSpacing * row);
-            ctx.fillRect(padSize, oY - sashSpacing, preview.width - borderSize, sashSpacing);
+            ctx.fillRect(padSize, oY - sashSpacing, canvasSize.w - borderSize, sashSpacing);
         }
     }
 
@@ -1244,65 +1344,90 @@ function updatePreview(source, quilt) {
     // shorten some names
     const sash = quilt.sash;
 
+    // get initial render data
+    const r = createRenderData(quilt);
+
     // calculate draw dimensions
     const DPR = Math.max(window.devicePixelRatio, 1.0);
-    const hasSash = sash.levels !== SASH_NONE;
-    const blockCells = quilt.block.size;
-    let borderUnits = 0;
+    const cellSize = DPR * Math.floor(Math.min(PREVIEW_MAX_WIDTH / r.cHoriz, PREVIEW_MAX_HEIGHT / r.cVert) / 2) * 2;
 
-    for (const border of quilt.borders) {
-        borderUnits += border.cellWidth;
-    }
+    // finish up the render data
+    extendRenderData(r, cellSize);
 
-    // "Border units" is in half-cells, so figure out the pixel size based on blockSize.
-    // Determine the number of cells horizontally and vertically.  This is determining the total
-    // border: borderUnits=1 means 1/2 cell * 2 sides.  Sashing goes between blocks only, and it
-    // is a fixed 1-cell width for the moment.  Thus, it adds blocks-1 cells to each dimension
-    // when present.
-    const cHoriz = (blockCells * BLOCKS_HORIZ + borderUnits + (hasSash ? BLOCKS_HORIZ - 1 : 0));
-    const cVert = (blockCells * BLOCKS_VERT + borderUnits + (hasSash ? BLOCKS_VERT - 1 : 0));
-    // PREVIEW_MAX_WIDTH/HEIGHT were set before we ever looked at DPR.
-    const cellSize = DPR * Math.floor(Math.min(PREVIEW_MAX_WIDTH / cHoriz, PREVIEW_MAX_HEIGHT / cVert) / 2) * 2;
     let fullRedraw = (view.quilt === null);
-
     if (view.quilt == null) {
         view.quilt = newQuilt();
     }
 
     // resize the canvas to the draw dimensions if needed
-    const layout = `${cellSize},${cHoriz},${cVert},${hasSash ? 'sash' : 'noSash'}`;
+    const layout = `${cellSize},${r.cHoriz},${r.cVert},${r.hasSash ? 'sash' : 'noSash'}`;
     if (layout !== view.layout) {
         view.layout = layout;
-        sizeCanvasTo(preview, cellSize * cHoriz, cellSize * cVert);
+        sizeCanvasTo(preview, cellSize * r.cHoriz, cellSize * r.cVert);
         fullRedraw = true; // resizing clears the canvas, so we need to paint everything
     }
 
     // start drawing
     const ctx = preview.getContext('2d', {alpha: false});
-
-    // Size border to user request
-    const padSize = cellSize * borderUnits / 2.0; // half on each side
-    // Determine the block size within the remaining area
-    const blockSize = cellSize * quilt.block.size;
+    const canvasSize = {w: preview.width, h: preview.height};
 
     // draw changes to borders
-    drawPreviewBorders(fullRedraw, ctx, cellSize);
+    drawPreviewBorders(fullRedraw ? null : view.quilt.borders, ctx, r, canvasSize);
     view.quilt.borders = deepCopy(quilt.borders);
 
     // draw the 5x4 blocks, inset by the half-border-width padSize, and offset
     // by sashing if specified
     if (fullRedraw || ui.editorState !== view.editorState) {
-        drawPreviewBlocks(source, ctx, blockSize, padSize, hasSash ? cellSize : 0);
+        drawPreviewBlocks(source, ctx, r);
         view.editorState = ui.editorState;
     }
 
     // draw main sashing, if applicable
-    if (hasSash) {
-        drawPreviewSash(fullRedraw, ctx, sash, padSize, blockSize, cellSize);
-        view.quilt.sash = deepCopy(quilt.sash);
+    if (r.hasSash) {
+        drawPreviewSash(fullRedraw ? null : view.quilt.sash, ctx, sash, r, canvasSize);
+        view.quilt.sash = deepCopy(sash);
     } else if (view.quilt.sash.levels !== SASH_NONE) {
         view.quilt.sash = {levels: SASH_NONE, colors: []};
     }
+}
+
+/**
+ * Draw a large-size preview and return the canvas
+ *
+ * @param source
+ * @param {Quilt} quilt
+ * @return HTMLCanvasElement
+ */
+function renderDownload(source, quilt) {
+    // offscreen canvas
+    const canvas = document.createElement('canvas');
+
+    if (!(source instanceof HTMLCanvasElement)) {
+        console.error("Unexpected source data; returning blank canvas!");
+        return canvas;
+    }
+
+    // calculate draw dimensions
+    const s = createRenderData(quilt);
+
+    // we determine the canvas size here, so let's make something reasonably large.
+    //const cellSize = Math.min(24, Math.ceil(DOWNLOAD_MIN_HEIGHT / s.cVert / 2) * 2);
+    const cellSize = Math.ceil(DOWNLOAD_MIN_HEIGHT / s.cVert / 2) * 2;
+    sizeCanvasTo(canvas, cellSize * s.cHoriz, cellSize * s.cVert);
+
+    // finish cellSize-dependent calculations
+    extendRenderData(s, cellSize);
+
+    // start drawing
+    const ctx = canvas.getContext('2d', {alpha: false});
+    const canvasSize = {w: canvas.width, h: canvas.height};
+    drawPreviewBorders(null, ctx, s, canvasSize);
+    drawPreviewBlocks(source, ctx, s);
+    if (s.hasSash) {
+        drawPreviewSash(null, ctx, quilt.sash, s, canvasSize);
+    }
+
+    return canvas;
 }
 
 function updateView() {
