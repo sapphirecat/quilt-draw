@@ -1419,8 +1419,7 @@ function renderDownload(source, quilt) {
     const s = createRenderData(quilt);
 
     // we determine the canvas size here, so let's make something reasonably large.
-    //const cellSize = Math.min(24, Math.ceil(DOWNLOAD_MIN_HEIGHT / s.cVert / 2) * 2);
-    const cellSize = Math.ceil(DOWNLOAD_MIN_HEIGHT / s.cVert / 2) * 2;
+    const cellSize = Math.max(12, Math.ceil(DOWNLOAD_MIN_HEIGHT / s.cVert / 2) * 2);
     canvas.width = cellSize * s.cHoriz;
     canvas.height = cellSize * s.cVert;
 
