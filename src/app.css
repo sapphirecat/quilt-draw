@@ -230,7 +230,7 @@ button.palette-select {
 }
 
 #preview {
-    width: 600px;
+    max-width: 600px;
     max-height: 750px;
 }
 
