@@ -77,6 +77,12 @@ input[type=radio]:checked {
     background: #c0a0c0;
 }
 
+#controls input[type=range] {
+    min-width: 80px;
+    max-width: 160px;
+    width: auto;
+}
+
 canvas {
     margin: 0 auto;
     display: block;

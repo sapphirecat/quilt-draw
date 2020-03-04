@@ -81,10 +81,12 @@
 const editor = document.getElementById('editor');
 const preview = document.getElementById('preview');
 
-const EDITOR_MAX_WIDTH = editor.width;
+let EDITOR_MAX_WIDTH = editor.width;
 // no EDITOR_MAX_HEIGHT: it is square.
-const PREVIEW_MAX_WIDTH = preview.width;
-const PREVIEW_MAX_HEIGHT = preview.height;
+let PREVIEW_MAX_WIDTH = preview.width;
+let PREVIEW_MAX_HEIGHT = preview.height;
+const PREVIEW_MIN_RESIZE = 500;
+const PREVIEW_MAX_RESIZE = 1000;
 const DOWNLOAD_MIN_HEIGHT = 1400;
 
 const BLOCKS_HORIZ = 4; // number of block copies across the preview
@@ -284,6 +286,10 @@ function initJs() {
 
     // un-hide JS content
     document.getElementById('app').className = '';
+
+    // set up semi-fluid UI
+    window.addEventListener('resize', resizeViewport);
+    resizeViewport();
 }
 
 function initQuiltBlock() {
@@ -903,6 +909,33 @@ function onResizeInput(ev) {
     updateView();
 }
 
+function resizeViewport() {
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+
+    // determine the preview's natural width
+    let gridWidth = (width - 20) * 0.4; // 2fr of a total of 5fr
+    gridWidth -= gridWidth % 30;
+
+    // determine the width of the preview if it's height-limited
+    let gridHeight = height - 24;
+    gridHeight -= gridHeight % 24;
+    const heightWidth = Math.floor(gridHeight * (BLOCKS_HORIZ / BLOCKS_VERT));
+
+    // now decide which of those gets used, then clamp it to our limits
+    const previewHeight = Math.ceil(Math.min(gridWidth, heightWidth) * (BLOCKS_VERT / BLOCKS_HORIZ));
+    PREVIEW_MAX_HEIGHT = Math.min(Math.max(previewHeight, PREVIEW_MIN_RESIZE), PREVIEW_MAX_RESIZE);
+    // calculate the width based on the final height
+    PREVIEW_MAX_WIDTH = Math.floor(PREVIEW_MAX_HEIGHT * (BLOCKS_HORIZ / BLOCKS_VERT));
+
+    // limit the editor width to the preview width, to the next lower 60; this
+    // maximizes usable space for 2-6 cell blocks, expected to be common.
+    EDITOR_MAX_WIDTH = Math.max(360, PREVIEW_MAX_WIDTH - 24);
+    EDITOR_MAX_WIDTH -= EDITOR_MAX_WIDTH % 60;
+
+    updateView();
+}
+
 /**
  * Resize a block to be larger.
  *
@@ -1445,7 +1478,6 @@ function updateView() {
 
 if (editor && preview) {
     initJs();
-    updateView();
 } else {
     console.error("Can't get editor and preview; doing nothing.");
 }
