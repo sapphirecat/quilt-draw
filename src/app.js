@@ -1384,7 +1384,7 @@ function updatePreview(source, quilt) {
     // draw the 5x4 blocks, inset by the half-border-width padSize, and offset
     // by sashing if specified
     if (fullRedraw || ui.editorState !== view.editorState) {
-        drawPreviewBlocks(source, ctx, r, canvasSize);
+        drawPreviewBlocks(source, ctx, r);
         view.editorState = ui.editorState;
     }
 
