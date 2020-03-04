@@ -81,10 +81,12 @@
 const editor = document.getElementById('editor');
 const preview = document.getElementById('preview');
 
-const EDITOR_MAX_WIDTH = editor.width;
+let EDITOR_MAX_WIDTH = editor.width;
 // no EDITOR_MAX_HEIGHT: it is square.
-const PREVIEW_MAX_WIDTH = preview.width;
-const PREVIEW_MAX_HEIGHT = preview.height;
+let PREVIEW_MAX_WIDTH = preview.width;
+let PREVIEW_MAX_HEIGHT = preview.height;
+const PREVIEW_MIN_RESIZE = 500;
+const PREVIEW_MAX_RESIZE = 1000;
 const DOWNLOAD_MIN_HEIGHT = 1400;
 
 const BLOCKS_HORIZ = 4; // number of block copies across the preview
@@ -284,6 +286,10 @@ function initJs() {
 
     // un-hide JS content
     document.getElementById('app').className = '';
+
+    // set up semi-fluid UI
+    window.addEventListener('resize', resizeViewport);
+    resizeViewport();
 }
 
 function initQuiltBlock() {
@@ -903,6 +909,33 @@ function onResizeInput(ev) {
     updateView();
 }
 
+function resizeViewport() {
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+
+    // determine the preview's natural width
+    let gridWidth = (width - 20) * 0.4; // 2fr of a total of 5fr
+    gridWidth -= gridWidth % 30;
+
+    // determine the width of the preview if it's height-limited
+    let gridHeight = height - 24;
+    gridHeight -= gridHeight % 24;
+    const heightWidth = Math.floor(gridHeight * (BLOCKS_HORIZ / BLOCKS_VERT));
+
+    // now decide which of those gets used, then clamp it to our limits
+    const previewHeight = Math.ceil(Math.min(gridWidth, heightWidth) * (BLOCKS_VERT / BLOCKS_HORIZ));
+    PREVIEW_MAX_HEIGHT = Math.min(Math.max(previewHeight, PREVIEW_MIN_RESIZE), PREVIEW_MAX_RESIZE);
+    // calculate the width based on the final height
+    PREVIEW_MAX_WIDTH = Math.floor(PREVIEW_MAX_HEIGHT * (BLOCKS_HORIZ / BLOCKS_VERT));
+
+    // limit the editor width to the preview width, to the next lower 60; this
+    // maximizes usable space for 2-6 cell blocks, expected to be common.
+    EDITOR_MAX_WIDTH = Math.max(360, PREVIEW_MAX_WIDTH - 24);
+    EDITOR_MAX_WIDTH -= EDITOR_MAX_WIDTH % 60;
+
+    updateView();
+}
+
 /**
  * Resize a block to be larger.
  *
@@ -1033,7 +1066,7 @@ function rollUp(block) {
 
 
 function sizeCanvasTo(canvas, width, height) {
-    const DPR = Math.max(window.devicePixelRatio, 1);
+    const DPR = Math.max(window.devicePixelRatio || 1, 1);
     canvas.width = width * DPR;
     canvas.height = height * DPR;
     canvas.style.width = "${width}px";
@@ -1121,8 +1154,8 @@ function updateEditor(colors, block) {
 
     // Resize editor if needed, assuming square
     const cW = 2 * Math.floor(EDITOR_MAX_WIDTH / block.size / 2);
+    const blockSize = cW * block.size;
     if (cW !== ui.cellPx || editor.style.width === "") {
-        const blockSize = cW * block.size;
         ui.cellPx = cW;
         sizeCanvasTo(editor, blockSize, blockSize);
     }
@@ -1132,8 +1165,11 @@ function updateEditor(colors, block) {
 
     // canvas 2D context
     const ctx = editor.getContext('2d', {alpha: false});
+    const DPR = editor.width / blockSize;
+    ctx.save();
+    ctx.scale(DPR, DPR);
 
-    // process cells
+    // process editor cells in unscaled space
     iBlock = 0; // index into block array
     for (let cY = 0; cY < size; ++cY) {
         oY = cY * ui.cellPx; // Y-origin = cell Y-index (row) times cell height
@@ -1142,6 +1178,8 @@ function updateEditor(colors, block) {
             drawCellAt(ctx, oX, oY, ui.cellPx, colors, cells[iBlock++]);
         }
     }
+
+    ctx.restore();
 }
 
 /**
@@ -1216,8 +1254,7 @@ function drawPreviewBlocks(source, ctx, r) {
             // determine the current block's origin X/Y
             const oX = padSize + (col * blockSize) + (sashSize * col);
             const oY = padSize + (row * blockSize) + (sashSize * row);
-            // draw at the un-rounded origin, but using rounded-up size
-            ctx.drawImage(scaled, oX, oY, blockSize, blockSize);
+            ctx.drawImage(scaled, oX, oY);
         }
     }
 }
@@ -1348,8 +1385,7 @@ function updatePreview(source, quilt) {
     const r = createRenderData(quilt);
 
     // calculate draw dimensions
-    const DPR = Math.max(window.devicePixelRatio, 1.0);
-    const cellSize = DPR * Math.floor(Math.min(PREVIEW_MAX_WIDTH / r.cHoriz, PREVIEW_MAX_HEIGHT / r.cVert) / 2) * 2;
+    const cellSize = Math.floor(Math.min(PREVIEW_MAX_WIDTH / r.cHoriz, PREVIEW_MAX_HEIGHT / r.cVert) / 2) * 2;
 
     // finish up the render data
     extendRenderData(r, cellSize);
@@ -1369,7 +1405,10 @@ function updatePreview(source, quilt) {
 
     // start drawing
     const ctx = preview.getContext('2d', {alpha: false});
-    const canvasSize = {w: preview.width, h: preview.height};
+    const DPR = preview.width / (cellSize * r.cHoriz);
+    ctx.save();
+    ctx.scale(DPR, DPR);
+    const canvasSize = {w: cellSize * r.cHoriz, h: cellSize * r.cVert};
 
     // draw changes to borders
     drawPreviewBorders(fullRedraw ? null : view.quilt.borders, ctx, r, canvasSize);
@@ -1389,6 +1428,8 @@ function updatePreview(source, quilt) {
     } else if (view.quilt.sash.levels !== SASH_NONE) {
         view.quilt.sash = {levels: SASH_NONE, colors: []};
     }
+
+    ctx.restore();
 }
 
 /**
@@ -1411,9 +1452,9 @@ function renderDownload(source, quilt) {
     const s = createRenderData(quilt);
 
     // we determine the canvas size here, so let's make something reasonably large.
-    //const cellSize = Math.min(24, Math.ceil(DOWNLOAD_MIN_HEIGHT / s.cVert / 2) * 2);
-    const cellSize = Math.ceil(DOWNLOAD_MIN_HEIGHT / s.cVert / 2) * 2;
-    sizeCanvasTo(canvas, cellSize * s.cHoriz, cellSize * s.cVert);
+    const cellSize = Math.max(12, Math.ceil(DOWNLOAD_MIN_HEIGHT / s.cVert / 2) * 2);
+    canvas.width = cellSize * s.cHoriz;
+    canvas.height = cellSize * s.cVert;
 
     // finish cellSize-dependent calculations
     extendRenderData(s, cellSize);
@@ -1437,7 +1478,6 @@ function updateView() {
 
 if (editor && preview) {
     initJs();
-    updateView();
 } else {
     console.error("Can't get editor and preview; doing nothing.");
 }
