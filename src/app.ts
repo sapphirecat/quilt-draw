@@ -1,5 +1,3 @@
-"use strict";
-
 /*
  * QuiltDraw - Quarter-Square Triangle Designer
  * Copyright (C) 2020 sapphirecat <devel@sapphirepaw.org>
@@ -78,8 +76,8 @@
  * @property {number} [blockSize] Number of pixels a block will be drawn at (width/height)
  */
 
-const editor = document.getElementById('editor');
-const preview = document.getElementById('preview');
+const editor = document.getElementById('editor') as HTMLCanvasElement;
+const preview = document.getElementById('preview') as HTMLCanvasElement;
 
 let EDITOR_MAX_WIDTH = editor.width;
 // no EDITOR_MAX_HEIGHT: it is square.
@@ -171,13 +169,22 @@ function showActiveColor(slot) {
     }
 }
 
+function setChecked(id: string, checked = true) {
+    try {
+        const el = document.getElementById(id) as HTMLInputElement | null;
+        el.checked = checked;
+    } catch (e) {
+        console.error(e);
+    }
+}
+
 /**
  * Activate the paint tool with the selected palette entry.
  *
  * @param {number} i Palette index to be set as paint color.
  * @param {number} [slot] A slot number to set, or the primary slot (0) by default.
  */
-function setPaintColor(i, slot) {
+function setPaintColor(i: number, slot = 0) {
     if (slot === undefined) {
         slot = 0;
     } else if (slot < 0 || slot > ui.paintColors.length) {
@@ -192,7 +199,7 @@ function setPaintColor(i, slot) {
 
     // activate the tool
     ui.selectedTool = TOOL_PAINT;
-    document.getElementById('tool-paint').checked = true;
+    setChecked('tool-paint');
     if (ui.moveStatus === MOVE_IGNORE) {
         ui.moveStatus = MOVE_ALLOW;
     }
@@ -271,7 +278,7 @@ function rotateRight(ary) {
  * @return {boolean} Whether the element is present and checked.
  */
 function isChecked(id) {
-    const node = document.getElementById(id);
+    const node = document.getElementById(id) as HTMLInputElement | null;
     return node && node.checked;
 }
 
@@ -338,7 +345,7 @@ function initTools() {
     colorItems.addEventListener('contextmenu', (ev) => ev.preventDefault());
 
     // pre-select the paint tool to match the script state
-    document.getElementById('tool-paint').checked = true;
+    setChecked('tool-paint');
 
     // wire in the rest of the controls' events
     for (const node of document.querySelectorAll('.controls')) {
@@ -437,6 +444,10 @@ function createColor() {
 }
 
 function newColorPicker(button, value) {
+    // Need to import the types. I can add an import using the IDE shortcut,
+    // but then TS claims @simonwep/pickr does not exist, despite being in
+    // package.json/node_modules.  IDK.
+    // @ts-ignore
     return Pickr.create({
         el: button,
         theme: 'nano',
@@ -569,7 +580,7 @@ function onBorderColorReset(i) {
  * Add another border layer
  * @param {string} [color]
  */
-function addBorder(color) {
+function addBorder(color?: string) {
     if (quilt.borders.length >= BORDER_LIMIT) {
         return;
     }
@@ -816,8 +827,8 @@ function onToolChange(ev) {
  * @param {MouseEvent} ev
  */
 function onSashChange(ev) {
-    const main = document.getElementById('sash-on');
-    const cross = document.getElementById('sash-cross-on');
+    const main = document.getElementById('sash-on') as HTMLInputElement;
+    const cross = document.getElementById('sash-cross-on') as HTMLInputElement;
 
     quilt.sash.levels = main.checked ? (cross.checked ? SASH_DOUBLE : SASH_SINGLE) : SASH_NONE;
     updatePreview(editor, quilt);
