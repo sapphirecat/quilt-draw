@@ -3,3 +3,7 @@
 
 /dist/
 /node_modules/
+
+# TypeScript outputs
+/src/*.js
+/src/*.js.map
