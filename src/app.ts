@@ -16,65 +16,69 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+type Point = [number, number];
+type Palette = Array<string>;
 
-/**
- * @typedef {Object} Cell
- * @property {Array<number>} colors Palette indices of the colors of the cell
- */
+interface Cell {
+    colors: [number, number, number, number]; // four quarter-squares
+}
 
-/**
- * @typedef {Object} BlockInfo
- * @property {Array<Cell>} cells
- * @property {number} size
- */
+interface BlockInfo {
+    cells: Array<Cell>;
+    size: number;
+}
 
-/**
- * @typedef {Array<string>} Palette
- */
+interface SashInfo {
+    levels: number;
+    colors: Palette;
+}
 
-/**
- * @typedef {object} SashInfo
- * @property {number} levels
- * @property {Palette} colors
- */
+interface Border {
+    cellWidth: number;
+    color: string;
+}
 
-/**
- * @typedef {object} Border
- * @property {number} cellWidth
- * @property {string} color
- */
+interface Quilt {
+    size: number;
+    borders: Array<Border>;
+    colorSet: Palette;
+    sash: SashInfo;
+    block: BlockInfo;
+    savedBlock: BlockInfo;
+}
 
-/**
- * @typedef {object} Quilt
- * @property {number} size
- * @property {Array<Border>} borders
- * @property {Palette} colorSet
- * @property {SashInfo} sash
- * @property {BlockInfo} block
- * @property {BlockInfo} savedBlock
- */
+interface RectSize {
+    w: number;
+    h: number;
+}
 
-/**
- * @typedef {[number, number]} Point
- */
+interface RenderData {
+    borderUnits: number;
+    blockCells: number;
+    hasSash: boolean;
+    cHoriz: number;
+    cVert: number;
+    cellSize?: number;
+    padSize?: number;
+    blockSize?: number;
+}
 
-/**
- * @typedef {object} RectSize
- * @property {number} w Width
- * @property {number} h Height
- */
+interface PickrValue {
+    toHSLA: () => {
+        (): any;
+        new(): any;
+        toString: {
+            (): string;
+            new(): any;
+        };
+    };
+}
 
-/**
- * @typedef {object} RenderData
- * @property {number} borderUnits Total thickness of borders, in half-cells
- * @property {number} blockCells Number of cells in a block (horiz/vert)
- * @property {boolean} hasSash TRUE if sashes will be drawn
- * @property {number} cHoriz Total number of cells, horizontally
- * @property {number} cVert Total number of cells, vertically
- * @property {number} [cellSize] Size of a cell in pixels
- * @property {number} [padSize] Thickness of borders between the quilt edge and interior
- * @property {number} [blockSize] Number of pixels a block will be drawn at (width/height)
- */
+interface _RenderView {
+    layout: string;
+    editorState: number;
+    quilt: Quilt | null;
+}
 
 const editor = document.getElementById('editor') as HTMLCanvasElement;
 const preview = document.getElementById('preview') as HTMLCanvasElement;
@@ -119,7 +123,6 @@ const CELL_QUADRANTS = {
 
 const pickers = {};
 
-/** @type Quilt quilt */
 const quilt = newQuilt();
 
 const ui = {
@@ -134,16 +137,13 @@ const ui = {
     selectedTool: TOOL_PAINT
 };
 
-const view = {
+const view: _RenderView = {
     layout: "",
     editorState: -1,
     quilt: null,
 };
 
-/**
- * @return {Quilt}
- */
-function newQuilt() {
+function newQuilt(): Quilt {
     return {
         size: 0,
         borders: [],
@@ -156,10 +156,8 @@ function newQuilt() {
 
 /**
  * Update the display of currently-selected paint colors.
- *
- * @param slot
  */
-function showActiveColor(slot) {
+function showActiveColor(slot: number): void {
     const view = document.getElementById(`colorActive${slot}`);
     if (view) {
         const colorIndex = ui.paintColors[slot];
@@ -169,7 +167,7 @@ function showActiveColor(slot) {
     }
 }
 
-function setChecked(id: string, checked = true) {
+function setChecked(id: string, checked = true): void {
     try {
         const el = document.getElementById(id) as HTMLInputElement | null;
         el.checked = checked;
@@ -184,7 +182,7 @@ function setChecked(id: string, checked = true) {
  * @param {number} i Palette index to be set as paint color.
  * @param {number} [slot] A slot number to set, or the primary slot (0) by default.
  */
-function setPaintColor(i: number, slot = 0) {
+function setPaintColor(i: number, slot = 0): void {
     if (slot === undefined) {
         slot = 0;
     } else if (slot < 0 || slot > ui.paintColors.length) {
@@ -211,7 +209,7 @@ function setPaintColor(i: number, slot = 0) {
     }
 }
 
-function randomColor() {
+function randomColor(): string {
     const hue = Math.floor(Math.random() * 360);
     const sat = 45 + Math.floor(Math.random() * 35);
     const lns = 35 + Math.floor(Math.random() * 40);
@@ -220,10 +218,8 @@ function randomColor() {
 
 /**
  * Generate a random cell structure.
- *
- * @returns {Cell}
  */
-function randomCell() {
+function randomCell(): Cell {
     const colorCount = Math.floor(quilt.colorSet.length);
 
     return {
@@ -236,7 +232,9 @@ function randomCell() {
     };
 }
 
-function getPalette(element) {
+function getPalette(element): Palette {
+    // we have some sentinel color values in here, to detect major errors in
+    // script initialization.  we should never see these.
     if (!element) {
         return ['#00ccff'];
     }
@@ -253,7 +251,7 @@ function getPalette(element) {
  * @param {Array<number>} ary
  * @return void Operation is destructive, to limit GC pressure.
  */
-function rotateLeft(ary) {
+function rotateLeft(ary): void {
     if (ary.length > 1) {
         ary.push(ary.shift());
     }
@@ -267,7 +265,7 @@ function rotateLeft(ary) {
  * @param {Array<number>} ary
  * @return void Operation is destructive, to limit GC pressure.
  */
-function rotateRight(ary) {
+function rotateRight(ary): void {
     if (ary.length > 1) {
         ary.unshift(ary.pop());
     }
@@ -277,12 +275,12 @@ function rotateRight(ary) {
  * @param {string} id Element ID
  * @return {boolean} Whether the element is present and checked.
  */
-function isChecked(id) {
+function isChecked(id: string): boolean {
     const node = document.getElementById(id) as HTMLInputElement | null;
     return node && node.checked;
 }
 
-function initJs() {
+function initJs(): void {
     // set up UI
     initColors();
     initBorders();
@@ -295,11 +293,11 @@ function initJs() {
     document.getElementById('app').className = '';
 
     // set up semi-fluid UI
-    window.addEventListener('resize', resizeViewport);
-    resizeViewport();
+    window.addEventListener('resize', onResizeViewport);
+    onResizeViewport();
 }
 
-function initQuiltBlock() {
+function initQuiltBlock(): void {
     // get initial size from the HTML
     const sizeInput = document.getElementById('cell-size');
     const size = sizeInput && sizeInput instanceof HTMLInputElement ?
@@ -317,7 +315,7 @@ function initQuiltBlock() {
     quilt.block = quilt.savedBlock;
 }
 
-function initTools() {
+function initTools(): void {
     const colorItems = document.getElementById('color-items');
 
     // Pointer-related events: try Pointer, fall back to Mouse.
@@ -362,7 +360,7 @@ function initTools() {
     }
 }
 
-function initBorders() {
+function initBorders(): void {
     // create the default border
     ui.borderTemplate = document.getElementById('border-item');
     getPalette(ui.borderTemplate).forEach(addBorder);
@@ -381,7 +379,7 @@ function initBorders() {
     document.getElementById('border-new').addEventListener('click', newBorder);
 }
 
-function initSashColors() {
+function initSashColors(): void {
     const colors = getPalette(document.getElementById('sashing'));
     const targets = ['main-sash-color', 'cross-sash-color'];
     if (colors.length !== targets.length) {
@@ -400,7 +398,7 @@ function initSashColors() {
     }
 }
 
-function initColors() {
+function initColors(): void {
     // set up global data for addColor
     ui.colorTemplate = document.getElementById('color-item');
     ui.colorBox = document.getElementById('color-items');
@@ -429,7 +427,7 @@ function initColors() {
     document.getElementById('color-new').addEventListener('click', createColor);
 }
 
-function createColor() {
+function createColor(): void {
     if (quilt.colorSet.length >= COLOR_LIMIT) {
         alert("That's just too many colors.");
         return;
@@ -443,7 +441,7 @@ function createColor() {
     }
 }
 
-function newColorPicker(button, value) {
+function newColorPicker(button: HTMLElement, value: string) {
     // Need to import the types. I can add an import using the IDE shortcut,
     // but then TS claims @simonwep/pickr does not exist, despite being in
     // package.json/node_modules.  IDK.
@@ -479,7 +477,7 @@ function newColorPicker(button, value) {
     });
 }
 
-function addColor(value) {
+function addColor(value: string): number | undefined {
     const i = quilt.colorSet.length;
     const item = ui.colorTemplate.content.cloneNode(true);
 
@@ -517,39 +515,39 @@ function addColor(value) {
     return i;
 }
 
-function onColorPickerHide(i) {
+function onColorPickerHide(i: number): void {
     pickers[i].saved = quilt.colorSet[i]; // save color for next cancel button click
     pickers[i].handle.applyColor(true); // save color to button, without firing a save event
     document.getElementById('color-items').focus({preventScroll: true});
     setPaintColor(i);
 }
 
-function onColorChanged(i, value) {
+function onColorChanged(i: number, value: PickrValue): void {
     quilt.colorSet[i] = value.toHSLA().toString();
     updateView();
 }
 
-function onColorReset(i) {
+function onColorReset(i: number): void {
     quilt.colorSet[i] = pickers[i].saved;
     updateView();
 }
 
-function onSashColorPickerHide(i) {
+function onSashColorPickerHide(i: number): void {
     pickers[`sash.${i}`].saved = quilt.sash.colors[i]; // save color for next cancel button click
     pickers[`sash.${i}`].handle.applyColor(true); // save color to button, without firing a save event
 }
 
-function onSashColorChanged(i, value) {
+function onSashColorChanged(i: number, value: PickrValue) {
     quilt.sash.colors[i] = value.toHSLA().toString();
     updatePreview(editor, quilt);
 }
 
-function onSashColorReset(i) {
+function onSashColorReset(i: number): void {
     quilt.sash.colors[i] = pickers[`sash.${i}`].saved;
     updatePreview(editor, quilt);
 }
 
-function addSashColor(i, button, value) {
+function addSashColor(i: number, button: HTMLElement, value: string): void {
     const picker = newColorPicker(button, value);
 
     picker.on('change', newValue => onSashColorChanged(i, newValue));
@@ -560,17 +558,17 @@ function addSashColor(i, button, value) {
     quilt.sash.colors[i] = value;
 }
 
-function onBorderColorPickerHide(i) {
+function onBorderColorPickerHide(i: number): void {
     pickers[`border.${i}`].saved = quilt.borders[i].color; // save color for next cancel button click
     pickers[`border.${i}`].handle.applyColor(true); // save color to button, without firing a save event
 }
 
-function onBorderColorChanged(i, value) {
+function onBorderColorChanged(i: number, value: PickrValue): void {
     quilt.borders[i].color = value.toHSLA().toString();
     updatePreview(editor, quilt);
 }
 
-function onBorderColorReset(i) {
+function onBorderColorReset(i: number): void {
     quilt.borders[i].color = pickers[`border.${i}`].saved;
     updatePreview(editor, quilt);
 }
@@ -578,9 +576,8 @@ function onBorderColorReset(i) {
 
 /**
  * Add another border layer
- * @param {string} [color]
  */
-function addBorder(color?: string) {
+function addBorder(color?: string): void {
     if (quilt.borders.length >= BORDER_LIMIT) {
         return;
     }
@@ -610,51 +607,36 @@ function addBorder(color?: string) {
 }
 
 
-/**
- * @param {MouseEvent} ev
- * @return {boolean}
- */
-function isButtonRelevant(ev) {
+function isButtonRelevant(ev: MouseEvent): boolean {
     return !!(ev.buttons && ev.buttons < 3);
 }
 
-/**
- * @param {MouseEvent} ev
- * @return {boolean}
- */
-function isPrimaryButton(ev) {
+function isPrimaryButton(ev: MouseEvent): boolean {
     return ev.buttons === 1;
 }
 
-/**
- * @param {MouseEvent} ev
- * @return {boolean}
- */
-function isSecondaryButton(ev) {
+function isSecondaryButton(ev: MouseEvent): boolean {
     return ev.buttons === 2;
 }
 
-function editorClearMoveHandler() {
+function editorClearMoveHandler(): void {
     editor.removeEventListener(POINTER_EVENTS ? 'pointermove' : 'mousemove', onEditorMouse);
     ui.moveStatus = MOVE_ALLOW;
 }
 
-function editorSetMoveHandler() {
+function editorSetMoveHandler(): void {
     ui.moveStatus = MOVE_TRACKING;
     editor.addEventListener(POINTER_EVENTS ? 'pointermove' : 'mousemove', onEditorMouse);
 }
 
-function onEditorMouseRelease(ev) {
+function onEditorMouseRelease(ev: MouseEvent): void {
     ev.preventDefault();
-    if (ui.moveStatus) {
+    if (ui.moveStatus !== MOVE_IGNORE) {
         editorClearMoveHandler();
     }
 }
 
-/**
- * @param {MouseEvent} ev
- */
-function onEditorMouse(ev) {
+function onEditorMouse(ev: MouseEvent): void {
     // if multiple buttons or a higher (aux etc.) button was pressed, ignore
     // everything. don't even prevent default.
     if (ev.buttons && !isButtonRelevant(ev)) {
@@ -718,10 +700,7 @@ function onEditorMouse(ev) {
     updateView();
 }
 
-/**
- * @param {InputEvent} ev
- */
-function onBorderSize(ev) {
+function onBorderSize(ev: InputEvent): void {
     if (!(ev.target instanceof HTMLInputElement)) {
         return;
     }
@@ -733,11 +712,12 @@ function onBorderSize(ev) {
 
 /**
  * Delegating event handler for control input-radio clicks
- *
- * @param {MouseEvent} ev
  */
-function onControlClick(ev) {
+function onControlClick(ev: MouseEvent): void {
     const target = ev.target;
+    if (!(target instanceof HTMLElement)) {
+        return;
+    }
     if (!target.tagName.toLowerCase().match(/^(?:button|input)$/)) {
         return;
     }
@@ -758,10 +738,8 @@ function onControlClick(ev) {
 
 /**
  * Capturing event handler for palette
- *
- * @param ev
  */
-function onPaletteDown(ev) {
+function onPaletteDown(ev: MouseEvent): void {
     ui.colorEvents = CLICK_ALLOW; // by default, we do not have full responsibility
     if (!isButtonRelevant(ev)) {
         return; // we don't handle this button/combo
@@ -771,13 +749,18 @@ function onPaletteDown(ev) {
     let node = ev.target;
     let found = false;
     while (node !== this && !found) {
+        if (!(node instanceof HTMLElement)) {
+            console.error("DOM walk-up reached non HTML element");
+            console.debug(node);
+            return;
+        }
         if (node.tagName === 'LABEL' && node.classList.contains('color-item')) {
             found = true;
         } else {
             node = node.parentElement;
         }
     }
-    if (!found) {
+    if (!(found && node instanceof HTMLElement)) {
         console.error("label element not found in event stack");
         return;
     }
@@ -797,10 +780,7 @@ function onPaletteDown(ev) {
     setPaintColor(colorIndex, isSecondaryButton(ev) ? 1 : 0);
 }
 
-/**
- * @param {MouseEvent} ev
- */
-function onPaletteClick(ev) {
+function onPaletteClick(ev: MouseEvent): void {
     if (ui.colorEvents === CLICK_IGNORE) {
         ev.stopPropagation();
         ev.preventDefault();
@@ -809,11 +789,11 @@ function onPaletteClick(ev) {
     ui.colorEvents = CLICK_ALLOW;
 }
 
-/**
- * @param {MouseEvent} ev
- */
-function onToolChange(ev) {
+function onToolChange(ev: MouseEvent): void {
     const node = ev.target;
+    if (!(node instanceof HTMLElement)) {
+        return;
+    }
     ui.selectedTool = node.id.replace(/^tool-/, '');
 
     // update movement state
@@ -823,10 +803,13 @@ function onToolChange(ev) {
     ui.moveStatus = node.getAttribute('data-move-tracking') === '1' ? MOVE_ALLOW : MOVE_IGNORE;
 }
 
-/**
- * @param {MouseEvent} ev
- */
-function onSashChange(ev) {
+function onSashChange(ev: MouseEvent): void {
+    // do-nothing op to make the event appear used. maintains a consistent
+    // interface across all the `onSomeEvent(ev)` functions.
+    if (ev.defaultPrevented) {
+        return;
+    }
+
     const main = document.getElementById('sash-on') as HTMLInputElement;
     const cross = document.getElementById('sash-cross-on') as HTMLInputElement;
 
@@ -834,10 +817,7 @@ function onSashChange(ev) {
     updatePreview(editor, quilt);
 }
 
-/**
- * @param {MouseEvent} ev
- */
-function onDownload(ev) {
+function onDownload(ev: MouseEvent): void {
     const node = ev.target;
     ev.preventDefault();
 
@@ -859,10 +839,8 @@ function onDownload(ev) {
 
 /**
  * Roll the quilt block in some direction.
- *
- * @param {MouseEvent} ev
  */
-function onRollerClick(ev) {
+function onRollerClick(ev: MouseEvent): void {
     const movers = {
         "roll-up": rollUp,
         "roll-down": rollDown,
@@ -890,10 +868,8 @@ function onRollerClick(ev) {
 
 /**
  * Resize the quilt's cells-per-block.
- *
- * @param {MouseEvent} ev
  */
-function onResizeInput(ev) {
+function onResizeInput(ev: MouseEvent): void {
     const node = ev.target;
     if (!(node instanceof HTMLInputElement)) {
         return;
@@ -920,7 +896,7 @@ function onResizeInput(ev) {
     updateView();
 }
 
-function resizeViewport() {
+function onResizeViewport(): void {
     const width = window.innerWidth;
     const height = window.innerHeight;
 
@@ -950,13 +926,9 @@ function resizeViewport() {
 /**
  * Resize a block to be larger.
  *
- * New rows/columns will be filled with random colors and shapes.
- *
- * @param {BlockInfo} block
- * @param {number} newSize
- * @return {BlockInfo}
+ * New rows/columns will be filled with random colors.
  */
-function blockResizeUp(block, newSize) {
+function blockResizeUp(block: BlockInfo, newSize: number): BlockInfo {
     const currentSize = block.size;
     const output = new Array(newSize * newSize);
 
@@ -984,12 +956,8 @@ function blockResizeUp(block, newSize) {
 
 /**
  * Resize a block to be smaller.
- *
- * @param {BlockInfo} block
- * @param {number} newSize
- * @return {BlockInfo}
  */
-function blockResizeDown(block, newSize) {
+function blockResizeDown(block: BlockInfo, newSize: number): BlockInfo {
     const currentSize = block.size;
     const output = new Array(newSize * newSize);
 
@@ -1005,12 +973,9 @@ function blockResizeDown(block, newSize) {
 
 
 /**
- *
- * @param {BlockInfo} block
- * @param mappingFn
- * @return {BlockInfo}
+ * Apply a translation to all cells of a block.
  */
-function blockTransform(block, mappingFn) {
+function blockTransform(block: BlockInfo, mappingFn): BlockInfo {
     const output = new Array(block.cells.length);
     const size = block.size;
 
@@ -1029,11 +994,8 @@ function blockTransform(block, mappingFn) {
 
 /**
  * Move all cells to the left, wrapping the leftmost column to the right
- *
- * @param {BlockInfo} block
- * @returns {BlockInfo}
  */
-function rollLeft(block) {
+function rollLeft(block: BlockInfo): BlockInfo {
     return blockTransform(block, function (row, col) {
         return [row, (col + 1) % block.size];
     });
@@ -1041,11 +1003,8 @@ function rollLeft(block) {
 
 /**
  * Move all cells to the right, wrapping the rightmost column to the left.
- *
- * @param {BlockInfo} block
- * @returns {BlockInfo}
  */
-function rollRight(block) {
+function rollRight(block: BlockInfo): BlockInfo {
     return blockTransform(block, function (row, col) {
         return [row, col ? col - 1 : block.size - 1];
     });
@@ -1053,11 +1012,8 @@ function rollRight(block) {
 
 /**
  * Move all cells down, wrapping the bottommost row to the top.
- *
- * @param {BlockInfo} block
- * @returns {BlockInfo}
  */
-function rollDown(block) {
+function rollDown(block: BlockInfo): BlockInfo {
     return blockTransform(block, function (row, col) {
         return [row ? row - 1 : block.size - 1, col];
     });
@@ -1065,18 +1021,15 @@ function rollDown(block) {
 
 /**
  * Move all cells up, wrapping the topmost row to the bottom.
- *
- * @param {BlockInfo} block
- * @returns {BlockInfo}
  */
-function rollUp(block) {
+function rollUp(block: BlockInfo): BlockInfo {
     return blockTransform(block, function (row, col) {
         return [(row + 1) % block.size, col];
     });
 }
 
 
-function sizeCanvasTo(canvas, width, height) {
+function sizeCanvasTo(canvas: HTMLCanvasElement, width: number, height: number) {
     const DPR = Math.max(window.devicePixelRatio || 1, 1);
     canvas.width = width * DPR;
     canvas.height = height * DPR;
@@ -1086,12 +1039,8 @@ function sizeCanvasTo(canvas, width, height) {
 
 /**
  * Draw a triangle at coordinates on the canvas.
- *
- * @param {CanvasRenderingContext2D} ctx
- * @param {Array<Point>} points
- * @param {string} fillStyle
  */
-function drawTriangle(ctx, points, fillStyle) {
+function drawTriangle(ctx: CanvasRenderingContext2D, points: Array<Point>, fillStyle: string): void {
     ctx.beginPath();
 
     ctx.moveTo(points[0][0], points[0][1]);
@@ -1105,12 +1054,8 @@ function drawTriangle(ctx, points, fillStyle) {
 
 /**
  * Draw a polygon at coordinates on the canvas.
- *
- * @param {CanvasRenderingContext2D} ctx
- * @param {Array<Point>} points Vertices of the polygon
- * @param {string} fillStyle Fill color for the polygon
  */
-function drawPoly(ctx, points, fillStyle) {
+function drawPoly(ctx: CanvasRenderingContext2D, points: Array<Point>, fillStyle: string): void {
     ctx.beginPath();
 
     ctx.moveTo(points[0][0], points[0][1]);
@@ -1125,21 +1070,14 @@ function drawPoly(ctx, points, fillStyle) {
 
 /**
  * Draw a cell into a coordinate on the canvas.
- *
- * @param {CanvasRenderingContext2D} ctx
- * @param {number} oX
- * @param {number} oY
- * @param {number} cellPx
- * @param {Palette} palette
- * @param {Cell} cell
  */
-function drawCellAt(ctx, oX, oY, cellPx, palette, cell) {
+function drawCellAt(ctx: CanvasRenderingContext2D, oX: number, oY: number, cellPx: number, palette: Palette, cell: Cell): void {
     // Determine all coordinates we can draw from: top/left/bottom/right pairs, and center
-    const tl = [oX, oY];
-    const tr = [oX + cellPx, oY];
-    const bl = [oX, oY + cellPx];
-    const br = [oX + cellPx, oY + cellPx];
-    const c = [oX + cellPx / 2, oY + cellPx / 2];
+    const tl: Point = [oX, oY];
+    const tr: Point = [oX + cellPx, oY];
+    const bl: Point = [oX, oY + cellPx];
+    const br: Point = [oX + cellPx, oY + cellPx];
+    const c: Point = [oX + cellPx / 2, oY + cellPx / 2];
 
     // Draw all four triangles into place, but eliminate seams by drawing the
     // top and bottom first, but bigger.
@@ -1154,11 +1092,8 @@ function drawCellAt(ctx, oX, oY, cellPx, palette, cell) {
 
 /**
  * Draw a block into the editor area of the canvas.
- *
- * @param {Palette} colors
- * @param {BlockInfo} block
  */
-function updateEditor(colors, block) {
+function updateEditor(colors: Palette, block: BlockInfo): void {
     const cells = block.cells;
     const size = block.size;
     ui.editorState += 1;
@@ -1195,11 +1130,8 @@ function updateEditor(colors, block) {
 
 /**
  * Determine initial number of cells in a quilt rendering.
- *
- * @param {Quilt} quilt
- * @return {RenderData}
  */
-function createRenderData(quilt) {
+function createRenderData(quilt: Quilt): RenderData {
     const hasSash = quilt.sash.levels !== SASH_NONE;
     const blockCells = quilt.block.size;
     let borderUnits = 0;
@@ -1227,27 +1159,21 @@ function createRenderData(quilt) {
 
 /**
  * Complete calculations for RenderData with finalized cellSize information.
- *
- * @param {RenderData} r
- * @param {number} cellSize
  */
-function extendRenderData(r, cellSize) {
+function extendRenderData(r: RenderData, cellSize: number): void {
     r.cellSize = cellSize;
     r.padSize = cellSize * r.borderUnits / 2; // half on each side
     r.blockSize = cellSize * r.blockCells;
 }
 
-function deepCopy(x) {
+function deepCopy<T>(x: T): T {
     return JSON.parse(JSON.stringify(x));
 }
 
 /**
  * Draw scaled blocks into a canvas.
- * @param {CanvasImageSource|HTMLCanvasElement} source
- * @param {CanvasRenderingContext2D} ctx
- * @param {RenderData} r
  */
-function drawPreviewBlocks(source, ctx, r) {
+function drawPreviewBlocks(source: CanvasImageSource, ctx: CanvasRenderingContext2D, r: RenderData): void {
     // parse render data
     const blockSize = r.blockSize;
     const padSize = r.padSize;
@@ -1270,24 +1196,11 @@ function drawPreviewBlocks(source, ctx, r) {
     }
 }
 
-/**
- *
- * @param {Border} a
- * @param {Border} b
- * @return boolean
- */
-function isBorderSame(a, b) {
+function isBorderSame(a: Border, b: Border): boolean {
     return a.cellWidth === b.cellWidth && a.color === b.color;
 }
 
-/**
- *
- * @param {Object|null} prevState
- * @param {CanvasRenderingContext2D} ctx
- * @param {RenderData} r
- * @param {RectSize} canvasSize
- */
-function drawPreviewBorders(prevState, ctx, r, canvasSize) {
+function drawPreviewBorders(prevState: Array<Border> | null, ctx: CanvasRenderingContext2D, r: RenderData, canvasSize: RectSize): void {
     let oX = 0;
     let oY = 0;
     let w = canvasSize.w;
@@ -1329,15 +1242,7 @@ function drawPreviewBorders(prevState, ctx, r, canvasSize) {
     }
 }
 
-/**
- *
- * @param {SashInfo|null} vs
- * @param {CanvasRenderingContext2D} ctx
- * @param {SashInfo} sash
- * @param {RenderData} r
- * @param {RectSize} canvasSize
- */
-function drawPreviewSash(vs, ctx, sash, r, canvasSize) {
+function drawPreviewSash(vs: SashInfo | null, ctx: CanvasRenderingContext2D, sash: SashInfo, r: RenderData, canvasSize: RectSize): void {
     if (sash.levels === SASH_NONE) {
         return;
     }
@@ -1380,15 +1285,7 @@ function drawPreviewSash(vs, ctx, sash, r, canvasSize) {
     }
 }
 
-/**
- * @param {HTMLElement} source
- * @param {Quilt} quilt
- */
-function updatePreview(source, quilt) {
-    if (!(source instanceof HTMLCanvasElement)) {
-        return;
-    }
-
+function updatePreview(source: HTMLCanvasElement, quilt: Quilt): void {
     // shorten some names
     const sash = quilt.sash;
 
@@ -1445,19 +1342,10 @@ function updatePreview(source, quilt) {
 
 /**
  * Draw a large-size preview and return the canvas
- *
- * @param source
- * @param {Quilt} quilt
- * @return HTMLCanvasElement
  */
-function renderDownload(source, quilt) {
+function renderDownload(source: HTMLCanvasElement, quilt: Quilt): HTMLCanvasElement {
     // offscreen canvas
     const canvas = document.createElement('canvas');
-
-    if (!(source instanceof HTMLCanvasElement)) {
-        console.error("Unexpected source data; returning blank canvas!");
-        return canvas;
-    }
 
     // calculate draw dimensions
     const s = createRenderData(quilt);
@@ -1482,7 +1370,7 @@ function renderDownload(source, quilt) {
     return canvas;
 }
 
-function updateView() {
+function updateView(): void {
     updateEditor(quilt.colorSet, quilt.block);
     updatePreview(editor, quilt);
 }
