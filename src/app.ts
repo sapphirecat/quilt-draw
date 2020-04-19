@@ -16,6 +16,9 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import type Pickr from "../node_modules/@simonwep/pickr/src/js/pickr.js";
+import type HSVaColor from "../node_modules/@simonwep/pickr/src/js/utils/hsvacolor.js";
+
 type Point = [number, number];
 type Palette = Array<string>;
 
@@ -61,17 +64,6 @@ interface RenderData {
     cellSize?: number;
     padSize?: number;
     blockSize?: number;
-}
-
-interface PickrValue {
-    toHSLA: () => {
-        (): any;
-        new(): any;
-        toString: {
-            (): string;
-            new(): any;
-        };
-    };
 }
 
 interface _RenderView {
@@ -442,10 +434,6 @@ function createColor(): void {
 }
 
 function newColorPicker(button: HTMLElement, value: string) {
-    // Need to import the types. I can add an import using the IDE shortcut,
-    // but then TS claims @simonwep/pickr does not exist, despite being in
-    // package.json/node_modules.  IDK.
-    // @ts-ignore
     return Pickr.create({
         el: button,
         theme: 'nano',
@@ -522,7 +510,7 @@ function onColorPickerHide(i: number): void {
     setPaintColor(i);
 }
 
-function onColorChanged(i: number, value: PickrValue): void {
+function onColorChanged(i: number, value: HSVaColor): void {
     quilt.colorSet[i] = value.toHSLA().toString();
     updateView();
 }
@@ -537,7 +525,7 @@ function onSashColorPickerHide(i: number): void {
     pickers[`sash.${i}`].handle.applyColor(true); // save color to button, without firing a save event
 }
 
-function onSashColorChanged(i: number, value: PickrValue) {
+function onSashColorChanged(i: number, value: HSVaColor) {
     quilt.sash.colors[i] = value.toHSLA().toString();
     updatePreview(editor, quilt);
 }
@@ -563,7 +551,7 @@ function onBorderColorPickerHide(i: number): void {
     pickers[`border.${i}`].handle.applyColor(true); // save color to button, without firing a save event
 }
 
-function onBorderColorChanged(i: number, value: PickrValue): void {
+function onBorderColorChanged(i: number, value: HSVaColor): void {
     quilt.borders[i].color = value.toHSLA().toString();
     updatePreview(editor, quilt);
 }
