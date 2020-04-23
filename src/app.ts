@@ -21,8 +21,9 @@
 import type Pickr from "../node_modules/@simonwep/pickr/src/js/pickr.js";
 import type HSVaColor from "../node_modules/@simonwep/pickr/src/js/utils/hsvacolor.js";
 
+type Color = string;
 type Point = [number, number];
-type Palette = Array<string>;
+type Palette = Array<Color>;
 
 interface Cell {
     colors: [number, number, number, number]; // four quarter-squares
@@ -35,12 +36,12 @@ interface BlockInfo {
 
 interface SashInfo {
     levels: number;
-    colors: Palette;
+    colors: [Color, Color];
 }
 
 interface Border {
     cellWidth: number;
-    color: string;
+    color: Color;
 }
 
 interface Quilt {
@@ -137,12 +138,19 @@ const view: _RenderView = {
     quilt: null,
 };
 
+function newSash(): SashInfo {
+    return {
+        levels: SASH_NONE,
+        colors: ['#001', '#002'],
+    };
+}
+
 function newQuilt(): Quilt {
     return {
         size: 0,
         borders: [],
         colorSet: [],
-        sash: {levels: SASH_NONE, colors: []},
+        sash: newSash(),
         block: {size: 0, cells: []},
         savedBlock: {size: 0, cells: []}
     };
@@ -1292,6 +1300,7 @@ function updatePreview(source: HTMLCanvasElement, quilt: Quilt): void {
     if (view.quilt == null) {
         view.quilt = newQuilt();
     }
+    const viewQuilt = view.quilt;
 
     // resize the canvas to the draw dimensions if needed
     const layout = `${cellSize},${r.cHoriz},${r.cVert},${r.hasSash ? 'sash' : 'noSash'}`;
@@ -1309,8 +1318,8 @@ function updatePreview(source: HTMLCanvasElement, quilt: Quilt): void {
     const canvasSize = {w: cellSize * r.cHoriz, h: cellSize * r.cVert};
 
     // draw changes to borders
-    drawPreviewBorders(fullRedraw ? null : view.quilt.borders, ctx, r, canvasSize);
-    view.quilt.borders = deepCopy(quilt.borders);
+    drawPreviewBorders(fullRedraw ? null : viewQuilt.borders, ctx, r, canvasSize);
+    viewQuilt.borders = deepCopy(quilt.borders);
 
     // draw the 5x4 blocks, inset by the half-border-width padSize, and offset
     // by sashing if specified
@@ -1321,10 +1330,10 @@ function updatePreview(source: HTMLCanvasElement, quilt: Quilt): void {
 
     // draw main sashing, if applicable
     if (r.hasSash) {
-        drawPreviewSash(fullRedraw ? null : view.quilt.sash, ctx, sash, r, canvasSize);
-        view.quilt.sash = deepCopy(sash);
-    } else if (view.quilt.sash.levels !== SASH_NONE) {
-        view.quilt.sash = {levels: SASH_NONE, colors: []};
+        drawPreviewSash(fullRedraw ? null : viewQuilt.sash, ctx, sash, r, canvasSize);
+        viewQuilt.sash = deepCopy(sash);
+    } else if (viewQuilt.sash.levels !== SASH_NONE) {
+        viewQuilt.sash = newSash();
     }
 
     ctx.restore();
