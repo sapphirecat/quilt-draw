@@ -1261,17 +1261,19 @@ function drawPreviewSash(vs: SashInfo | null, ctx: CanvasRenderingContext2D, sas
     const borderSize = 2 * padSize;
     const viewColors = vs && vs.levels === sash.levels ? vs.colors : [];
     const drawMain = !(vs && viewColors && viewColors[0] === sash.colors[0]);
+    const stepSize = blockSize + sashSpacing;
+    const padStepSize = padSize + stepSize;
 
     // draw main sashing
     if (drawMain) {
         ctx.fillStyle = sash.colors[0];
-        for (let col = 1; col < BLOCKS_HORIZ; col++) {
-            const oX = padSize + (col * blockSize) + (sashSpacing * col);
+        for (let col = 1, oX = padStepSize; col < BLOCKS_HORIZ; col++) {
             ctx.fillRect(oX - sashSpacing, padSize, sashSpacing, canvasSize.h - borderSize);
+            oX += stepSize;
         }
-        for (let row = 1; row < BLOCKS_VERT; row++) {
-            const oY = padSize + (row * blockSize) + (sashSpacing * row);
+        for (let row = 1, oY = padStepSize; row < BLOCKS_VERT; row++) {
             ctx.fillRect(padSize, oY - sashSpacing, canvasSize.w - borderSize, sashSpacing);
+            oY += stepSize;
         }
     }
 
@@ -1283,13 +1285,13 @@ function drawPreviewSash(vs: SashInfo | null, ctx: CanvasRenderingContext2D, sas
         return;
     }
     ctx.fillStyle = sash.colors[1];
-    for (let col = 1; col < BLOCKS_HORIZ; col++) {
-        for (let row = 1; row < BLOCKS_VERT; row++) {
-            const oX = padSize + (col * blockSize) + (sashSpacing * col);
-            const oY = padSize + (row * blockSize) + (sashSpacing * row);
-            // draw cross sash: above left
+    for (let col = 1, oX = padStepSize; col < BLOCKS_HORIZ; col++) {
+        for (let row = 1, oY = padStepSize; row < BLOCKS_VERT; row++) {
+            // draw cross sash: above left of current point
             ctx.fillRect(oX - sashSpacing, oY - sashSpacing, sashSpacing, sashSpacing);
+            oY += stepSize;
         }
+        oX += stepSize;
     }
 }
 
