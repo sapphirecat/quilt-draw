@@ -1193,14 +1193,14 @@ function drawPreviewBlocks(source: CanvasImageSource, ctx: CanvasRenderingContex
     scaled.height = blockSize;
     scaled.getContext('2d', {alpha: false}).drawImage(source, 0, 0, blockSize, blockSize);
 
-    // now draw from the scaled rather than the source
-    for (let col = 0; col < BLOCKS_HORIZ; col++) {
-        for (let row = 0; row < BLOCKS_VERT; row++) {
-            // determine the current block's origin X/Y
-            const oX = padSize + (col * blockSize) + (sashSize * col);
-            const oY = padSize + (row * blockSize) + (sashSize * row);
+    // now draw from the scaled rather than the source.
+    const stepSize = blockSize + sashSize; // common subexpression
+    for (let col = 0, oX = padSize; col < BLOCKS_HORIZ; col++) {
+        for (let row = 0, oY = padSize; row < BLOCKS_VERT; row++) {
             ctx.drawImage(scaled, oX, oY);
+            oY += stepSize; // next row
         }
+        oX += stepSize; // next column
     }
 }
 
