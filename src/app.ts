@@ -22,7 +22,6 @@ import type Pickr from "../node_modules/@simonwep/pickr/src/js/pickr.js";
 import type HSVaColor from "../node_modules/@simonwep/pickr/src/js/utils/hsvacolor.js";
 
 type Color = string;
-type Point = [number, number];
 type Palette = Array<Color>;
 
 interface Cell {
@@ -53,11 +52,6 @@ interface Quilt {
     savedBlock: BlockInfo;
 }
 
-interface RectSize {
-    w: number;
-    h: number;
-}
-
 interface RenderData {
     borderUnits: number;
     blockCells: number;
@@ -73,6 +67,20 @@ interface _RenderView {
     layout: string;
     editorState: number;
     quilt: Quilt | null;
+}
+
+class Point {
+    constructor(readonly x: number, readonly y: number) {
+    }
+
+    offset(x: number, y: number) {
+        return new Point(x + this.x, y + this.y);
+    }
+}
+
+class Rect {
+    constructor(readonly w: number, readonly h: number) {
+    }
 }
 
 const editor = document.getElementById('editor') as HTMLCanvasElement;
@@ -1041,9 +1049,9 @@ function sizeCanvasTo(canvas: HTMLCanvasElement, width: number, height: number) 
 function drawTriangle(ctx: CanvasRenderingContext2D, points: Array<Point>, fillStyle: string): void {
     ctx.beginPath();
 
-    ctx.moveTo(points[0][0], points[0][1]);
-    ctx.lineTo(points[1][0], points[1][1]);
-    ctx.lineTo(points[2][0], points[2][1]);
+    ctx.moveTo(points[0].x, points[0].y);
+    ctx.lineTo(points[1].x, points[1].y);
+    ctx.lineTo(points[2].x, points[2].y);
 
     ctx.closePath();
     ctx.fillStyle = fillStyle;
@@ -1056,9 +1064,9 @@ function drawTriangle(ctx: CanvasRenderingContext2D, points: Array<Point>, fillS
 function drawPoly(ctx: CanvasRenderingContext2D, points: Array<Point>, fillStyle: string): void {
     ctx.beginPath();
 
-    ctx.moveTo(points[0][0], points[0][1]);
+    ctx.moveTo(points[0].x, points[0].y);
     for (let i = 1; i < points.length; i++) {
-        ctx.lineTo(points[i][0], points[i][1]);
+        ctx.lineTo(points[i].x, points[i].y);
     }
 
     ctx.closePath();
@@ -1071,18 +1079,20 @@ function drawPoly(ctx: CanvasRenderingContext2D, points: Array<Point>, fillStyle
  */
 function drawCellAt(ctx: CanvasRenderingContext2D, oX: number, oY: number, cellPx: number, palette: Palette, cell: Cell): void {
     // Determine all coordinates we can draw from: top/left/bottom/right pairs, and center
-    const tl: Point = [oX, oY];
-    const tr: Point = [oX + cellPx, oY];
-    const bl: Point = [oX, oY + cellPx];
-    const br: Point = [oX + cellPx, oY + cellPx];
-    const c: Point = [oX + cellPx / 2, oY + cellPx / 2];
+    const tl = new Point(oX, oY);
+    const tr = new Point(oX + cellPx, oY);
+    const bl = new Point(oX, oY + cellPx);
+    const br = new Point(oX + cellPx, oY + cellPx);
+    const c = new Point(oX + cellPx / 2, oY + cellPx / 2);
+    const lc = c.offset(-1, 0); // left of center
+    const rc = c.offset(1, 0);
 
     // Draw all four triangles into place, but eliminate seams by drawing the
     // top and bottom first, but bigger.
     // top-left, top-right, 1px down, 1px right-of-center, 1px left-of-center, 1px below top-left
-    drawPoly(ctx, [tl, tr, [tr[0], tr[1] + 1], [c[0] + 1, c[1]], [c[0] - 1, c[1]], [tl[0], tl[1] + 1]], palette[cell.colors[0]]);
+    drawPoly(ctx, [tl, tr, tr.offset(0, 1), rc, lc, tl.offset(0, 1)], palette[cell.colors[0]]);
     // bot-left, bot-right, 1px up, 1px right-of-center, 1px left-of-center, 1px above bot-left
-    drawPoly(ctx, [bl, br, [br[0], br[1] - 1], [c[0] + 1, c[1]], [c[0] - 1, c[1]], [bl[0], bl[1] - 1]], palette[cell.colors[2]]);
+    drawPoly(ctx, [bl, br, br.offset(0, -1), rc, lc, bl.offset(0, -1)], palette[cell.colors[2]]);
     // draw left/right triangles over the edges of the polygons
     drawTriangle(ctx, [c, tr, br], palette[cell.colors[1]]);
     drawTriangle(ctx, [c, bl, tl], palette[cell.colors[3]]);
@@ -1198,7 +1208,7 @@ function isBorderSame(a: Border, b: Border): boolean {
     return a.cellWidth === b.cellWidth && a.color === b.color;
 }
 
-function drawPreviewBorders(prevState: Array<Border> | null, ctx: CanvasRenderingContext2D, r: RenderData, canvasSize: RectSize): void {
+function drawPreviewBorders(prevState: Array<Border> | null, ctx: CanvasRenderingContext2D, r: RenderData, canvasSize: Rect): void {
     let oX = 0;
     let oY = 0;
     let w = canvasSize.w;
@@ -1240,7 +1250,7 @@ function drawPreviewBorders(prevState: Array<Border> | null, ctx: CanvasRenderin
     }
 }
 
-function drawPreviewSash(vs: SashInfo | null, ctx: CanvasRenderingContext2D, sash: SashInfo, r: RenderData, canvasSize: RectSize): void {
+function drawPreviewSash(vs: SashInfo | null, ctx: CanvasRenderingContext2D, sash: SashInfo, r: RenderData, canvasSize: Rect): void {
     if (sash.levels === SASH_NONE) {
         return;
     }
@@ -1315,7 +1325,7 @@ function updatePreview(source: HTMLCanvasElement, quilt: Quilt): void {
     const DPR = preview.width / (cellSize * r.cHoriz);
     ctx.save();
     ctx.scale(DPR, DPR);
-    const canvasSize = {w: cellSize * r.cHoriz, h: cellSize * r.cVert};
+    const canvasSize = new Rect(cellSize * r.cHoriz, cellSize * r.cVert);
 
     // draw changes to borders
     drawPreviewBorders(fullRedraw ? null : viewQuilt.borders, ctx, r, canvasSize);
@@ -1359,7 +1369,7 @@ function renderDownload(source: HTMLCanvasElement, quilt: Quilt): HTMLCanvasElem
 
     // start drawing
     const ctx = canvas.getContext('2d', {alpha: false});
-    const canvasSize = {w: canvas.width, h: canvas.height};
+    const canvasSize = new Rect(canvas.width, canvas.height);
     drawPreviewBorders(null, ctx, s, canvasSize);
     drawPreviewBlocks(source, ctx, s);
     if (s.hasSash) {
