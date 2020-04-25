@@ -25,7 +25,7 @@ type Color = string;
 type Palette = Array<Color>;
 
 interface Cell {
-    colors: [number, number, number, number]; // four quarter-squares
+    colors: [number, number, number, number]; // four quarter-squares: top, right, bottom, left.
 }
 
 interface BlockInfo {
@@ -116,7 +116,10 @@ const TOOL_PAINT = 'paint'; // set color of tiles
 const TOOL_SPIN = 'spin'; // turn tiles
 
 // Lookup table for calculating cell hits. A = top/right side, B = bottom/left;
-// X = bottom/right, Y = top/left.  AY = intersect(A, Y) = top.
+// X = bottom/right, Y = top/left.  AY = intersect(A, Y) = top.  The value in
+// this object is the index into the Cell.colors for the sub-area that was hit.
+// That is, we calculate A-or-B, and X-or-Y, then look up the results here to
+// determine which triangle gets painted.
 const CELL_QUADRANTS = {
     "AY": 0,
     "AX": 1,
