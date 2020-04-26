@@ -38,11 +38,6 @@ interface SashInfo {
     colors: [Color, Color];
 }
 
-interface Border {
-    cellWidth: number;
-    color: Color;
-}
-
 interface Quilt {
     size: number;
     borders: Array<Border>;
@@ -80,6 +75,15 @@ class Point {
 
 class Rect {
     constructor(readonly w: number, readonly h: number) {
+    }
+}
+
+class Border {
+    constructor(public cellWidth: number, public color: Color) {
+    }
+
+    equals(other: Border | undefined | null) {
+        return other && this.cellWidth === other.cellWidth && this.color === other.color;
     }
 }
 
@@ -595,7 +599,7 @@ function addBorder(color?: string): void {
     const item = ui.borderTemplate.content.cloneNode(true);
     const range = item.querySelector("input[type=range]");
     const width = 1 + Math.floor(Math.random() * 3);
-    const border = {cellWidth: width, color: color || randomColor()};
+    const border = new Border(width, color || randomColor());
 
     item.querySelector('p').appendChild(document.createTextNode(`${i + 1}`));
 
@@ -1207,10 +1211,6 @@ function drawPreviewBlocks(source: CanvasImageSource, ctx: CanvasRenderingContex
     }
 }
 
-function isBorderSame(a: Border, b: Border): boolean {
-    return a.cellWidth === b.cellWidth && a.color === b.color;
-}
-
 function drawPreviewBorders(prevState: Array<Border> | null, ctx: CanvasRenderingContext2D, r: RenderData, canvasSize: Rect): void {
     let oX = 0;
     let oY = 0;
@@ -1232,7 +1232,7 @@ function drawPreviewBorders(prevState: Array<Border> | null, ctx: CanvasRenderin
         const strip = delta / 2; // space of one strip of the border
 
         // if this is a full redraw or the border has changed, repaint it
-        if (!(viewBorder && isBorderSame(border, viewBorder))) {
+        if (!border.equals(viewBorder)) {
             // draw an outer edge, then inner edge, then fill even-odd so that
             // only the actual border pixels get painted. overdraws vastly
             // fewer pixels than our old fillRect() code.
