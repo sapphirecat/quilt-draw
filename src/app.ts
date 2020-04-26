@@ -24,10 +24,6 @@ import type HSVaColor from "../node_modules/@simonwep/pickr/src/js/utils/hsvacol
 type Color = string;
 type Palette = Array<Color>;
 
-interface Cell {
-    colors: [number, number, number, number]; // four quarter-squares: top, right, bottom, left.
-}
-
 interface BlockInfo {
     cells: Array<Cell>;
     size: number;
@@ -86,6 +82,27 @@ class Border {
         return other && this.cellWidth === other.cellWidth && this.color === other.color;
     }
 }
+
+class Cell {
+    colors: [number, number, number, number]; // four quarter-squares: top, right, bottom, left.
+
+    constructor(top: number, right: number, bottom: number, left: number) {
+        this.colors = [top, right, bottom, left];
+    }
+
+    rotateRight(): this {
+        const c = this.colors;
+        this.colors = [c[3], c[0], c[1], c[2]];
+        return this;
+    }
+
+    rotateLeft(): this {
+        const c = this.colors;
+        this.colors = [c[1], c[2], c[3], c[0]];
+        return this;
+    }
+}
+
 
 const editor = document.getElementById('editor') as HTMLCanvasElement;
 const preview = document.getElementById('preview') as HTMLCanvasElement;
@@ -239,14 +256,12 @@ function randomColor(): string {
 function randomCell(): Cell {
     const colorCount = Math.floor(quilt.colorSet.length);
 
-    return {
-        colors: [
-            (Math.floor(Math.random() * colorCount)),
-            (Math.floor(Math.random() * colorCount)),
-            (Math.floor(Math.random() * colorCount)),
-            (Math.floor(Math.random() * colorCount))
-        ]
-    };
+    return new Cell(
+        (Math.floor(Math.random() * colorCount)),
+        (Math.floor(Math.random() * colorCount)),
+        (Math.floor(Math.random() * colorCount)),
+        (Math.floor(Math.random() * colorCount))
+    );
 }
 
 function getPalette(element): Palette {
@@ -258,34 +273,6 @@ function getPalette(element): Palette {
 
     const colorText = element.getAttribute('data-initial-palette') || '#ff00ff';
     return colorText.split(/,\s*/);
-}
-
-/**
- * Rotate array elements "leftward": all indices down one, 0 to last position.
- *
- * No effect if the array length is less than 2.
- *
- * @param {Array<number>} ary
- * @return void Operation is destructive, to limit GC pressure.
- */
-function rotateLeft(ary): void {
-    if (ary.length > 1) {
-        ary.push(ary.shift());
-    }
-}
-
-/**
- * Rotate array elements "rightward": all indices up one, last position to 0.
- *
- * No effect if the array length is less than 2.
- *
- * @param {Array<number>} ary
- * @return void Operation is destructive, to limit GC pressure.
- */
-function rotateRight(ary): void {
-    if (ary.length > 1) {
-        ary.unshift(ary.pop());
-    }
 }
 
 /**
@@ -702,12 +689,15 @@ function onEditorMouse(ev: MouseEvent): void {
         cell.colors[colorIndex] = colorChosen;
 
         break;
-    case TOOL_SPIN:
-        const fn = isSecondaryClick ? rotateLeft : rotateRight;
-        fn(cell.colors);
-        break;
-    default:
-        console.error("Unknown tool selected: %s", ui.selectedTool)
+        case TOOL_SPIN:
+            if (isSecondaryClick) {
+                cell.rotateLeft();
+            } else {
+                cell.rotateRight();
+            }
+            break;
+        default:
+            console.error("Unknown tool selected: %s", ui.selectedTool)
     }
 
     updateView();
