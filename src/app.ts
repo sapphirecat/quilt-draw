@@ -22,12 +22,6 @@ import type Pickr from "../node_modules/@simonwep/pickr/src/js/pickr.js";
 import type HSVaColor from "../node_modules/@simonwep/pickr/src/js/utils/hsvacolor.js";
 
 type Color = string;
-type Palette = Array<Color>;
-
-interface BlockInfo {
-    cells: Array<Cell>;
-    size: number;
-}
 
 interface SashInfo {
     levels: number;
@@ -35,7 +29,6 @@ interface SashInfo {
 }
 
 interface Quilt {
-    size: number;
     borders: Array<Border>;
     colorSet: Palette;
     sash: SashInfo;
@@ -83,11 +76,35 @@ class Border {
     }
 }
 
+class Palette extends Array<string> {
+    equals(other: Palette | undefined | null) {
+        if (!(other && this.length === other.length)) {
+            return false;
+        }
+
+        for (let i = 0; i < this.length; i++) {
+            if (this[i] !== other[i]) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    copy(): Palette {
+        return new Palette(...this);
+    }
+}
+
 class Cell {
     colors: [number, number, number, number]; // four quarter-squares: top, right, bottom, left.
 
     constructor(top: number, right: number, bottom: number, left: number) {
         this.colors = [top, right, bottom, left];
+    }
+
+    copy(): Cell {
+        return new Cell(...this.colors);
     }
 
     rotateRight(): this {
@@ -100,6 +117,209 @@ class Cell {
         const c = this.colors;
         this.colors = [c[1], c[2], c[3], c[0]];
         return this;
+    }
+}
+
+class BlockInfo {
+    private size: number;
+    private dirty: boolean = true;
+    private readonly canvas: HTMLCanvasElement;
+    private lastColors?: Palette;
+    private lastPixelSize?: number;
+    private savedCells: Array<Cell>;
+
+    constructor(private cells: Array<Cell>) {
+        this.size = Math.floor(Math.sqrt(cells.length));
+        this.savedCells = [];
+        this.canvas = document.createElement('canvas');
+    }
+
+    copy(): BlockInfo {
+        return new BlockInfo(this.cells.map(v => v.copy()));
+    }
+
+    getSize(): number {
+        return this.size;
+    }
+
+    getSource(pixelSize: number, colors: Palette): CanvasImageSource {
+        // check our argument states
+        if (!colors.equals(this.lastColors)) {
+            this.dirty = true;
+            this.lastColors = colors.copy();
+        }
+
+        if (!(this.lastPixelSize && this.lastPixelSize === pixelSize)) {
+            this.dirty = true;
+            this.lastPixelSize = pixelSize;
+            this.canvas.width = pixelSize;
+            this.canvas.height = pixelSize;
+        }
+
+        // if any (arguments or internal) state has updated, redraw
+        if (this.dirty) {
+            this.draw(colors);
+        }
+
+        // return the results
+        return this.canvas;
+    }
+
+    getScaledSource(scaledSize: number): CanvasImageSource {
+        if (this.dirty) {
+            this.draw(this.lastColors);
+        }
+
+        const target = document.createElement('canvas');
+        target.width = scaledSize;
+        target.height = scaledSize;
+
+        const ctx = target.getContext('2d', {alpha: false});
+        ctx.drawImage(this.canvas, 0, 0, scaledSize, scaledSize);
+        return target;
+    }
+
+    spinCell(i: number, reverse?: boolean): void {
+        if (i >= this.cells.length) {
+            return;
+        }
+
+        if (reverse) {
+            this.cells[i].rotateLeft();
+        } else {
+            this.cells[i].rotateRight();
+        }
+
+        this.dirty = true;
+    }
+
+    paintSubCell(i: number, j: number, color: number): void {
+        if (i >= this.cells.length || j > 3) {
+            return; // out of bounds
+        }
+        if (this.cells[i].colors[j] === color) {
+            return; // painted same color
+        }
+
+        this.cells[i].colors[j] = color;
+        this.dirty = true;
+    }
+
+    resize(toSize: number): void {
+        if (toSize === this.size) {
+            return;
+        }
+
+        const currentSize = this.size;
+        const savedSize = Math.floor(Math.sqrt(this.savedCells.length));
+        const output = new Array(toSize * toSize);
+        let input, inputSize;
+
+        if (savedSize > currentSize) {
+            input = this.savedCells;
+            inputSize = Math.min(currentSize, toSize);
+        } else {
+            input = this.cells;
+            inputSize = Math.min(currentSize, toSize);
+        }
+
+        let i = 0;
+        let si = 0; // source index
+        let skip = Math.max(0, currentSize - toSize);
+        let row, col;
+        // copy the cells across, into the top-left
+        for (row = 0; row < inputSize; row++) {
+            for (col = 0; col < inputSize; col++) {
+                output[i++] = input[si++];
+            }
+            // finish out the remaining columns with random cells
+            for (; col < toSize; col++) {
+                output[i++] = randomCell();
+            }
+            // or skip any excess columns in the source
+            si += skip;
+        }
+        // finish out the remaining rows with random cells
+        for (; row < toSize; row++) {
+            for (col = 0; col < toSize; col++) {
+                output[i++] = randomCell();
+            }
+        }
+
+        this.cells = output;
+        this.size = toSize;
+        this.dirty = true;
+    }
+
+    rollLeft(): void {
+        const sz = this.size;
+        this.roll(function (row, col) {
+            return [row, (col + 1) % sz];
+        });
+    }
+
+    rollRight(): void {
+        const sz = this.size;
+        this.roll(function (row, col) {
+            return [row, col ? col - 1 : sz - 1];
+        });
+    }
+
+    rollUp(): void {
+        const sz = this.size;
+        this.roll(function (row, col) {
+            return [(row + 1) % sz, col];
+        });
+    }
+
+    rollDown(): void {
+        const sz = this.size;
+        this.roll(function (row, col) {
+            return [row ? row - 1 : sz - 1, col];
+        });
+    }
+
+    private roll(mappingFn): void {
+        const output = new Array(this.cells.length);
+        const size = this.size;
+
+        // walk across output in order. ask the mapping function where the data
+        // for the row/column of output is located in the source, by row/column.
+        let i = 0;
+        for (let row = 0; row < size; row++) {
+            for (let col = 0; col < size; col++) {
+                const [readRow, readCol] = mappingFn(row, col);
+                output[i++] = this.cells[readCol + (readRow * size)];
+            }
+        }
+
+        this.cells = output;
+        this.savedCells = []; // clear resize buffer
+        this.dirty = true;
+    }
+
+    private draw(colors: Palette) {
+        const cells = this.cells;
+        const size = this.size;
+        const cellPx = this.canvas.width / this.size;
+
+        // cell origin and current block index
+        let oX, oY, iBlock;
+
+        // canvas 2D context
+        const ctx = this.canvas.getContext('2d', {alpha: false});
+
+        // process editor cells in unscaled space
+        iBlock = 0; // index into block array
+        for (let cY = 0; cY < size; ++cY) {
+            oY = cY * cellPx; // Y-origin = cell Y-index (row) times cell height
+            for (let cX = 0; cX < size; ++cX) {
+                oX = cX * cellPx;
+                drawCellAt(ctx, oX, oY, cellPx, colors, cells[iBlock++]);
+            }
+        }
+
+        this.dirty = false;
     }
 }
 
@@ -153,7 +373,7 @@ const pickers = {};
 const quilt = newQuilt();
 
 const ui = {
-    editorState: 0,
+    editorState: -1,
     cellPx: null, // editor cell size in pixels (width & height)
     colorEvents: CLICK_ALLOW,
     colorTemplate: null,
@@ -179,12 +399,11 @@ function newSash(): SashInfo {
 
 function newQuilt(): Quilt {
     return {
-        size: 0,
         borders: [],
-        colorSet: [],
+        colorSet: new Palette(),
         sash: newSash(),
-        block: {size: 0, cells: []},
-        savedBlock: {size: 0, cells: []}
+        block: new BlockInfo([]),
+        savedBlock: new BlockInfo([])
     };
 }
 
@@ -268,11 +487,12 @@ function getPalette(element): Palette {
     // we have some sentinel color values in here, to detect major errors in
     // script initialization.  we should never see these.
     if (!element) {
-        return ['#00ccff'];
+        return new Palette('#00ccff');
     }
 
     const colorText = element.getAttribute('data-initial-palette') || '#ff00ff';
-    return colorText.split(/,\s*/);
+    const colors = colorText.split(/,\s*/);
+    return new Palette(...colors);
 }
 
 /**
@@ -315,8 +535,8 @@ function initQuiltBlock(): void {
         }
     }
 
-    quilt.savedBlock = {cells, size};
-    quilt.block = quilt.savedBlock;
+    quilt.savedBlock = new BlockInfo(cells);
+    quilt.block = quilt.savedBlock.copy();
 }
 
 function initTools(): void {
@@ -663,38 +883,31 @@ function onEditorMouse(ev: MouseEvent): void {
     const _ = Math.floor;
 
     // calculate hit positions
-    const sz = quilt.block.size;
-    const index = _(x / ui.cellPx) + (sz * _(y / ui.cellPx));
-    const cell = quilt.block.cells[index];
+    const sz = quilt.block.getSize();
+    const cellPx = editor.width / sz;
+    const index = _(x / cellPx) + (sz * _(y / cellPx));
 
     // act on the hit
     const isSecondaryClick = isSecondaryButton(ev);
     switch (ui.selectedTool) {
-    case TOOL_PAINT:
-        // translate coordinates to cell-relative
-        const top = _(index / sz) * ui.cellPx;
-        const left = _(index % sz) * ui.cellPx;
-        const hitX = x - left;
-        const hitY = y - top;
+        case TOOL_PAINT:
+            // translate coordinates to cell-relative
+            const top = _(index / sz) * cellPx;
+            const left = _(index % sz) * cellPx;
+            const hitX = x - left;
+            const hitY = y - top;
 
-        // determine which quadrant of the cell was hit
-        const quadrantKey = `${hitX > hitY ? "A" : "B"}${hitX > (ui.cellPx - hitY) ? "X" : "Y"}`;
-        const colorIndex = CELL_QUADRANTS[quadrantKey];
+            // determine which quadrant of the cell was hit
+            const quadrantKey = `${hitX > hitY ? "A" : "B"}${hitX > (cellPx - hitY) ? "X" : "Y"}`;
+            const colorIndex = CELL_QUADRANTS[quadrantKey];
 
-        // apply color to the index that was hit
-        const colorChosen = ui.paintColors[isSecondaryClick ? 1 : 0];
-        if (cell.colors[colorIndex] === colorChosen) {
-            return; // painted same color, no updates needed
-        }
-        cell.colors[colorIndex] = colorChosen;
+            // apply color to the index that was hit
+            const colorChosen = ui.paintColors[isSecondaryClick ? 1 : 0];
+            quilt.block.paintSubCell(index, colorIndex, colorChosen);
 
-        break;
+            break;
         case TOOL_SPIN:
-            if (isSecondaryClick) {
-                cell.rotateLeft();
-            } else {
-                cell.rotateRight();
-            }
+            quilt.block.spinCell(index, isSecondaryClick);
             break;
         default:
             console.error("Unknown tool selected: %s", ui.selectedTool)
@@ -845,10 +1058,10 @@ function onDownload(ev: MouseEvent): void {
  */
 function onRollerClick(ev: MouseEvent): void {
     const movers = {
-        "roll-up": rollUp,
-        "roll-down": rollDown,
-        "roll-left": rollLeft,
-        "roll-right": rollRight
+        "roll-up": (b: BlockInfo) => b.rollUp(),
+        "roll-down": (b: BlockInfo) => b.rollDown(),
+        "roll-left": (b: BlockInfo) => b.rollLeft(),
+        "roll-right": (b: BlockInfo) => b.rollRight()
     };
 
     if (!(ev.target instanceof Element)) {
@@ -857,14 +1070,7 @@ function onRollerClick(ev: MouseEvent): void {
 
     const callback = movers[ev.target.id];
     if (callback) {
-        // Rolling is very unintuitive if we bring invisible parts into view.
-        // Shrink-wrap the block before rolling.
-        if (quilt.savedBlock.size > quilt.block.size) {
-            quilt.savedBlock = quilt.block;
-        }
-
-        quilt.savedBlock = callback(quilt.savedBlock);
-        quilt.block = quilt.savedBlock;
+        callback(quilt.block);
         updateView();
     }
 }
@@ -879,21 +1085,8 @@ function onResizeInput(ev: MouseEvent): void {
     }
 
     // perform the resizing operation
-    const saved = quilt.savedBlock;
     const newSize = parseInt(node.value, 10);
-
-    // decide how we need to resize the saved block
-    if (newSize > saved.size) {
-        // if we need to expand it, save it back to ui.savedBlock
-        quilt.block = blockResizeUp(saved, newSize);
-        quilt.savedBlock = quilt.block;
-    } else if (newSize < saved.size) {
-        // if we're going down, shrink our max-sized block
-        quilt.block = blockResizeDown(saved, newSize);
-    } else if (newSize === saved.size) {
-        // going nowhere, use the max-sized block as-is
-        quilt.block = quilt.savedBlock;
-    }
+    quilt.block.resize(newSize);
 
     // update the view
     updateView();
@@ -925,112 +1118,6 @@ function onResizeViewport(): void {
 
     updateView();
 }
-
-/**
- * Resize a block to be larger.
- *
- * New rows/columns will be filled with random colors.
- */
-function blockResizeUp(block: BlockInfo, newSize: number): BlockInfo {
-    const currentSize = block.size;
-    const output = new Array(newSize * newSize);
-
-    let i = 0;
-    let row, col;
-    // copy the cells across, into the top-left
-    for (row = 0; row < currentSize; row++) {
-        for (col = 0; col < currentSize; col++) {
-            output[i++] = block.cells[row * currentSize + col];
-        }
-        // finish out the remaining columns with random cells
-        for (; col < newSize; col++) {
-            output[i++] = randomCell();
-        }
-    }
-    // finish out the remaining rows with random cells
-    for (; row < newSize; row++) {
-        for (col = 0; col < newSize; col++) {
-            output[i++] = randomCell();
-        }
-    }
-
-    return {cells: output, size: newSize};
-}
-
-/**
- * Resize a block to be smaller.
- */
-function blockResizeDown(block: BlockInfo, newSize: number): BlockInfo {
-    const currentSize = block.size;
-    const output = new Array(newSize * newSize);
-
-    let i = 0;
-    for (let row = 0; row < newSize; row++) {
-        for (let col = 0; col < newSize; col++) {
-            output[i++] = block.cells[row * currentSize + col];
-        }
-    }
-
-    return {cells: output, size: newSize};
-}
-
-
-/**
- * Apply a translation to all cells of a block.
- */
-function blockTransform(block: BlockInfo, mappingFn): BlockInfo {
-    const output = new Array(block.cells.length);
-    const size = block.size;
-
-    // walk across output in order. ask the mapping function where the data
-    // for the row/column of output is located in the source, by row/column.
-    let i = 0;
-    for (let row = 0; row < size; row++) {
-        for (let col = 0; col < size; col++) {
-            const [readRow, readCol] = mappingFn(row, col);
-            output[i++] = block.cells[readCol + (readRow * size)];
-        }
-    }
-
-    return {cells: output, size: size};
-}
-
-/**
- * Move all cells to the left, wrapping the leftmost column to the right
- */
-function rollLeft(block: BlockInfo): BlockInfo {
-    return blockTransform(block, function (row, col) {
-        return [row, (col + 1) % block.size];
-    });
-}
-
-/**
- * Move all cells to the right, wrapping the rightmost column to the left.
- */
-function rollRight(block: BlockInfo): BlockInfo {
-    return blockTransform(block, function (row, col) {
-        return [row, col ? col - 1 : block.size - 1];
-    });
-}
-
-/**
- * Move all cells down, wrapping the bottommost row to the top.
- */
-function rollDown(block: BlockInfo): BlockInfo {
-    return blockTransform(block, function (row, col) {
-        return [row ? row - 1 : block.size - 1, col];
-    });
-}
-
-/**
- * Move all cells up, wrapping the topmost row to the bottom.
- */
-function rollUp(block: BlockInfo): BlockInfo {
-    return blockTransform(block, function (row, col) {
-        return [(row + 1) % block.size, col];
-    });
-}
-
 
 function sizeCanvasTo(canvas: HTMLCanvasElement, width: number, height: number) {
     const DPR = Math.max(window.devicePixelRatio || 1, 1);
@@ -1099,38 +1186,19 @@ function drawCellAt(ctx: CanvasRenderingContext2D, oX: number, oY: number, cellP
  * Draw a block into the editor area of the canvas.
  */
 function updateEditor(colors: Palette, block: BlockInfo): void {
-    const cells = block.cells;
-    const size = block.size;
-    ui.editorState += 1;
+    // render the blockInfo into the editor canvas
+    const cellCount = block.getSize();
 
     // Resize editor if needed, assuming square
-    const cW = 2 * Math.floor(EDITOR_MAX_WIDTH / block.size / 2);
-    const blockSize = cW * block.size;
+    const cW = 2 * Math.floor(EDITOR_MAX_WIDTH / cellCount / 2);
+    const pixelSize = cW * cellCount;
     if (cW !== ui.cellPx || editor.style.width === "") {
         ui.cellPx = cW;
-        sizeCanvasTo(editor, blockSize, blockSize);
+        sizeCanvasTo(editor, pixelSize, pixelSize);
     }
 
-    // cell origin and current block index
-    let oX, oY, iBlock;
-
-    // canvas 2D context
     const ctx = editor.getContext('2d', {alpha: false});
-    const DPR = editor.width / blockSize;
-    ctx.save();
-    ctx.scale(DPR, DPR);
-
-    // process editor cells in unscaled space
-    iBlock = 0; // index into block array
-    for (let cY = 0; cY < size; ++cY) {
-        oY = cY * ui.cellPx; // Y-origin = cell Y-index (row) times cell height
-        for (let cX = 0; cX < size; ++cX) {
-            oX = cX * ui.cellPx;
-            drawCellAt(ctx, oX, oY, ui.cellPx, colors, cells[iBlock++]);
-        }
-    }
-
-    ctx.restore();
+    ctx.drawImage(block.getSource(editor.width, colors), 0, 0);
 }
 
 /**
@@ -1138,7 +1206,7 @@ function updateEditor(colors: Palette, block: BlockInfo): void {
  */
 function createRenderData(quilt: Quilt): RenderData {
     const hasSash = quilt.sash.levels !== SASH_NONE;
-    const blockCells = quilt.block.size;
+    const blockCells = quilt.block.getSize();
     let borderUnits = 0;
 
     for (const border of quilt.borders) {
@@ -1178,19 +1246,13 @@ function deepCopy<T>(x: T): T {
 /**
  * Draw scaled blocks into a canvas.
  */
-function drawPreviewBlocks(source: CanvasImageSource, ctx: CanvasRenderingContext2D, r: RenderData): void {
+function drawPreviewBlocks(scaled: CanvasImageSource, ctx: CanvasRenderingContext2D, r: RenderData): void {
     // parse render data
     const blockSize = r.blockSize;
     const padSize = r.padSize;
     const sashSize = r.hasSash ? r.cellSize : 0;
 
-    // first, scale the block to an offscreen canvas...
-    const scaled = document.createElement('canvas');
-    scaled.width = blockSize;
-    scaled.height = blockSize;
-    scaled.getContext('2d', {alpha: false}).drawImage(source, 0, 0, blockSize, blockSize);
-
-    // now draw from the scaled rather than the source.
+    // now draw from the pre-scaled image
     const stepSize = blockSize + sashSize; // common subexpression
     for (let row = 0, oY = padSize; row < BLOCKS_VERT; row++) {
         for (let col = 0, oX = padSize; col < BLOCKS_HORIZ; col++) {
@@ -1326,19 +1388,19 @@ function updatePreview(source: HTMLCanvasElement, quilt: Quilt): void {
     drawPreviewBorders(fullRedraw ? null : viewQuilt.borders, ctx, r, canvasSize);
     viewQuilt.borders = deepCopy(quilt.borders);
 
-    // draw the 5x4 blocks, inset by the half-border-width padSize, and offset
-    // by sashing if specified
-    if (fullRedraw || ui.editorState !== view.editorState) {
-        drawPreviewBlocks(source, ctx, r);
-        view.editorState = ui.editorState;
-    }
-
     // draw main sashing, if applicable
     if (r.hasSash) {
         drawPreviewSash(fullRedraw ? null : viewQuilt.sash, ctx, sash, r, canvasSize);
         viewQuilt.sash = deepCopy(sash);
     } else if (viewQuilt.sash.levels !== SASH_NONE) {
         viewQuilt.sash = newSash();
+    }
+
+    // draw the 5x4 blocks, inset by the half-border-width padSize, and offset
+    // by sashing if specified
+    if (fullRedraw || ui.editorState !== view.editorState) {
+        drawPreviewBlocks(quilt.block.getScaledSource(r.blockSize), ctx, r);
+        view.editorState = ui.editorState;
     }
 
     ctx.restore();
@@ -1366,10 +1428,10 @@ function renderDownload(source: HTMLCanvasElement, quilt: Quilt): HTMLCanvasElem
     const ctx = canvas.getContext('2d', {alpha: false});
     const canvasSize = new Rect(canvas.width, canvas.height);
     drawPreviewBorders(null, ctx, s, canvasSize);
-    drawPreviewBlocks(source, ctx, s);
     if (s.hasSash) {
         drawPreviewSash(null, ctx, quilt.sash, s, canvasSize);
     }
+    drawPreviewBlocks(quilt.block.getScaledSource(s.blockSize), ctx, s);
 
     return canvas;
 }
