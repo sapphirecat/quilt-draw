@@ -113,7 +113,7 @@ footer {
     margin: 0 auto auto;
     display: grid;
     grid-template-columns: 1fr;
-    grid-gap: 1em;
+    grid-gap: 1.4em;
 }
 
 .control {
