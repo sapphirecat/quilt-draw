@@ -1202,12 +1202,12 @@ function drawPreviewBlocks(source: CanvasImageSource, ctx: CanvasRenderingContex
 
     // now draw from the scaled rather than the source.
     const stepSize = blockSize + sashSize; // common subexpression
-    for (let col = 0, oX = padSize; col < BLOCKS_HORIZ; col++) {
-        for (let row = 0, oY = padSize; row < BLOCKS_VERT; row++) {
+    for (let row = 0, oY = padSize; row < BLOCKS_VERT; row++) {
+        for (let col = 0, oX = padSize; col < BLOCKS_HORIZ; col++) {
             ctx.drawImage(scaled, oX, oY);
-            oY += stepSize; // next row
+            oX += stepSize; // next column
         }
-        oX += stepSize; // next column
+        oY += stepSize; // next row
     }
 }
 
