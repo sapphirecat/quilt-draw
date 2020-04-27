@@ -28,14 +28,6 @@ interface SashInfo {
     colors: [Color, Color];
 }
 
-interface Quilt {
-    borders: Array<Border>;
-    colorSet: Palette;
-    sash: SashInfo;
-    block: BlockInfo;
-    savedBlock: BlockInfo;
-}
-
 interface RenderData {
     borderUnits: number;
     blockCells: number;
@@ -120,26 +112,30 @@ class Cell {
     }
 }
 
+class CellList extends Array<Cell> {
+    copy(): CellList {
+        return new CellList(...this.map(v => v.copy()));
+    }
+
+    getSize(): number {
+        return Math.floor(Math.sqrt(this.length));
+    }
+}
+
 class BlockInfo {
-    private size: number;
     private dirty: boolean = true;
     private readonly canvas: HTMLCanvasElement;
     private lastColors?: Palette;
     private lastPixelSize?: number;
-    private savedCells: Array<Cell>;
+    private savedCells: CellList;
 
-    constructor(private cells: Array<Cell>) {
-        this.size = Math.floor(Math.sqrt(cells.length));
-        this.savedCells = [];
+    constructor(private cells: CellList) {
+        this.savedCells = cells.copy();
         this.canvas = document.createElement('canvas');
     }
 
-    copy(): BlockInfo {
-        return new BlockInfo(this.cells.map(v => v.copy()));
-    }
-
     getSize(): number {
-        return this.size;
+        return this.cells.getSize();
     }
 
     getSource(pixelSize: number, colors: Palette): CanvasImageSource {
@@ -206,82 +202,124 @@ class BlockInfo {
     }
 
     resize(toSize: number): void {
-        if (toSize === this.size) {
+        const currentSize = this.cells.getSize();
+
+        if (toSize === currentSize) {
             return;
         }
 
-        const currentSize = this.size;
-        const savedSize = Math.floor(Math.sqrt(this.savedCells.length));
-        const output = new Array(toSize * toSize);
-        let input, inputSize;
-
-        if (savedSize > currentSize) {
-            input = this.savedCells;
-            inputSize = Math.min(currentSize, toSize);
+        if (toSize > currentSize) {
+            this.resizeUp(currentSize, toSize);
+            if (this.savedCells.getSize() < toSize) {
+                this.savedCells = this.cells.copy();
+            }
         } else {
-            input = this.cells;
-            inputSize = Math.min(currentSize, toSize);
+            if (this.savedCells.getSize() < currentSize) {
+                // we're resizing down, but we didn't have the current block
+                // saved: do that before any data is thrown away.
+                this.savedCells = this.cells.copy();
+            }
+            this.resizeDown(toSize);
         }
 
-        let i = 0;
-        let si = 0; // source index
-        let skip = Math.max(0, currentSize - toSize);
-        let row, col;
-        // copy the cells across, into the top-left
-        for (row = 0; row < inputSize; row++) {
-            for (col = 0; col < inputSize; col++) {
-                output[i++] = input[si++];
-            }
-            // finish out the remaining columns with random cells
-            for (; col < toSize; col++) {
-                output[i++] = randomCell();
-            }
-            // or skip any excess columns in the source
-            si += skip;
-        }
-        // finish out the remaining rows with random cells
-        for (; row < toSize; row++) {
-            for (col = 0; col < toSize; col++) {
-                output[i++] = randomCell();
-            }
-        }
-
-        this.cells = output;
-        this.size = toSize;
         this.dirty = true;
     }
 
     rollLeft(): void {
-        const sz = this.size;
+        const sz = this.cells.getSize();
         this.roll(function (row, col) {
             return [row, (col + 1) % sz];
         });
     }
 
     rollRight(): void {
-        const sz = this.size;
+        const sz = this.cells.getSize();
         this.roll(function (row, col) {
             return [row, col ? col - 1 : sz - 1];
         });
     }
 
     rollUp(): void {
-        const sz = this.size;
+        const sz = this.cells.getSize();
         this.roll(function (row, col) {
             return [(row + 1) % sz, col];
         });
     }
 
     rollDown(): void {
-        const sz = this.size;
+        const sz = this.cells.getSize();
         this.roll(function (row, col) {
             return [row ? row - 1 : sz - 1, col];
         });
     }
 
+    private resizeUp(currentSize: number, toSize: number): void {
+        const current = this.cells;
+        const saved = this.savedCells;
+        const savedSize = saved.getSize();
+        const fillSize = Math.min(savedSize, toSize);
+        const output = new CellList(toSize * toSize);
+
+        let row, col, siCurrent, siSaved;
+        let di = 0;
+
+        // up to 3 sources per row: current, saved, random values
+        for (row = 0, siCurrent = 0; row < currentSize; row++) {
+            for (col = 0; col < currentSize; col++) {
+                output[di++] = current[siCurrent++];
+            }
+            for (siSaved = row * savedSize + currentSize; col < fillSize; col++) {
+                output[di++] = saved[siSaved++];
+            }
+            for (; col < toSize; col++) {
+                output[di++] = randomCell();
+            }
+        }
+
+        // current rows exhausted
+        for (siSaved = row * savedSize; row < fillSize; row++) {
+            // instead of current, it all comes from saved
+            for (col = 0; col < savedSize; col++) {
+                output[di++] = saved[siSaved++];
+            }
+            for (; col < toSize; col++) {
+                output[di++] = randomCell();
+            }
+        }
+
+        // saved rows exhausted, fill remaining rows with random values
+        for (; row < toSize; row++) {
+            for (col = 0; col < toSize; col++) {
+                output[di++] = randomCell();
+            }
+        }
+
+        this.cells = output;
+    }
+
+    private resizeDown(toSize: number): void {
+        const input = this.cells;
+        const output = new CellList(toSize * toSize);
+        const skip = this.cells.getSize() - toSize;
+
+        // destination and source indices
+        let di = 0;
+        let si = 0;
+
+        // copy from the upper-left of current cells
+        for (let row = 0; row < toSize; row++) {
+            for (let col = 0; col < toSize; col++) {
+                output[di++] = input[si++];
+            }
+            si += skip; // skip rightmost columns of the current cell list
+        }
+
+        this.cells = output;
+    }
+
     private roll(mappingFn): void {
-        const output = new Array(this.cells.length);
-        const size = this.size;
+        const output = new CellList(this.cells.length);
+        const size = this.cells.getSize();
 
         // walk across output in order. ask the mapping function where the data
         // for the row/column of output is located in the source, by row/column.
@@ -294,14 +332,14 @@ class BlockInfo {
         }
 
         this.cells = output;
-        this.savedCells = []; // clear resize buffer
+        this.savedCells = new CellList(); // clear resize buffer
         this.dirty = true;
     }
 
     private draw(colors: Palette) {
         const cells = this.cells;
-        const size = this.size;
-        const cellPx = this.canvas.width / this.size;
+        const size = cells.getSize();
+        const cellPx = this.canvas.width / size;
 
         // cell origin and current block index
         let oX, oY, iBlock;
@@ -320,6 +358,14 @@ class BlockInfo {
         }
 
         this.dirty = false;
+    }
+}
+
+class Quilt {
+    constructor(public block: BlockInfo,
+                public borders: Array<Border>,
+                public colorSet: Palette,
+                public sash: SashInfo) {
     }
 }
 
@@ -373,7 +419,7 @@ const pickers = {};
 const quilt = newQuilt();
 
 const ui = {
-    editorState: -1,
+    editorState: 0,
     cellPx: null, // editor cell size in pixels (width & height)
     colorEvents: CLICK_ALLOW,
     colorTemplate: null,
@@ -385,7 +431,7 @@ const ui = {
 };
 
 const view: _RenderView = {
-    layout: "",
+    layout: "NA",
     editorState: -1,
     quilt: null,
 };
@@ -398,13 +444,7 @@ function newSash(): SashInfo {
 }
 
 function newQuilt(): Quilt {
-    return {
-        borders: [],
-        colorSet: new Palette(),
-        sash: newSash(),
-        block: new BlockInfo([]),
-        savedBlock: new BlockInfo([])
-    };
+    return new Quilt(new BlockInfo(new CellList()), [], new Palette(), newSash());
 }
 
 /**
@@ -527,7 +567,7 @@ function initQuiltBlock(): void {
     const size = sizeInput && sizeInput instanceof HTMLInputElement ?
         parseInt(sizeInput.value, 10) :
         5;
-    const cells = [];
+    const cells = new CellList();
 
     for (let column = 0; column < size; column++) {
         for (let row = 0; row < size; row++) {
@@ -535,8 +575,7 @@ function initQuiltBlock(): void {
         }
     }
 
-    quilt.savedBlock = new BlockInfo(cells);
-    quilt.block = quilt.savedBlock.copy();
+    quilt.block = new BlockInfo(cells);
 }
 
 function initTools(): void {
@@ -1188,6 +1227,9 @@ function drawCellAt(ctx: CanvasRenderingContext2D, oX: number, oY: number, cellP
 function updateEditor(colors: Palette, block: BlockInfo): void {
     // render the blockInfo into the editor canvas
     const cellCount = block.getSize();
+
+    // note that we increased our render count
+    ui.editorState += 1;
 
     // Resize editor if needed, assuming square
     const cW = 2 * Math.floor(EDITOR_MAX_WIDTH / cellCount / 2);
