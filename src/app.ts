@@ -41,8 +41,8 @@ interface RenderData {
 
 interface _RenderView {
     layout: string;
-    editorState: number;
-    quilt: Quilt | null;
+    editorState?: number;
+    quilt?: Quilt;
 }
 
 class Point {
@@ -136,6 +136,10 @@ class BlockInfo {
 
     getSize(): number {
         return this.cells.getSize();
+    }
+
+    isDirty(): boolean {
+        return this.dirty;
     }
 
     getSource(pixelSize: number, colors: Palette): CanvasImageSource {
@@ -441,7 +445,7 @@ const quilt = newQuilt();
 
 const ui = {
     editorState: 0,
-    cellPx: null, // editor cell size in pixels (width & height)
+    cellPx: 0, // editor cell size in pixels (width & height)
     colorEvents: CLICK_ALLOW,
     colorTemplate: null,
     colorBox: null,
@@ -453,8 +457,6 @@ const ui = {
 
 const view: _RenderView = {
     layout: "NA",
-    editorState: -1,
-    quilt: null,
 };
 
 function newSash(): SashInfo {
@@ -1248,9 +1250,7 @@ function drawCellAt(ctx: CanvasRenderingContext2D, oX: number, oY: number, cellP
 function updateEditor(colors: Palette, block: BlockInfo): void {
     // render the blockInfo into the editor canvas
     const cellCount = block.getSize();
-
-    // note that we increased our render count
-    ui.editorState += 1;
+    let dirty = block.isDirty();
 
     // Resize editor if needed, assuming square
     const cW = 2 * Math.floor(EDITOR_MAX_WIDTH / cellCount / 2);
@@ -1258,7 +1258,15 @@ function updateEditor(colors: Palette, block: BlockInfo): void {
     if (cW !== ui.cellPx || editor.style.width === "") {
         ui.cellPx = cW;
         sizeCanvasTo(editor, pixelSize, pixelSize);
+        dirty = true;
     }
+
+    if (!dirty) {
+        return;
+    }
+
+    // note that we increased our render count
+    ui.editorState += 1;
 
     const ctx = editor.getContext('2d', {alpha: false});
     ctx.drawImage(block.getSource(editor.width, colors), 0, 0);
@@ -1426,8 +1434,8 @@ function updatePreview(source: HTMLCanvasElement, quilt: Quilt): void {
     // finish up the render data
     extendRenderData(r, cellSize);
 
-    let fullRedraw = (view.quilt === null);
-    if (view.quilt == null) {
+    let fullRedraw = (typeof view.quilt === "undefined");
+    if (fullRedraw) {
         view.quilt = newQuilt();
     }
     const viewQuilt = view.quilt;
