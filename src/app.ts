@@ -208,21 +208,42 @@ class BlockInfo {
             return;
         }
 
+        // copy updates into the saved cells
+        this.saveCurrentCells();
+
         if (toSize > currentSize) {
             this.resizeUp(currentSize, toSize);
             if (this.savedCells.getSize() < toSize) {
                 this.savedCells = this.cells.copy();
             }
         } else {
-            if (this.savedCells.getSize() < currentSize) {
-                // we're resizing down, but we didn't have the current block
-                // saved: do that before any data is thrown away.
-                this.savedCells = this.cells.copy();
-            }
             this.resizeDown(toSize);
         }
 
         this.dirty = true;
+    }
+
+    private saveCurrentCells(): void {
+        const saved = this.savedCells;
+        const current = this.cells;
+        const currentSize = current.getSize();
+        const savedSize = saved.getSize();
+
+        // if we haven't saved the block yet, just copy current over
+        if (savedSize <= currentSize) {
+            this.savedCells = this.cells.copy();
+            return;
+        }
+
+        // saved block is larger than current. copy all current cells into the
+        // upper-left of the saved cells.
+        const skip = savedSize - currentSize;
+        for (let row = 0, i = 0, j = 0; row < currentSize; row++) {
+            for (let col = 0; col < currentSize; col++) {
+                saved[j++] = current[i++];
+            }
+            j += skip; // move to the next start-of-row in saved
+        }
     }
 
     rollLeft(): void {
