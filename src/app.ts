@@ -149,7 +149,7 @@ class BlockInfo {
             this.lastColors = colors.copy();
         }
 
-        if (!(this.lastPixelSize && this.lastPixelSize === pixelSize)) {
+        if (this.lastPixelSize !== pixelSize) {
             this.dirty = true;
             this.lastPixelSize = pixelSize;
             this.canvas.width = pixelSize;
