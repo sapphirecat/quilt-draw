@@ -1513,7 +1513,12 @@ function updateView(): void {
 }
 
 if (editor && preview) {
-    initJs();
+    try {
+        initJs();
+    } catch (e) {
+        document.getElementById('jsInitError').className = '';
+        document.getElementById('app').className = 'hide';
+    }
 } else {
     console.error("Can't get editor and preview; doing nothing.");
 }
