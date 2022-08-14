@@ -310,10 +310,11 @@ class Quilt {
 }
 const editor = document.getElementById('editor');
 const preview = document.getElementById('preview');
-let EDITOR_MAX_WIDTH = editor.width;
-// no EDITOR_MAX_HEIGHT: it is square.
-let PREVIEW_MAX_WIDTH = preview.width;
-let PREVIEW_MAX_HEIGHT = preview.height;
+let EDITOR_DRAW_WIDTH = editor.width;
+const EDITOR_MAX_WIDTH = 540; // HACK: this is specified in our CSS
+// no EDITOR_DRAW/MAX_HEIGHT: it is square.
+let PREVIEW_DRAW_WIDTH = preview.width;
+let PREVIEW_DRAW_HEIGHT = preview.height;
 const PREVIEW_MIN_RESIZE = 500;
 const PREVIEW_MAX_RESIZE = 1000;
 const DOWNLOAD_MIN_HEIGHT = 1400;
@@ -749,6 +750,7 @@ function onEditorMouse(ev) {
     if (ui.moveStatus === MOVE_ALLOW) {
         editorSetMoveHandler();
     }
+    // the BoundingClientRect is relative to the viewport, as are clientX/Y
     const rect = editor.getBoundingClientRect();
     const x = ev.clientX - rect.left;
     const y = ev.clientY - rect.top;
@@ -937,10 +939,10 @@ function onResizeInput(ev) {
     updateView();
 }
 function onResizeViewport() {
-    const width = window.innerWidth;
+    const width = Math.min(window.innerWidth, 1600); // HACK: takes a max-width into account
     const height = window.innerHeight;
     // determine the preview's natural width
-    let gridWidth = (width - 20) * 0.4; // 2fr of a total of 5fr
+    let gridWidth = (width - 20) * 0.4; // 2fr of a total of 5fr w/ 10px gaps
     gridWidth -= gridWidth % 30;
     // determine the width of the preview if it's height-limited
     let gridHeight = height - 24;
@@ -948,13 +950,18 @@ function onResizeViewport() {
     const heightWidth = Math.floor(gridHeight * (BLOCKS_HORIZ / BLOCKS_VERT));
     // now decide which of those gets used, then clamp it to our limits
     const previewHeight = Math.ceil(Math.min(gridWidth, heightWidth) * (BLOCKS_VERT / BLOCKS_HORIZ));
-    PREVIEW_MAX_HEIGHT = Math.min(Math.max(previewHeight, PREVIEW_MIN_RESIZE), PREVIEW_MAX_RESIZE);
+    PREVIEW_DRAW_HEIGHT = Math.min(Math.max(previewHeight, PREVIEW_MIN_RESIZE), PREVIEW_MAX_RESIZE);
     // calculate the width based on the final height
-    PREVIEW_MAX_WIDTH = Math.floor(PREVIEW_MAX_HEIGHT * (BLOCKS_HORIZ / BLOCKS_VERT));
+    PREVIEW_DRAW_WIDTH = Math.floor(PREVIEW_DRAW_HEIGHT * (BLOCKS_HORIZ / BLOCKS_VERT));
     // limit the editor width to the preview width, to the next lower 60; this
     // maximizes usable space for 2-6 cell blocks, expected to be common.
-    EDITOR_MAX_WIDTH = Math.max(360, PREVIEW_MAX_WIDTH - 24);
-    EDITOR_MAX_WIDTH -= EDITOR_MAX_WIDTH % 60;
+    EDITOR_DRAW_WIDTH = Math.max(360, PREVIEW_DRAW_WIDTH - 24);
+    if (EDITOR_DRAW_WIDTH > EDITOR_MAX_WIDTH) {
+        EDITOR_DRAW_WIDTH = EDITOR_MAX_WIDTH;
+    }
+    else {
+        EDITOR_DRAW_WIDTH -= EDITOR_DRAW_WIDTH % 60;
+    }
     updateView();
 }
 function sizeCanvasTo(canvas, width, height) {
@@ -1019,7 +1026,7 @@ function updateEditor(colors, block) {
     const cellCount = block.getSize();
     let dirty = block.isDirty();
     // Resize editor if needed, assuming square
-    const cW = 2 * Math.floor(EDITOR_MAX_WIDTH / cellCount / 2);
+    const cW = 2 * Math.floor(EDITOR_DRAW_WIDTH / cellCount / 2);
     const pixelSize = cW * cellCount;
     if (cW !== ui.cellPx || editor.style.width === "") {
         ui.cellPx = cW;
@@ -1171,7 +1178,7 @@ function updatePreview(source, quilt) {
     // get initial render data
     const r = createRenderData(quilt);
     // calculate draw dimensions
-    const cellSize = Math.floor(Math.min(PREVIEW_MAX_WIDTH / r.cHoriz, PREVIEW_MAX_HEIGHT / r.cVert) / 2) * 2;
+    const cellSize = Math.floor(Math.min(PREVIEW_DRAW_WIDTH / r.cHoriz, PREVIEW_DRAW_HEIGHT / r.cVert) / 2) * 2;
     // finish up the render data
     extendRenderData(r, cellSize);
     let fullRedraw = (typeof view.quilt === "undefined");

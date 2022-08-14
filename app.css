@@ -48,6 +48,9 @@ a:hover, a:focus {
 p {
     margin: 0;
 }
+#legal p {
+    margin: 0.8em 0;
+}
 
 button {
     background: #ffffff linear-gradient(#ffffff, #ffffff 60%, #ebdfeb);
