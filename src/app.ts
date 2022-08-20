@@ -554,7 +554,23 @@ function getPalette(element): Palette {
         return new Palette('#00ccff');
     }
 
-    const colorText = element.getAttribute('data-initial-palette') || '#ff00ff';
+    let colorText = element.getAttribute('data-initial-palette') || '#ff00ff';
+
+    // process "light-mode|dark-mode" formatting
+    const modeSep = colorText.indexOf("|");
+    if (modeSep > -1) {
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            colorText = colorText.substr(modeSep + 1);
+            console.log("colorText[dark] = %s", colorText);
+        } else {
+            colorText = colorText.substr(0, modeSep);
+            console.log("colorText[light/default] = %s", colorText);
+        }
+    } else {
+        console.log("no modeSep; using colorText = %s", colorText);
+    }
+
+    // now apply the (sub)palette we chose
     const colors = colorText.split(/,\s*/);
     return new Palette(...colors);
 }

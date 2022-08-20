@@ -10,7 +10,12 @@
 <body>
 
 <header id="logo">
-    <h1><img alt="Quilt Draw" src="logo.svg"></h1>
+    <h1>
+        <picture>
+            <source media="(prefers-color-scheme: dark)" srcset="logo-dk.svg">
+            <img alt="Quilt Draw" src="logo.svg">
+        </picture>
+    </h1>
 </header>
 
 <noscript>
@@ -64,7 +69,8 @@
                 <p>Colors</p>
                 <button id="color-new">Add</button>
             </div>
-            <div data-initial-palette="#f3f3f3,#0066cc,#c665c6" id="color-items">
+            <div data-initial-palette="#f3f3f3,#0066cc,#c665c6|#c3c3c3,#0d457f,#a452c9"
+                 id="color-items">
                 <template class="hide" id="color-item">
                     <label class="color-item">
                         <button class="color-button">&nbsp;</button>
@@ -99,7 +105,7 @@
                 <button id="border-new">Add</button>
             </div>
             <div class="column">
-                <template class="hide" data-initial-palette="#ffbfd4" id="border-item">
+                <template class="hide" data-initial-palette="#ffbfd4|#d99fb2" id="border-item">
                     <div class="border-row">
                         <p></p>
                         <input max="8" min="0" type="range" value="0">
@@ -109,7 +115,7 @@
             </div>
         </div>
 
-        <div class="control" data-initial-palette="#d0ccfa,#749d6c" id="sashing">
+        <div class="control" data-initial-palette="#d0ccfa,#749d6c|#3c237d,#4b8065" id="sashing">
             <p>Sash&shy;ing</p>
             <div class="sash-grid">
                 <input class="sash-select" id="sash-on" type="checkbox">
