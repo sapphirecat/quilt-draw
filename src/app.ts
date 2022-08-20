@@ -728,7 +728,7 @@ function createColor(): void {
     }
 }
 
-function newColorPicker(button: HTMLElement, value: string) {
+function newColorPicker(button: HTMLElement, value: string): Pickr {
     return Pickr.create({
         el: button,
         theme: 'nano',
