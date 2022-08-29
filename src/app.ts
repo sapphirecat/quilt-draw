@@ -561,13 +561,9 @@ function getPalette(element): Palette {
     if (modeSep > -1) {
         if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
             colorText = colorText.substr(modeSep + 1);
-            console.log("colorText[dark] = %s", colorText);
         } else {
             colorText = colorText.substr(0, modeSep);
-            console.log("colorText[light/default] = %s", colorText);
         }
-    } else {
-        console.log("no modeSep; using colorText = %s", colorText);
     }
 
     // now apply the (sub)palette we chose
