@@ -48,8 +48,18 @@ a:hover, a:focus {
 p {
     margin: 0;
 }
-#legal p {
+
+.page p {
     margin: 0.8em 0;
+}
+
+.page li {
+    margin-bottom: 0.5em;
+}
+
+.page #content {
+    max-width: 60em;
+    margin: auto;
 }
 
 button {
@@ -259,7 +269,7 @@ div.pickr {
     width: 2.0em;
 }
 
-#legal blockquote {
+.page blockquote {
     font-family: monospace;
     max-width: 600px;
     padding: 1em;
@@ -328,7 +338,7 @@ div.pickr {
         border-color: #475156;
     }
 
-    #legal blockquote {
+    .page blockquote {
         background-color: #303030;
     }
 
