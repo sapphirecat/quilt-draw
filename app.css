@@ -48,15 +48,31 @@ a:hover, a:focus {
 p {
     margin: 0;
 }
-#legal p {
+
+.page p {
     margin: 0.8em 0;
 }
 
+.page li {
+    margin-bottom: 0.5em;
+}
+
+.page #content {
+    max-width: 60em;
+    margin: auto;
+}
+
 button {
+    color: inherit;
     background: #ffffff linear-gradient(#ffffff, #ffffff 60%, #ebdfeb);
     border: 1px solid #c0a0c0;
     border-radius: 4px;
     height: 1.5rem;
+}
+
+input[type=checkbox] {
+    width: 1em;
+    height: 1em;
 }
 
 input[type=radio] {
@@ -253,7 +269,7 @@ div.pickr {
     width: 2.0em;
 }
 
-#legal blockquote {
+.page blockquote {
     font-family: monospace;
     max-width: 600px;
     padding: 1em;
@@ -273,4 +289,60 @@ div.pickr {
 
 #jsInitError p {
     margin: 1em 0;
+}
+
+/* dark mode! the best mode. */
+@media (prefers-color-scheme: dark) {
+    body {
+        background-color: #202020;
+        color: #cccccc;
+    }
+
+    a {
+        color: dodgerblue;
+    }
+
+    a:hover, a:focus {
+        color: lightskyblue;
+    }
+
+    #logo h1 {
+        background-color: #202020;
+    }
+
+    button {
+        /*background: #303030 linear-gradient(#303030, #303030 60%, #4b444b);*/
+        background: #303030 linear-gradient(#4b444b, #303030 35%, #303030);
+        border: 1px solid #bf7fbf;
+    }
+
+    input[type=radio] {
+        border: 1px solid #bf7fbf;
+    }
+
+    input[type=radio]:checked {
+        background: #bf7fbf;
+    }
+
+    .color-item.selected .pcr-button {
+        border: 3px double #bf7fbf;
+    }
+
+    #tools button {
+        border-color: #3a3a3a;
+    }
+
+    #tools button.active {
+        color: #000000;
+        background-color: #1e2a3b;
+        border-color: #475156;
+    }
+
+    .page blockquote {
+        background-color: #303030;
+    }
+
+    #jsInitError em {
+        color: #cc3333;
+    }
 }

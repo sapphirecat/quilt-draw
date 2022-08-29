@@ -64,14 +64,24 @@ class Cell {
     copy() {
         return new Cell(...this.colors);
     }
-    rotateRight() {
+    rotateCW() {
         const c = this.colors;
         this.colors = [c[3], c[0], c[1], c[2]];
         return this;
     }
-    rotateLeft() {
+    rotateCCW() {
         const c = this.colors;
         this.colors = [c[1], c[2], c[3], c[0]];
+        return this;
+    }
+    flipHoriz() {
+        const c = this.colors;
+        this.colors = [c[0], c[3], c[2], c[1]];
+        return this;
+    }
+    flipVert() {
+        const c = this.colors;
+        this.colors = [c[2], c[1], c[0], c[3]];
         return this;
     }
 }
@@ -131,10 +141,22 @@ class BlockInfo {
             return;
         }
         if (reverse) {
-            this.cells[i].rotateLeft();
+            this.cells[i].rotateCCW();
         }
         else {
-            this.cells[i].rotateRight();
+            this.cells[i].rotateCW();
+        }
+        this.dirty = true;
+    }
+    flipCell(i, vertical) {
+        if (i >= this.cells.length) {
+            return;
+        }
+        if (vertical) {
+            this.cells[i].flipVert();
+        }
+        else {
+            this.cells[i].flipHoriz();
         }
         this.dirty = true;
     }
@@ -333,6 +355,7 @@ const CLICK_ALLOW = 0; // click event should be reacted to
 const CLICK_IGNORE = 1; // click event should be suppressed
 const TOOL_PAINT = 'paint'; // set color of tiles
 const TOOL_SPIN = 'spin'; // turn tiles
+const TOOL_FLIP = 'flip'; // flip tiles
 // Lookup table for calculating cell hits. A = top/right side, B = bottom/left;
 // X = bottom/right, Y = top/left.  AY = intersect(A, Y) = top.  The value in
 // this object is the index into the Cell.colors for the sub-area that was hit.
@@ -439,7 +462,23 @@ function getPalette(element) {
     if (!element) {
         return new Palette('#00ccff');
     }
-    const colorText = element.getAttribute('data-initial-palette') || '#ff00ff';
+    let colorText = element.getAttribute('data-initial-palette') || '#ff00ff';
+    // process "light-mode|dark-mode" formatting
+    const modeSep = colorText.indexOf("|");
+    if (modeSep > -1) {
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            colorText = colorText.substr(modeSep + 1);
+            console.log("colorText[dark] = %s", colorText);
+        }
+        else {
+            colorText = colorText.substr(0, modeSep);
+            console.log("colorText[light/default] = %s", colorText);
+        }
+    }
+    else {
+        console.log("no modeSep; using colorText = %s", colorText);
+    }
+    // now apply the (sub)palette we chose
     const colors = colorText.split(/,\s*/);
     return new Palette(...colors);
 }
@@ -777,6 +816,9 @@ function onEditorMouse(ev) {
             break;
         case TOOL_SPIN:
             quilt.block.spinCell(index, isSecondaryClick);
+            break;
+        case TOOL_FLIP:
+            quilt.block.flipCell(index, isSecondaryClick);
             break;
         default:
             console.error("Unknown tool selected: %s", ui.selectedTool);
