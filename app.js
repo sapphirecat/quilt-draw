@@ -22,9 +22,6 @@ class Point {
         this.x = x;
         this.y = y;
     }
-    offset(x, y) {
-        return new Point(x + this.x, y + this.y);
-    }
 }
 class Rect {
     constructor(w, h) {
@@ -105,6 +102,9 @@ class BlockInfo {
     }
     isDirty() {
         return this.dirty;
+    }
+    setDirty() {
+        this.dirty = true;
     }
     getSource(pixelSize, colors) {
         // check our argument states
@@ -332,6 +332,7 @@ class Quilt {
 }
 const editor = document.getElementById('editor');
 const preview = document.getElementById('preview');
+const guideType = document.getElementById('guide-type');
 let EDITOR_DRAW_WIDTH = editor.width;
 const EDITOR_MAX_WIDTH = 540; // HACK: this is specified in our CSS
 // no EDITOR_DRAW/MAX_HEIGHT: it is square.
@@ -376,6 +377,7 @@ const ui = {
     colorTemplate: null,
     colorBox: null,
     borderTemplate: null,
+    guideColor: "",
     moveStatus: MOVE_ALLOW,
     paintColors: [1, 0],
     selectedTool: TOOL_PAINT
@@ -468,15 +470,10 @@ function getPalette(element) {
     if (modeSep > -1) {
         if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
             colorText = colorText.substr(modeSep + 1);
-            console.log("colorText[dark] = %s", colorText);
         }
         else {
             colorText = colorText.substr(0, modeSep);
-            console.log("colorText[light/default] = %s", colorText);
         }
-    }
-    else {
-        console.log("no modeSep; using colorText = %s", colorText);
     }
     // now apply the (sub)palette we chose
     const colors = colorText.split(/,\s*/);
@@ -554,6 +551,8 @@ function initTools() {
     if (isChecked('sash-on')) {
         quilt.sash.levels = isChecked('sash-cross-on') ? SASH_DOUBLE : SASH_SINGLE;
     }
+    // set up guide state
+    initGuides();
 }
 function initBorders() {
     // create the default border
@@ -585,6 +584,13 @@ function initSashColors() {
             break; // fail somewhat gracefully
         }
         addSashColor(i, node, colors[i]);
+    }
+}
+function initGuides() {
+    if (guideType) {
+        ui.guideColor = guideType.value;
+        guideType.addEventListener('change', updateGuideColor);
+        guideType.addEventListener('keyup', updateGuideColor);
     }
 }
 function initColors() {
@@ -1018,47 +1024,92 @@ function sizeCanvasTo(canvas, width, height) {
  */
 function drawTriangle(ctx, points, fillStyle) {
     ctx.beginPath();
-    ctx.moveTo(points[0].x, points[0].y);
-    ctx.lineTo(points[1].x, points[1].y);
-    ctx.lineTo(points[2].x, points[2].y);
-    ctx.closePath();
+    ctx.moveTo(points[0].x, points[0].y); // no line
+    ctx.lineTo(points[1].x, points[1].y); // edge 1
+    ctx.lineTo(points[2].x, points[2].y); // edge 2
+    ctx.closePath(); // edge 3, back to the moveTo
     ctx.fillStyle = fillStyle;
     ctx.fill();
 }
 /**
- * Draw a polygon at coordinates on the canvas.
+ * Draw a rectangle at the coordinates on the canvas.
  */
-function drawPoly(ctx, points, fillStyle) {
-    ctx.beginPath();
-    ctx.moveTo(points[0].x, points[0].y);
-    for (let i = 1; i < points.length; i++) {
-        ctx.lineTo(points[i].x, points[i].y);
-    }
-    ctx.closePath();
+function drawRect(ctx, point, rect, fillStyle) {
     ctx.fillStyle = fillStyle;
-    ctx.fill();
+    ctx.fillRect(point.x, point.y, rect.w, rect.h);
 }
 /**
  * Draw a cell into a coordinate on the canvas.
  */
 function drawCellAt(ctx, oX, oY, cellPx, palette, cell) {
     // Determine all coordinates we can draw from: top/left/bottom/right pairs, and center
+    const half = cellPx / 2;
     const tl = new Point(oX, oY);
     const tr = new Point(oX + cellPx, oY);
     const bl = new Point(oX, oY + cellPx);
     const br = new Point(oX + cellPx, oY + cellPx);
-    const c = new Point(oX + cellPx / 2, oY + cellPx / 2);
-    const lc = c.offset(-1, 0); // left of center
-    const rc = c.offset(1, 0);
+    const c = new Point(oX + half, oY + half);
+    const ml = new Point(oX, oY + half); // mid left
+    const rect = new Rect(cellPx, half);
     // Draw all four triangles into place, but eliminate seams by drawing the
     // top and bottom first, but bigger.
-    // top-left, top-right, 1px down, 1px right-of-center, 1px left-of-center, 1px below top-left
-    drawPoly(ctx, [tl, tr, tr.offset(0, 1), rc, lc, tl.offset(0, 1)], palette[cell.colors[0]]);
-    // bot-left, bot-right, 1px up, 1px right-of-center, 1px left-of-center, 1px above bot-left
-    drawPoly(ctx, [bl, br, br.offset(0, -1), rc, lc, bl.offset(0, -1)], palette[cell.colors[2]]);
+    drawRect(ctx, tl, rect, palette[cell.colors[0]]);
+    drawRect(ctx, ml, rect, palette[cell.colors[2]]);
     // draw left/right triangles over the edges of the polygons
     drawTriangle(ctx, [c, tr, br], palette[cell.colors[1]]);
     drawTriangle(ctx, [c, bl, tl], palette[cell.colors[3]]);
+}
+function updateGuideColor() {
+    if (!guideType) {
+        return;
+    }
+    const block = quilt.block;
+    if (guideType.value !== ui.guideColor && guideType.value === '') {
+        block.setDirty();
+        updateEditor(quilt.colorSet, block);
+    }
+    else {
+        drawGuides(block);
+    }
+}
+function isGuideDirty() {
+    return guideType.value !== ui.guideColor;
+}
+function drawGuides(block, ctx) {
+    // if the block is clean and the guides are unchanged, do nothing
+    if (!ctx && !isGuideDirty()) {
+        return;
+    }
+    else if (guideType.value === "") {
+        // we don't want to draw anything on it
+        ui.guideColor = "";
+        return;
+    }
+    if (!ctx) {
+        ctx = editor.getContext('2d');
+    }
+    const cW = ui.cellPx;
+    const cellCount = block.getSize();
+    const pixelSize = cW * cellCount;
+    ctx.save();
+    try {
+        let at = -0.5;
+        ctx.strokeStyle = guideType.value;
+        ctx.beginPath();
+        for (let i = 1; i < cellCount; ++i) {
+            at += cW;
+            ctx.moveTo(at, 0);
+            ctx.lineTo(at, pixelSize);
+            ctx.moveTo(0, at);
+            ctx.lineTo(pixelSize, at);
+        }
+        ctx.stroke();
+        ui.guideColor = guideType.value;
+    }
+    catch (e) {
+        console.error(e);
+    }
+    ctx.restore();
 }
 /**
  * Draw a block into the editor area of the canvas.
@@ -1076,12 +1127,16 @@ function updateEditor(colors, block) {
         dirty = true;
     }
     if (!dirty) {
+        // if UI-only state is dirty, redraw it
+        drawGuides(block);
         return;
     }
     // note that we increased our render count
     ui.editorState += 1;
     const ctx = editor.getContext('2d', { alpha: false });
     ctx.drawImage(block.getSource(editor.width, colors), 0, 0);
+    // draw on the UI-only state after the block is copied out
+    drawGuides(block, ctx);
 }
 /**
  * Determine initial number of cells in a quilt rendering.
