@@ -48,10 +48,6 @@ interface _RenderView {
 class Point {
     constructor(readonly x: number, readonly y: number) {
     }
-
-    offset(x: number, y: number) {
-        return new Point(x + this.x, y + this.y);
-    }
 }
 
 class Rect {
@@ -1253,19 +1249,13 @@ function drawTriangle(ctx: CanvasRenderingContext2D, points: Array<Point>, fillS
 }
 
 /**
- * Draw a polygon at coordinates on the canvas.
+ * Draw a rectangle at the coordinates on the canvas.
  */
-function drawPoly(ctx: CanvasRenderingContext2D, points: Array<Point>, fillStyle: string): void {
+function drawRect(ctx: CanvasRenderingContext2D, point: Point, rect: Rect, fillStyle: string): void {
     ctx.beginPath();
-
-    ctx.moveTo(points[0].x, points[0].y);
-    for (let i = 1; i < points.length; i++) {
-        ctx.lineTo(points[i].x, points[i].y);
-    }
-
-    ctx.closePath();
     ctx.fillStyle = fillStyle;
-    ctx.fill();
+    ctx.fillRect(point.x, point.y, rect.w, rect.h);
+    ctx.closePath();
 }
 
 /**
@@ -1273,20 +1263,19 @@ function drawPoly(ctx: CanvasRenderingContext2D, points: Array<Point>, fillStyle
  */
 function drawCellAt(ctx: CanvasRenderingContext2D, oX: number, oY: number, cellPx: number, palette: Palette, cell: Cell): void {
     // Determine all coordinates we can draw from: top/left/bottom/right pairs, and center
+    const half = cellPx / 2;
     const tl = new Point(oX, oY);
     const tr = new Point(oX + cellPx, oY);
     const bl = new Point(oX, oY + cellPx);
     const br = new Point(oX + cellPx, oY + cellPx);
-    const c = new Point(oX + cellPx / 2, oY + cellPx / 2);
-    const lc = c.offset(-1, 0); // left of center
-    const rc = c.offset(1, 0);
+    const c = new Point(oX + half, oY + half);
+    const ml = new Point(oX, oY + half); // mid left
+    const rect = new Rect(cellPx, half);
 
     // Draw all four triangles into place, but eliminate seams by drawing the
     // top and bottom first, but bigger.
-    // top-left, top-right, 1px down, 1px right-of-center, 1px left-of-center, 1px below top-left
-    drawPoly(ctx, [tl, tr, tr.offset(0, 1), rc, lc, tl.offset(0, 1)], palette[cell.colors[0]]);
-    // bot-left, bot-right, 1px up, 1px right-of-center, 1px left-of-center, 1px above bot-left
-    drawPoly(ctx, [bl, br, br.offset(0, -1), rc, lc, bl.offset(0, -1)], palette[cell.colors[2]]);
+    drawRect(ctx, tl, rect, palette[cell.colors[0]]);
+    drawRect(ctx, ml, rect, palette[cell.colors[2]]);
     // draw left/right triangles over the edges of the polygons
     drawTriangle(ctx, [c, tr, br], palette[cell.colors[1]]);
     drawTriangle(ctx, [c, bl, tl], palette[cell.colors[3]]);
