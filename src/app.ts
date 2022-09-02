@@ -150,6 +150,10 @@ class BlockInfo {
         return this.dirty;
     }
 
+    setDirty(): void {
+        this.dirty = true;
+    }
+
     getSource(pixelSize: number, colors: Palette): CanvasImageSource {
         // check our argument states
         if (!colors.equals(this.lastColors)) {
@@ -419,6 +423,7 @@ class Quilt {
 
 const editor = document.getElementById('editor') as HTMLCanvasElement;
 const preview = document.getElementById('preview') as HTMLCanvasElement;
+const guideType = document.getElementById('guide-type') as HTMLSelectElement;
 
 let EDITOR_DRAW_WIDTH = editor.width;
 const EDITOR_MAX_WIDTH = 540; // HACK: this is specified in our CSS
@@ -474,6 +479,7 @@ const ui = {
     colorTemplate: null,
     colorBox: null,
     borderTemplate: null,
+    guideColor: "",
     moveStatus: MOVE_ALLOW, // paint (default tool) allows moves
     paintColors: [1, 0], // primary/secondary paint colors
     selectedTool: TOOL_PAINT
@@ -680,6 +686,9 @@ function initTools(): void {
     if (isChecked('sash-on')) {
         quilt.sash.levels = isChecked('sash-cross-on') ? SASH_DOUBLE : SASH_SINGLE;
     }
+
+    // set up guide state
+    initGuides();
 }
 
 function initBorders(): void {
@@ -717,6 +726,14 @@ function initSashColors(): void {
             break; // fail somewhat gracefully
         }
         addSashColor(i, node, colors[i]);
+    }
+}
+
+function initGuides(): void {
+    if (guideType) {
+        ui.guideColor = guideType.value;
+        guideType.addEventListener('change', updateGuideColor);
+        guideType.addEventListener('keyup', updateGuideColor);
     }
 }
 
@@ -1239,11 +1256,11 @@ function sizeCanvasTo(canvas: HTMLCanvasElement, width: number, height: number) 
 function drawTriangle(ctx: CanvasRenderingContext2D, points: Array<Point>, fillStyle: string): void {
     ctx.beginPath();
 
-    ctx.moveTo(points[0].x, points[0].y);
-    ctx.lineTo(points[1].x, points[1].y);
-    ctx.lineTo(points[2].x, points[2].y);
+    ctx.moveTo(points[0].x, points[0].y); // no line
+    ctx.lineTo(points[1].x, points[1].y); // edge 1
+    ctx.lineTo(points[2].x, points[2].y); // edge 2
+    ctx.closePath(); // edge 3, back to the moveTo
 
-    ctx.closePath();
     ctx.fillStyle = fillStyle;
     ctx.fill();
 }
@@ -1252,10 +1269,8 @@ function drawTriangle(ctx: CanvasRenderingContext2D, points: Array<Point>, fillS
  * Draw a rectangle at the coordinates on the canvas.
  */
 function drawRect(ctx: CanvasRenderingContext2D, point: Point, rect: Rect, fillStyle: string): void {
-    ctx.beginPath();
     ctx.fillStyle = fillStyle;
     ctx.fillRect(point.x, point.y, rect.w, rect.h);
-    ctx.closePath();
 }
 
 /**
@@ -1281,6 +1296,66 @@ function drawCellAt(ctx: CanvasRenderingContext2D, oX: number, oY: number, cellP
     drawTriangle(ctx, [c, bl, tl], palette[cell.colors[3]]);
 }
 
+function updateGuideColor(): void {
+    if (!guideType) {
+        return;
+    }
+
+    const block = quilt.block;
+
+    if (guideType.value !== ui.guideColor && guideType.value === '') {
+        block.setDirty();
+        updateEditor(quilt.colorSet, block);
+    } else {
+        drawGuides(block);
+    }
+}
+
+function isGuideDirty(): boolean {
+    return guideType.value !== ui.guideColor;
+}
+
+function drawGuides(block: BlockInfo, ctx?: CanvasRenderingContext2D): void {
+    // if the block is clean and the guides are unchanged, do nothing
+    if (!ctx && !isGuideDirty()) {
+        return;
+    } else if (guideType.value === "") {
+        // we don't want to draw anything on it
+        ui.guideColor = "";
+
+        return;
+    }
+
+    if (!ctx) {
+        ctx = editor.getContext('2d');
+    }
+
+    const cW = ui.cellPx;
+    const cellCount = block.getSize();
+    const pixelSize = cW * cellCount;
+
+    ctx.save();
+    try {
+        let at = -0.5;
+        ctx.strokeStyle = guideType.value;
+        ctx.beginPath();
+        for (let i = 1; i < cellCount; ++i) {
+            at += cW;
+            ctx.moveTo(at, 0);
+            ctx.lineTo(at, pixelSize);
+            ctx.moveTo(0, at);
+            ctx.lineTo(pixelSize, at);
+        }
+
+        ctx.stroke();
+
+        ui.guideColor = guideType.value;
+    } catch (e) {
+        console.error(e);
+    }
+    ctx.restore();
+}
+
 /**
  * Draw a block into the editor area of the canvas.
  */
@@ -1299,6 +1374,9 @@ function updateEditor(colors: Palette, block: BlockInfo): void {
     }
 
     if (!dirty) {
+        // if UI-only state is dirty, redraw it
+        drawGuides(block);
+
         return;
     }
 
@@ -1307,8 +1385,10 @@ function updateEditor(colors: Palette, block: BlockInfo): void {
 
     const ctx = editor.getContext('2d', {alpha: false});
     ctx.drawImage(block.getSource(editor.width, colors), 0, 0);
-}
 
+    // draw on the UI-only state after the block is copied out
+    drawGuides(block, ctx);
+}
 /**
  * Determine initial number of cells in a quilt rendering.
  */
