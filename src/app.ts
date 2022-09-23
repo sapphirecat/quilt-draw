@@ -1167,9 +1167,11 @@ function onDownload(ev: MouseEvent): void {
 
     // generate download
     const link = document.createElement('a');
-    link.href = source.toDataURL('image/png');
-    link.download = `${basename}.png`;
+    link.setAttribute('href', source.toDataURL('image/png'));
+    link.setAttribute('download', `${basename}.png`);
+    document.body.appendChild(link); // Pale Moon
     link.click();
+    document.body.removeChild(link); // Pale Moon
 }
 
 /**
