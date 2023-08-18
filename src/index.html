@@ -131,6 +131,7 @@
                 <template class="hide" data-initial-palette="#ffbfd4|#d99fb2" id="border-item">
                     <div class="border-row">
                         <p></p>
+                        <!--suppress HtmlFormInputWithoutLabel -->
                         <input max="8" min="0" type="range" value="0">
                         <button class="color-button">&nbsp;</button>
                     </div>
@@ -174,9 +175,9 @@
             </div>
 
             <p class="transform-title">Squares per Block</p>
-            <div class="transform" id="resize">
+            <label class="transform" for="cell-size" id="resize">
                 <input class="resize" id="cell-size" max="12" min="2" type="range" value="4">
-            </div>
+            </label>
         </div>
     </div>
 
