@@ -802,7 +802,7 @@ function createColor(): void {
 }
 
 function newColorPicker(button: Element, value: string): Pickr {
-    return Pickr.create({
+    return new Pickr({
         el: button,
         theme: 'nano',
         lockOpacity: true,
