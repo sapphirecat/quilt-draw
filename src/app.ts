@@ -553,17 +553,22 @@ function setChecked(id: string, checked = true): void {
  * @param {number} [slot] A slot number to set, or the primary slot (0) by default.
  */
 function setPaintColor(i: number, slot = 0): void {
+    let paints = ui.paintColors;
     if (slot === undefined) {
         slot = 0;
-    } else if (slot < 0 || slot > ui.paintColors.length) {
+    } else if (slot < 0 || slot > paints.length) {
         console.error('invalid slot; paint color %d rejected', slot);
         return;
     }
 
-    const prev = ui.paintColors[slot];
+    const prev = paints[slot];
 
-    ui.paintColors[slot] = i;
-    showActiveColor(slot);
+    paints[slot] = i;
+    for (let s = 0; s < paints.length; s++) {
+        if (paints[s] === i) {
+            showActiveColor(s);
+        }
+    }
 
     // activate the tool
     ui.selectedTool = TOOL_PAINT;
