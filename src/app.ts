@@ -1,3 +1,4 @@
+/*! QuiltDraw 1.2.0 AGPL-3.0-or-later | https://github.com/sapphirecat/quilt-draw */
 /*
  * QuiltDraw - Quarter-Square Triangle Designer
  * Copyright (C) 2020 sapphirecat <devel@sapphirepaw.org>
@@ -468,20 +469,43 @@ const CELL_QUADRANTS = {
     "BY": 3
 };
 
-const pickers = {};
+
+interface PickrHandle {
+    handle: Pickr,
+    saved: Color
+}
+
+interface PickrHandleMap {
+    [key: string]: PickrHandle;
+}
+
+const pickers: PickrHandleMap = {};
 
 const quilt = newQuilt();
 
-const ui = {
+interface UI {
+    editorState: number; // generation of the editor, incremented on changes
+    cellPx: number; // editor cell size in pixels (width & height)
+    colorEvents: number; // whether clicks on Pickr elements should be passed into Pickr
+    moveStatus: number; // Whether the tool handles mousemove gracefully (MOVE_ALLOW)
+    selectedTool: string;
+    paintColors: Array<number>; // Primary and secondary paint colors
+    guideColor: Color; // Current guide color, shown between squares in the block editor
+    borderTemplate: HTMLTemplateElement | null; // HTML template for new borders
+    colorTemplate: HTMLTemplateElement | null; // HTML template for new colors
+    colorBox: Element | null; // Container for the color template in the page
+}
+
+const ui: UI = {
     editorState: 0,
-    cellPx: 0, // editor cell size in pixels (width & height)
+    cellPx: 0,
     colorEvents: CLICK_ALLOW,
     colorTemplate: null,
     colorBox: null,
     borderTemplate: null,
     guideColor: "",
-    moveStatus: MOVE_ALLOW, // paint (default tool) allows moves
-    paintColors: [1, 0], // primary/secondary paint colors
+    moveStatus: MOVE_ALLOW,
+    paintColors: [1, 0],
     selectedTool: TOOL_PAINT
 };
 
@@ -576,7 +600,7 @@ function randomCell(): Cell {
     );
 }
 
-function getPalette(element): Palette {
+function getPalette(element?: Element): Palette {
     // we have some sentinel color values in here, to detect major errors in
     // script initialization.  we should never see these.
     if (!element) {
@@ -691,7 +715,7 @@ function initTools(): void {
 
 function initBorders(): void {
     // create the default border
-    ui.borderTemplate = document.getElementById('border-item');
+    ui.borderTemplate = document.getElementById('border-item') as HTMLTemplateElement;
     getPalette(ui.borderTemplate).forEach(addBorder);
 
     // set up events
@@ -737,15 +761,14 @@ function initGuides(): void {
 
 function initColors(): void {
     // set up global data for addColor
-    ui.colorTemplate = document.getElementById('color-item');
-    ui.colorBox = document.getElementById('color-items');
+    ui.colorTemplate = document.getElementById('color-item') as HTMLTemplateElement;
+    ui.colorBox = document.getElementById('color-items') as Element;
 
     // double-check that our requirements are fulfilled
     if (!(ui.colorTemplate && ui.colorBox)) {
         console.error("Invalid HTML: missing template#color-item or #colors");
         return;
     }
-
 
     // parse the initial palette data and create Pickr UI
     // create Pickr UI for each initial palette entry
@@ -778,7 +801,7 @@ function createColor(): void {
     }
 }
 
-function newColorPicker(button: HTMLElement, value: string): Pickr {
+function newColorPicker(button: Element, value: string): Pickr {
     return Pickr.create({
         el: button,
         theme: 'nano',
@@ -813,7 +836,7 @@ function newColorPicker(button: HTMLElement, value: string): Pickr {
 
 function addColor(value: string): number | undefined {
     const i = quilt.colorSet.length;
-    const item = ui.colorTemplate.content.cloneNode(true);
+    const item = ui.colorTemplate.content.cloneNode(true) as Element;
 
     // configure sub-DOM
     const button = item.querySelector('.color-button');
@@ -917,8 +940,8 @@ function addBorder(color?: string): void {
     }
 
     const i = quilt.borders.length;
-    const item = ui.borderTemplate.content.cloneNode(true);
-    const range = item.querySelector("input[type=range]");
+    const item = ui.borderTemplate.content.cloneNode(true) as Element;
+    const range = item.querySelector("input[type=range]") as HTMLInputElement;
     const width = 1 + Math.floor(Math.random() * 3);
     const border = new Border(width, color || randomColor());
 
@@ -926,7 +949,7 @@ function addBorder(color?: string): void {
 
     range.id = `borderWidth${i}`;
     range.setAttribute('data-border-index', `${i}`);
-    range.value = border.cellWidth;
+    range.value = `${border.cellWidth}`;
 
     const picker = newColorPicker(item.querySelector(".color-button"), border.color);
     // set up events
