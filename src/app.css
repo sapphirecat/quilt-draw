@@ -346,3 +346,13 @@ div.pickr {
         color: #cc3333;
     }
 }
+
+@media print {
+    #app {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    #transforms, #controls, footer {
+        display: none;
+    }
+}
