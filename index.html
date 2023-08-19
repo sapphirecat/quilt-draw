@@ -54,11 +54,15 @@
         <li><a href="https://www.opera.com/" target="_blank">Opera</a></li>
         <li>Edge (Windows)</li>
         <li>Safari (Mac)</li>
+        <li><a href="https://www.palemoon.org/" target="_blank">Pale Moon</a>
+        <li>
+        <li>Firefox 52 ESR (Windows XP/Vista) or 115 ESR (Windows 7&ndash;8.1)</li>
     </ul>
 
     <p>
-        If you are using one of those and still seeing this message, please
-        send an email about it to: devel at sapphirepaw.org
+        If you are using one of those and still seeing this message,
+        and that includes Windows XP&ndash;8.1 and Puppy Linux users,
+        please send an email about it to: devel at sapphirepaw.org
     </p>
 </div>
 
@@ -127,6 +131,7 @@
                 <template class="hide" data-initial-palette="#ffbfd4|#d99fb2" id="border-item">
                     <div class="border-row">
                         <p></p>
+                        <!--suppress HtmlFormInputWithoutLabel -->
                         <input max="8" min="0" type="range" value="0">
                         <button class="color-button">&nbsp;</button>
                     </div>
@@ -170,9 +175,9 @@
             </div>
 
             <p class="transform-title">Squares per Block</p>
-            <div class="transform" id="resize">
+            <label class="transform" for="cell-size" id="resize">
                 <input class="resize" id="cell-size" max="12" min="2" type="range" value="4">
-            </div>
+            </label>
         </div>
     </div>
 
