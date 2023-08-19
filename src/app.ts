@@ -613,9 +613,9 @@ function getPalette(element?: Element): Palette {
     const modeSep = colorText.indexOf("|");
     if (modeSep > -1) {
         if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-            colorText = colorText.substr(modeSep + 1);
+            colorText = colorText.substring(modeSep + 1);
         } else {
-            colorText = colorText.substr(0, modeSep);
+            colorText = colorText.substring(0, modeSep);
         }
     }
 
