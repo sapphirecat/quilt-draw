@@ -20,3 +20,4 @@ fi
 mkdir dist
 cd src
 cp -a ./*.html ./*.css ./*.js pickr ./*.svg ../dist
+yarn run tsc
