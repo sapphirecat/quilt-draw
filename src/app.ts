@@ -674,11 +674,9 @@ function initTools(): void {
     setChecked('tool-paint');
 
     // wire in the rest of the controls' events
-    for (const node of document.querySelectorAll('.controls')) {
-        node.addEventListener('click', onControlClick);
-    }
-    for (const node of document.querySelectorAll('#transforms input[type=range]')) {
-        node.addEventListener('input', onControlClick);
+    const nodeList = document.querySelectorAll('.controls, #transforms input[type=range]');
+    for (let i = 0; i < nodeList.length; i++) {
+        nodeList[i].addEventListener('click', onControlClick);
     }
 
     // set up sashing colors
