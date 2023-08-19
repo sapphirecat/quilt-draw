@@ -2,7 +2,7 @@
 # yarn lockfile v1
 
 
-"@simonwep/pickr@^1.5.1":
+"@simonwep/pickr@^1.8":
   version "1.8.2"
   resolved "https://registry.yarnpkg.com/@simonwep/pickr/-/pickr-1.8.2.tgz#96dc86675940d7cad63d69c22083dd1cbb9797cb"
   integrity sha512-/l5w8BIkrpP6n1xsetx9MWPWlU6OblN5YgZZphxan0Tq4BByTCETL6lyIeY8lagalS2Nbt4F2W034KHLIiunKA==

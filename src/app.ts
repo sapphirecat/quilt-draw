@@ -806,8 +806,9 @@ function newColorPicker(button: HTMLElement, value: string): Pickr {
             }
         },
 
-        strings: {
-            cancel: "Reset"
+        i18n: {
+            "btn:cancel": "Reset",
+            "aria:btn:cancel": "Reset and keep open"
         }
     });
 }
