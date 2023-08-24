@@ -1,16 +1,23 @@
 {
     "scripts": {
-        "build": "rollup -c"
+        "dev-server": "encore dev-server",
+        "dev": "encore dev",
+        "watch": "encore dev --watch",
+        "build": "encore production --progress"
     },
     "browserslist": [
         "firefox 52"
     ],
     "devDependencies": {
-        "@rollup/plugin-terser": "^0.4.3",
-        "@rollup/plugin-typescript": "^11.1.2",
-        "rollup": "^3.28.1",
+        "@babel/core": "^7.22.10",
+        "@babel/preset-env": "^7.22.10",
+        "@symfony/webpack-encore": "^4.4",
         "tslib": "^2.6.2",
-        "typescript": "^5.1.6"
+        "ts-loader": "^9.4.4",
+        "typescript": "^5.1.6",
+        "webpack": "^5.88.2",
+        "webpack-cli": "^5.1.4",
+        "webpack-notifier": "^1.15.0"
     },
     "dependencies": {
         "@simonwep/pickr": "^1.8"
