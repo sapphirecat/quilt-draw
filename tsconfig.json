@@ -2,6 +2,6 @@
     "compilerOptions": {
         "removeComments": true,
         "noEmitOnError": true,
-        "target": "es6"
+        "target": "es2022"
     }
 }
