@@ -19,5 +19,5 @@ fi
 
 mkdir dist
 cd src
-cp -a ./*.html ./*.css ./*.js pickr ./*.svg ../dist
+cp -a ./*.html ./*.css pickr ./*.svg ../dist
 yarn run build

@@ -11,13 +11,11 @@ Quarter-square triangle design assistant
 ## Development
 
 1. Clone the repo
-2. `yarn install` to download TypeScript (get [Yarn](https://classic.yarnpkg.com/) if you need it)
-3. `yarn run tsc` to compile the project
-4. Open _src/index.html_
+2. `yarn install` to download TypeScript (get [Yarn 1.x](https://classic.yarnpkg.com/) if you need it)
+3. `./build.sh` to compile the project
+4. Open _dist/index.html_
 
-Repeat steps 3-4 as changes are made to `*.ts` files.
-
-We are currently on Yarn 1.x: nobody's paying for the yak shaving.
+Repeat steps 3-4 as changes are made to the source files.
 
 # License
 
