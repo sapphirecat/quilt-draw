@@ -11,7 +11,8 @@ Quarter-square triangle design assistant
 ## Development
 
 1. Clone the repo
-2. `yarn install` to download TypeScript (get [Yarn 1.x](https://classic.yarnpkg.com/) if you need it)
+2. `yarn install` to download everything
+   (get [Yarn 1.x](https://classic.yarnpkg.com/) if you need it)
 3. `./build.sh` to compile the project
 4. Open _dist/index.html_
 
