@@ -10,15 +10,24 @@ Quarter-square triangle design assistant
 
 ## Development
 
+Initial setup:
+
 1. Clone the repo
-2. `yarn install` to download everything
+2. `yarn install --frozen-lockfile` to download everything
    (get [Yarn 1.x](https://classic.yarnpkg.com/) if you need it)
-3. `./build.sh -d` to compile the project: `-d` for development mode
-4. Open _dist/index.html_
+3. `./build.sh -d` to do an initial build of the project:
+   the `-d` for development mode
 
-Repeat steps 3-4 as changes are made to the source files.
+NOTE: When run without options, `./build.sh` will create a release/minified
+version.
 
-To test release/minification, run `./build.sh` without options.
+Ongoing development:
+
+* `yarn run dev-server`
+* Open [localhost:8080](http://localhost:8080/) in your browser
+
+This will only automatically pick up changes to `src/app.ts`.  Other changes
+need copied over manually.
 
 # License
 

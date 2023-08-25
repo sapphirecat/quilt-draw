@@ -15,14 +15,14 @@ if [ ! -d src ] ; then
 fi
 
 # clear dist dir, safely
-if [ -d dist ] ; then
-    rm -rf dist
-elif [ -e dist ] ; then
+if [ ! -e dist ] ; then
+    mkdir dist
+fi
+if [ ! -d dist ] ; then
     echo "dist: not a directory" >&2
     exit 1
 fi
 
-mkdir dist
 cd src
 cp -a ./*.html ./*.css pickr ./*.svg ../dist
 yarn run "${mode}"
