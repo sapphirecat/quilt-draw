@@ -13,10 +13,12 @@ Quarter-square triangle design assistant
 1. Clone the repo
 2. `yarn install` to download everything
    (get [Yarn 1.x](https://classic.yarnpkg.com/) if you need it)
-3. `./build.sh` to compile the project
+3. `./build.sh -d` to compile the project: `-d` for development mode
 4. Open _dist/index.html_
 
 Repeat steps 3-4 as changes are made to the source files.
+
+To test release/minification, run `./build.sh` without options.
 
 # License
 

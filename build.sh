@@ -3,6 +3,11 @@ set -eu
 
 cd "$(dirname "$0")"
 
+mode=build
+case "${1:-.}" in
+    -d) mode=dev ;;
+esac
+
 # make sure we are probably in a reasonable place
 if [ ! -d src ] ; then
     echo "src: not a directory" >&2
@@ -20,4 +25,4 @@ fi
 mkdir dist
 cd src
 cp -a ./*.html ./*.css pickr ./*.svg ../dist
-yarn run build
+yarn run "${mode}"
