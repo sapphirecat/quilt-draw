@@ -24,7 +24,7 @@ import Pickr from "@simonwep/pickr";
 type Color = string;
 
 interface SashInfo {
-    levels: number;
+    levels: 0 | 1 | 2;
     colors: [Color, Color];
 }
 
@@ -41,7 +41,7 @@ interface RenderData {
 
 interface _RenderView {
     layout: string;
-    editorState?: number;
+    editorState: number;
     quilt?: Quilt;
 }
 
@@ -456,11 +456,13 @@ const TOOL_PAINT = 'paint'; // set color of tiles
 const TOOL_SPIN = 'spin'; // turn tiles
 const TOOL_FLIP = 'flip'; // flip tiles
 
-// Lookup table for calculating cell hits. A = top/right side, B = bottom/left;
-// X = bottom/right, Y = top/left.  AY = intersect(A, Y) = top.  The value in
-// this object is the index into the Cell.colors for the sub-area that was hit.
-// That is, we calculate A-or-B, and X-or-Y, then look up the results here to
-// determine which triangle gets painted.
+/**
+ * Lookup table for calculating cell hits. A = top/right side, B = bottom/left;
+ * X = bottom/right, Y = top/left.  AY = intersect(A, Y) = top.  The value in
+ * this object is the index into the Cell.colors for the sub-area that was hit.
+ * That is, we calculate A-or-B, and X-or-Y, then look up the results here to
+ * determine which triangle gets painted.
+ */
 const CELL_QUADRANTS = {
     "AY": 0,
     "AX": 1,
@@ -510,6 +512,7 @@ const ui: UI = {
 
 const view: _RenderView = {
     layout: "NA",
+    editorState: -1,
 };
 
 function newSash(): SashInfo {
@@ -702,7 +705,7 @@ function initTools(): void {
     setChecked('tool-paint');
 
     // wire in the rest of the controls' events
-    const nodeList = document.querySelectorAll('.controls, #transforms input[type=range]');
+    const nodeList = document.querySelectorAll('.controls, #transforms input[type=range]') as NodeListOf<HTMLElement>;
     for (let i = 0; i < nodeList.length; i++) {
         nodeList[i].addEventListener('click', onControlClick);
     }
@@ -1061,8 +1064,8 @@ function onEditorMouse(ev: MouseEvent): void {
     updateView();
 }
 
-function onBorderSize(ev: InputEvent): void {
-    if (!(ev.target instanceof HTMLInputElement)) {
+function onBorderSize(ev: Event): void {
+    if (!(ev instanceof InputEvent && ev.target instanceof HTMLInputElement)) {
         return;
     }
 
@@ -1102,27 +1105,13 @@ function onControlClick(ev: MouseEvent): void {
  */
 function onPaletteDown(ev: MouseEvent): void {
     ui.colorEvents = CLICK_ALLOW; // by default, we do not have full responsibility
-    if (!isButtonRelevant(ev)) {
+    if (!isButtonRelevant(ev) || !(ev.target instanceof HTMLElement)) {
         return; // we don't handle this button/combo
     }
 
-    // walk up the DOM until we find the label.color-item
-    let node = ev.target;
-    let found = false;
-    while (node !== this && !found) {
-        if (!(node instanceof HTMLElement)) {
-            console.error("DOM walk-up reached non HTML element");
-            console.debug(node);
-            return;
-        }
-        if (node.tagName === 'LABEL' && node.classList.contains('color-item')) {
-            found = true;
-        } else {
-            node = node.parentElement;
-        }
-    }
-    if (!(found && node instanceof HTMLElement)) {
-        console.error("label element not found in event stack");
+    const node = ev.target.closest('label.color-item');
+    if (!(node && node instanceof HTMLElement)) {
+        console.error("label.color-item element not found in event stack");
         return;
     }
 

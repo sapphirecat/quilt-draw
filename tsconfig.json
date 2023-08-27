@@ -1,9 +1,13 @@
 {
     "compilerOptions": {
         "moduleResolution": "nodenext",
-        "noEmitOnError": true,
-        "noImplicitAny": true,
         "removeComments": true,
-        "target": "es2022"
+        "target": "es2022",
+
+        "noImplicitAny": true,
+        "noImplicitThis": true,
+        "strictBindCallApply": true,
+        "strictFunctionTypes": true,
+        "useUnknownInCatchVariables": true
     }
 }
