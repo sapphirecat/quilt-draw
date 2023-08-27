@@ -1,4 +1,5 @@
 const Encore = require('@symfony/webpack-encore');
+const path = require("path");
 
 // Manually configure the runtime environment if not already configured yet by the "encore" command.
 // It's useful when you use tools that rely on webpack.config.js file.
@@ -76,4 +77,8 @@ Encore
     //.autoProvidejQuery()
 ;
 
-module.exports = Encore.getWebpackConfig();
+// and now, shenanigans: to get the Pickr ES5 build to be packed instead of ES6 [its "main"]
+const config = Encore.getWebpackConfig();
+config.resolve.alias["@simonwep/pickr"] = path.resolve(__dirname, 'node_modules/@simonwep/pickr/dist/pickr.es5.min.js');
+
+module.exports = config;

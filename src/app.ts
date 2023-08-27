@@ -19,8 +19,7 @@
  * https://github.com/sapphirecat/quilt-draw/
  */
 
-import type Pickr from "../node_modules/@simonwep/pickr/src/js/pickr.js";
-import type HSVaColor from "../node_modules/@simonwep/pickr/src/js/utils/hsvacolor.js";
+import Pickr from "@simonwep/pickr";
 
 type Color = string;
 
@@ -806,7 +805,7 @@ function createColor(): void {
     }
 }
 
-function newColorPicker(button: Element, value: string): Pickr {
+function newColorPicker(button: HTMLElement, value: string): Pickr {
     return new Pickr({
         el: button,
         theme: 'nano',
@@ -844,7 +843,7 @@ function addColor(value: string): number | undefined {
     const item = ui.colorTemplate.content.cloneNode(true) as Element;
 
     // configure sub-DOM
-    const button = item.querySelector('.color-button');
+    const button = item.querySelector('.color-button') as HTMLElement;
     if (!button) {
         console.error("Cannot find '.color-button' in ui.colorTemplate");
         return;
@@ -861,7 +860,7 @@ function addColor(value: string): number | undefined {
     const picker = newColorPicker(button, value);
 
     // set up events
-    picker.on('change', newValue => onColorChanged(i, newValue));
+    picker.on('change', (newValue: Pickr.HSVaColor) => onColorChanged(i, newValue));
     picker.on('hide', () => onColorPickerHide(i));
     picker.on('cancel', () => onColorReset(i));
 
@@ -884,7 +883,7 @@ function onColorPickerHide(i: number): void {
     setPaintColor(i);
 }
 
-function onColorChanged(i: number, value: HSVaColor): void {
+function onColorChanged(i: number, value: Pickr.HSVaColor): void {
     quilt.colorSet[i] = value.toHSLA().toString();
     updateView();
 }
@@ -899,7 +898,7 @@ function onSashColorPickerHide(i: number): void {
     pickers[`sash.${i}`].handle.applyColor(true); // save color to button, without firing a save event
 }
 
-function onSashColorChanged(i: number, value: HSVaColor) {
+function onSashColorChanged(i: number, value: Pickr.HSVaColor) {
     quilt.sash.colors[i] = value.toHSLA().toString();
     updatePreview(editor, quilt);
 }
@@ -912,7 +911,7 @@ function onSashColorReset(i: number): void {
 function addSashColor(i: number, button: HTMLElement, value: string): void {
     const picker = newColorPicker(button, value);
 
-    picker.on('change', newValue => onSashColorChanged(i, newValue));
+    picker.on('change', (newValue: Pickr.HSVaColor) => onSashColorChanged(i, newValue));
     picker.on('hide', () => onSashColorPickerHide(i));
     picker.on('cancel', () => onSashColorReset(i));
 
@@ -925,7 +924,7 @@ function onBorderColorPickerHide(i: number): void {
     pickers[`border.${i}`].handle.applyColor(true); // save color to button, without firing a save event
 }
 
-function onBorderColorChanged(i: number, value: HSVaColor): void {
+function onBorderColorChanged(i: number, value: Pickr.HSVaColor): void {
     quilt.borders[i].color = value.toHSLA().toString();
     updatePreview(editor, quilt);
 }
@@ -958,7 +957,7 @@ function addBorder(color?: string): void {
 
     const picker = newColorPicker(item.querySelector(".color-button"), border.color);
     // set up events
-    picker.on('change', newValue => onBorderColorChanged(i, newValue));
+    picker.on('change', (newValue: Pickr.HSVaColor) => onBorderColorChanged(i, newValue));
     picker.on('hide', () => onBorderColorPickerHide(i));
     picker.on('cancel', () => onBorderColorReset(i));
 
