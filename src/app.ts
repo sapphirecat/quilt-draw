@@ -278,28 +278,28 @@ class BlockInfo {
 
     rollLeft(): void {
         const sz = this.cells.getSize();
-        this.roll(function (row, col) {
+        this.roll(function (row: number, col: number) {
             return [row, (col + 1) % sz];
         });
     }
 
     rollRight(): void {
         const sz = this.cells.getSize();
-        this.roll(function (row, col) {
+        this.roll(function (row: number, col: number) {
             return [row, col ? col - 1 : sz - 1];
         });
     }
 
     rollUp(): void {
         const sz = this.cells.getSize();
-        this.roll(function (row, col) {
+        this.roll(function (row: number, col: number) {
             return [(row + 1) % sz, col];
         });
     }
 
     rollDown(): void {
         const sz = this.cells.getSize();
-        this.roll(function (row, col) {
+        this.roll(function (row: number, col: number) {
             return [row ? row - 1 : sz - 1, col];
         });
     }
@@ -368,7 +368,7 @@ class BlockInfo {
         this.cells = output;
     }
 
-    private roll(mappingFn): void {
+    private roll(mappingFn: (row: number, col: number) => [number, number]): void {
         const output = new CellList(this.cells.length);
         const size = this.cells.getSize();
 
@@ -1041,7 +1041,7 @@ function onEditorMouse(ev: MouseEvent): void {
 
             // determine which quadrant of the cell was hit
             const quadrantKey = `${hitX > hitY ? "A" : "B"}${hitX > (cellPx - hitY) ? "X" : "Y"}`;
-            const colorIndex = CELL_QUADRANTS[quadrantKey];
+            const colorIndex = CELL_QUADRANTS[quadrantKey as keyof typeof CELL_QUADRANTS];
 
             // apply color to the index that was hit
             const colorChosen = ui.paintColors[isSecondaryClick ? 1 : 0];
@@ -1215,7 +1215,8 @@ function onRollerClick(ev: MouseEvent): void {
         return;
     }
 
-    const callback = movers[ev.target.id];
+    const id = ev.target.id as keyof typeof movers;
+    const callback = movers[id];
     if (callback) {
         callback(quilt.block);
         updateView();
@@ -1530,7 +1531,7 @@ function drawPreviewSash(vs: SashInfo | null, ctx: CanvasRenderingContext2D, sas
     const blockSize = r.blockSize;
     const padSize = r.padSize;
     const borderSize = 2 * padSize;
-    const viewColors = vs && vs.levels === sash.levels ? vs.colors : [];
+    const viewColors = vs && vs.levels === sash.levels ? vs.colors : [] as Color[];
     const drawMain = !(vs && viewColors && viewColors[0] === sash.colors[0]);
     const stepSize = blockSize + sashSpacing;
     const padStepSize = padSize + stepSize;

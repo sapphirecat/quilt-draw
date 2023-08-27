@@ -2,6 +2,7 @@
     "compilerOptions": {
         "moduleResolution": "nodenext",
         "noEmitOnError": true,
+        "noImplicitAny": true,
         "removeComments": true,
         "target": "es2022"
     }
