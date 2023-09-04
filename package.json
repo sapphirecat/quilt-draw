@@ -12,6 +12,7 @@
         "@babel/core": "^7.22.10",
         "@babel/preset-env": "^7.22.10",
         "@symfony/webpack-encore": "^4.4",
+        "prettier": "^3.0.3",
         "tslib": "^2.6.2",
         "ts-loader": "^9.4.4",
         "typescript": "^5.1.6",
