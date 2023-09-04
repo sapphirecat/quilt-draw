@@ -21,11 +21,70 @@
 
 import Pickr from "@simonwep/pickr";
 
-type Color = string;
+const editor = document.getElementById('editor') as HTMLCanvasElement;
+const preview = document.getElementById('preview') as HTMLCanvasElement;
+const guideType = document.getElementById('guide-type') as HTMLSelectElement;
 
-interface SashInfo {
-    levels: 0 | 1 | 2;
-    colors: [Color, Color];
+let EDITOR_DRAW_WIDTH = editor.width;
+const EDITOR_MAX_WIDTH = 540; // HACK: this is specified in our CSS
+// no EDITOR_DRAW/MAX_HEIGHT: it is square.
+let PREVIEW_DRAW_WIDTH = preview.width;
+let PREVIEW_DRAW_HEIGHT = preview.height;
+const PREVIEW_MIN_RESIZE = 500;
+const PREVIEW_MAX_RESIZE = 1000;
+const DOWNLOAD_MIN_HEIGHT = 1400;
+
+const BLOCKS_HORIZ = 4; // number of block copies across the preview
+const BLOCKS_VERT = 5; // number of block copies down the preview
+
+const BORDER_LIMIT = 6; // maximum number of borders that may be added
+const COLOR_LIMIT = 12; // maximum number of colors in the palette
+
+const POINTER_EVENTS = 'PointerEvent' in window;
+
+/**
+ * Lookup table for calculating cell hits. A = top/right side, B = bottom/left;
+ * X = bottom/right, Y = top/left.  AY = intersect(A, Y) = top.  The value in
+ * this object is the index into the Cell.colors for the sub-area that was hit.
+ * That is, we calculate A-or-B, and X-or-Y, then look up the results here to
+ * determine which triangle gets painted.
+ */
+const CELL_QUADRANTS = {
+    "AY": 0,
+    "AX": 1,
+    "BX": 2,
+    "BY": 3
+};
+
+type Color = string;
+type SashColors = [Color, Color];
+
+enum Move {
+    Ignore, // tool does not allow holding mouse down
+    Allow, // tool supports holding mouse down, but handler is inactive
+    Tracking, // mouse is down, and event handler is active
+}
+
+enum Click {
+    Ignore,
+    Allow,
+}
+
+enum Tool {
+    Paint = 'paint',
+    Spin = 'spin',
+    Flip = 'flip',
+}
+
+enum Sashes {
+    None, // no sashing
+    Single, // all one color
+    Double // second color at intersections
+}
+
+class SashInfo {
+    levels: Sashes = Sashes.None;
+    colors: SashColors = ['#001', '#002'];
 }
 
 interface RenderData {
@@ -421,56 +480,6 @@ class Quilt {
 }
 
 
-const editor = document.getElementById('editor') as HTMLCanvasElement;
-const preview = document.getElementById('preview') as HTMLCanvasElement;
-const guideType = document.getElementById('guide-type') as HTMLSelectElement;
-
-let EDITOR_DRAW_WIDTH = editor.width;
-const EDITOR_MAX_WIDTH = 540; // HACK: this is specified in our CSS
-// no EDITOR_DRAW/MAX_HEIGHT: it is square.
-let PREVIEW_DRAW_WIDTH = preview.width;
-let PREVIEW_DRAW_HEIGHT = preview.height;
-const PREVIEW_MIN_RESIZE = 500;
-const PREVIEW_MAX_RESIZE = 1000;
-const DOWNLOAD_MIN_HEIGHT = 1400;
-
-const BLOCKS_HORIZ = 4; // number of block copies across the preview
-const BLOCKS_VERT = 5; // number of block copies down the preview
-
-const BORDER_LIMIT = 6; // maximum number of borders that may be added
-const COLOR_LIMIT = 12; // maximum number of colors in the palette
-
-const SASH_NONE = 0; // sash disabled
-const SASH_SINGLE = 1; // all one color
-const SASH_DOUBLE = 2; // second color at intersections
-
-const POINTER_EVENTS = 'PointerEvent' in window;
-const MOVE_IGNORE = 0; // tool does not allow holding mouse down
-const MOVE_ALLOW = 1; // tool supports holding mouse down, but handler is inactive
-const MOVE_TRACKING = 2; // mouse is down, and event handler is active
-
-const CLICK_ALLOW = 0; // click event should be reacted to
-const CLICK_IGNORE = 1; // click event should be suppressed
-
-const TOOL_PAINT = 'paint'; // set color of tiles
-const TOOL_SPIN = 'spin'; // turn tiles
-const TOOL_FLIP = 'flip'; // flip tiles
-
-/**
- * Lookup table for calculating cell hits. A = top/right side, B = bottom/left;
- * X = bottom/right, Y = top/left.  AY = intersect(A, Y) = top.  The value in
- * this object is the index into the Cell.colors for the sub-area that was hit.
- * That is, we calculate A-or-B, and X-or-Y, then look up the results here to
- * determine which triangle gets painted.
- */
-const CELL_QUADRANTS = {
-    "AY": 0,
-    "AX": 1,
-    "BX": 2,
-    "BY": 3
-};
-
-
 interface PickrHandle {
     handle: Pickr,
     saved: Color
@@ -488,7 +497,7 @@ interface UI {
     editorState: number; // generation of the editor, incremented on changes
     cellPx: number; // editor cell size in pixels (width & height)
     colorEvents: number; // whether clicks on Pickr elements should be passed into Pickr
-    moveStatus: number; // Whether the tool handles mousemove gracefully (MOVE_ALLOW)
+    moveStatus: Move; // Whether the tool handles mousemove gracefully (Move.ALLOW)
     selectedTool: string;
     paintColors: Array<number>; // Primary and secondary paint colors
     guideColor: Color; // Current guide color, shown between squares in the block editor
@@ -500,14 +509,14 @@ interface UI {
 const ui: UI = {
     editorState: 0,
     cellPx: 0,
-    colorEvents: CLICK_ALLOW,
+    colorEvents: Click.Allow,
     colorTemplate: null,
     colorBox: null,
     borderTemplate: null,
     guideColor: "",
-    moveStatus: MOVE_ALLOW,
+    moveStatus: Move.Allow,
     paintColors: [1, 0],
-    selectedTool: TOOL_PAINT
+    selectedTool: Tool.Paint
 };
 
 const view: _RenderView = {
@@ -515,15 +524,8 @@ const view: _RenderView = {
     editorState: -1,
 };
 
-function newSash(): SashInfo {
-    return {
-        levels: SASH_NONE,
-        colors: ['#001', '#002'],
-    };
-}
-
 function newQuilt(): Quilt {
-    return new Quilt(new BlockInfo(new CellList()), [], new Palette(), newSash());
+    return new Quilt(new BlockInfo(new CellList()), [], new Palette(), new SashInfo());
 }
 
 /**
@@ -573,10 +575,10 @@ function setPaintColor(i: number, slot = 0): void {
     }
 
     // activate the tool
-    ui.selectedTool = TOOL_PAINT;
+    ui.selectedTool = Tool.Paint;
     setChecked('tool-paint');
-    if (ui.moveStatus === MOVE_IGNORE) {
-        ui.moveStatus = MOVE_ALLOW;
+    if (ui.moveStatus === Move.Ignore) {
+        ui.moveStatus = Move.Allow;
     }
 
     // move the selection hint for primary color only
@@ -713,7 +715,7 @@ function initTools(): void {
     // set up sashing colors
     initSashColors();
     if (isChecked('sash-on')) {
-        quilt.sash.levels = isChecked('sash-cross-on') ? SASH_DOUBLE : SASH_SINGLE;
+        quilt.sash.levels = isChecked('sash-cross-on') ? Sashes.Double : Sashes.Single;
     }
 
     // set up guide state
@@ -985,17 +987,17 @@ function isSecondaryButton(ev: MouseEvent): boolean {
 
 function editorClearMoveHandler(): void {
     editor.removeEventListener(POINTER_EVENTS ? 'pointermove' : 'mousemove', onEditorMouse);
-    ui.moveStatus = MOVE_ALLOW;
+    ui.moveStatus = Move.Allow;
 }
 
 function editorSetMoveHandler(): void {
-    ui.moveStatus = MOVE_TRACKING;
+    ui.moveStatus = Move.Tracking;
     editor.addEventListener(POINTER_EVENTS ? 'pointermove' : 'mousemove', onEditorMouse);
 }
 
 function onEditorMouseRelease(ev: MouseEvent): void {
     ev.preventDefault();
-    if (ui.moveStatus !== MOVE_IGNORE) {
+    if (ui.moveStatus !== Move.Ignore) {
         editorClearMoveHandler();
     }
 }
@@ -1017,7 +1019,7 @@ function onEditorMouse(ev: MouseEvent): void {
     }
 
     // if this is the first mousedown, set us up to be called on move
-    if (ui.moveStatus === MOVE_ALLOW) {
+    if (ui.moveStatus === Move.Allow) {
         editorSetMoveHandler();
     }
 
@@ -1035,7 +1037,7 @@ function onEditorMouse(ev: MouseEvent): void {
     // act on the hit
     const isSecondaryClick = isSecondaryButton(ev);
     switch (ui.selectedTool) {
-        case TOOL_PAINT:
+        case Tool.Paint:
             // translate coordinates to cell-relative
             const top = _(index / sz) * cellPx;
             const left = _(index % sz) * cellPx;
@@ -1051,10 +1053,10 @@ function onEditorMouse(ev: MouseEvent): void {
             quilt.block.paintSubCell(index, colorIndex, colorChosen);
 
             break;
-        case TOOL_SPIN:
+        case Tool.Spin:
             quilt.block.spinCell(index, isSecondaryClick);
             break;
-        case TOOL_FLIP:
+        case Tool.Flip:
             quilt.block.flipCell(index, isSecondaryClick);
             break;
         default:
@@ -1104,7 +1106,7 @@ function onControlClick(ev: MouseEvent): void {
  * Capturing event handler for palette
  */
 function onPaletteDown(ev: MouseEvent): void {
-    ui.colorEvents = CLICK_ALLOW; // by default, we do not have full responsibility
+    ui.colorEvents = Click.Allow; // by default, we do not have full responsibility
     if (!isButtonRelevant(ev) || !(ev.target instanceof HTMLElement)) {
         return; // we don't handle this button/combo
     }
@@ -1126,17 +1128,17 @@ function onPaletteDown(ev: MouseEvent): void {
     // SECONDARY click or NON-SELECTED color. Take over the event ourselves.
     ev.preventDefault();
     ev.stopPropagation();
-    ui.colorEvents = CLICK_IGNORE; // reject a 'click' if it is also generated
+    ui.colorEvents = Click.Ignore; // reject a 'click' if it is also generated
     setPaintColor(colorIndex, isSecondaryButton(ev) ? 1 : 0);
 }
 
 function onPaletteClick(ev: MouseEvent): void {
-    if (ui.colorEvents === CLICK_IGNORE) {
+    if (ui.colorEvents === Click.Ignore) {
         ev.stopPropagation();
         ev.preventDefault();
     }
 
-    ui.colorEvents = CLICK_ALLOW;
+    ui.colorEvents = Click.Allow;
 }
 
 function onToolChange(ev: MouseEvent): void {
@@ -1147,10 +1149,10 @@ function onToolChange(ev: MouseEvent): void {
     ui.selectedTool = node.id.replace(/^tool-/, '');
 
     // update movement state
-    if (ui.moveStatus === MOVE_TRACKING) {
+    if (ui.moveStatus === Move.Tracking) {
         editorClearMoveHandler();
     }
-    ui.moveStatus = node.getAttribute('data-move-tracking') === '1' ? MOVE_ALLOW : MOVE_IGNORE;
+    ui.moveStatus = node.getAttribute('data-move-tracking') === '1' ? Move.Allow : Move.Ignore;
 }
 
 function onSashChange(ev: MouseEvent): void {
@@ -1163,7 +1165,7 @@ function onSashChange(ev: MouseEvent): void {
     const main = document.getElementById('sash-on') as HTMLInputElement;
     const cross = document.getElementById('sash-cross-on') as HTMLInputElement;
 
-    quilt.sash.levels = main.checked ? (cross.checked ? SASH_DOUBLE : SASH_SINGLE) : SASH_NONE;
+    quilt.sash.levels = main.checked ? (cross.checked ? Sashes.Double : Sashes.Single) : Sashes.None;
     updatePreview(editor, quilt);
 }
 
@@ -1411,7 +1413,7 @@ function updateEditor(colors: Palette, block: BlockInfo): void {
  * Determine initial number of cells in a quilt rendering.
  */
 function createRenderData(quilt: Quilt): RenderData {
-    const hasSash = quilt.sash.levels !== SASH_NONE;
+    const hasSash = quilt.sash.levels !== Sashes.None;
     const blockCells = quilt.block.getSize();
     let borderUnits = 0;
 
@@ -1512,7 +1514,7 @@ function drawPreviewBorders(prevState: Array<Border> | null, ctx: CanvasRenderin
 }
 
 function drawPreviewSash(vs: SashInfo | null, ctx: CanvasRenderingContext2D, sash: SashInfo, r: RenderData, canvasSize: Rect): void {
-    if (sash.levels === SASH_NONE) {
+    if (sash.levels === Sashes.None) {
         return;
     }
 
@@ -1539,7 +1541,7 @@ function drawPreviewSash(vs: SashInfo | null, ctx: CanvasRenderingContext2D, sas
     }
 
     // draw cross sashing, if applicable
-    if (sash.levels !== SASH_DOUBLE) {
+    if (sash.levels !== Sashes.Double) {
         return;
     } else if (!drawMain && viewColors && viewColors[1] === sash.colors[1]) {
         // cross sashing neither changed nor drawn over
@@ -1598,8 +1600,8 @@ function updatePreview(source: HTMLCanvasElement, quilt: Quilt): void {
     if (r.hasSash) {
         drawPreviewSash(fullRedraw ? null : viewQuilt.sash, ctx, sash, r, canvasSize);
         viewQuilt.sash = deepCopy(sash);
-    } else if (viewQuilt.sash.levels !== SASH_NONE) {
-        viewQuilt.sash = newSash();
+    } else if (viewQuilt.sash.levels !== Sashes.None) {
+        viewQuilt.sash = new SashInfo();
     }
 
     // draw the 5x4 blocks, inset by the half-border-width padSize, and offset
