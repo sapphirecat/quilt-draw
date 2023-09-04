@@ -87,10 +87,10 @@ class SashInfo {
     colors: SashColors = ["#001", "#002"];
 }
 
-interface _RenderView {
-    layout: string;
-    editorState: number;
-    quilt?: Quilt;
+class ViewData {
+    layout: string = "N/A";
+    editorState: number = -1;
+    quilt: Quilt = newQuilt();
 }
 
 class Point {
@@ -559,10 +559,7 @@ const ui: UI = {
     selectedTool: Tool.Paint,
 };
 
-const view: _RenderView = {
-    layout: "NA",
-    editorState: -1,
-};
+const view = new ViewData();
 
 function newQuilt(): Quilt {
     return new Quilt(new BlockInfo(new CellList()), [], new Palette(), new SashInfo());
@@ -1590,7 +1587,7 @@ function drawPreviewSash(
     // draw cross sashing, if applicable
     if (sash.levels !== Sashes.Double) {
         return;
-    } else if (!drawMain && viewColors && viewColors[1] === sash.colors[1]) {
+    } else if (!drawMain && viewColors.length >= 2 && viewColors[1] === sash.colors[1]) {
         // cross sashing neither changed nor drawn over
         return;
     }
@@ -1616,19 +1613,16 @@ function updatePreview(source: HTMLCanvasElement, quilt: Quilt): void {
     );
     const cellSize = r.cellSize;
 
-    let fullRedraw = typeof view.quilt === "undefined";
+    // resize the canvas to the draw dimensions if needed
+    const layout = `${cellSize},${r.cHoriz},${r.cVert},${r.hasSash ? "sash" : "noSash"}`;
+    const fullRedraw = layout !== view.layout;
     if (fullRedraw) {
+        view.layout = layout;
+        r.resizeCanvas(preview);
+        // reset "last drawn" to an empty quilt, so that we redraw everything
         view.quilt = newQuilt();
     }
     const viewQuilt = view.quilt;
-
-    // resize the canvas to the draw dimensions if needed
-    const layout = `${cellSize},${r.cHoriz},${r.cVert},${r.hasSash ? "sash" : "noSash"}`;
-    if (layout !== view.layout) {
-        view.layout = layout;
-        r.resizeCanvas(preview);
-        fullRedraw = true; // resizing clears the canvas, so we need to paint everything
-    }
 
     // start drawing
     const ctx = preview.getContext("2d", { alpha: false });
