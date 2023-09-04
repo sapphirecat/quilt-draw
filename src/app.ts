@@ -87,17 +87,6 @@ class SashInfo {
     colors: SashColors = ['#001', '#002'];
 }
 
-interface RenderData {
-    borderUnits: number;
-    blockCells: number;
-    hasSash: boolean;
-    cHoriz: number;
-    cVert: number;
-    cellSize?: number;
-    padSize?: number;
-    blockSize?: number;
-}
-
 interface _RenderView {
     layout: string;
     editorState: number;
@@ -120,6 +109,49 @@ class Border {
 
     equals(other: Border | undefined | null) {
         return other && this.cellWidth === other.cellWidth && this.color === other.color;
+    }
+}
+
+class RenderData {
+    borderUnits: number;
+    blockCells: number;
+    hasSash: boolean;
+    cHoriz: number;
+    cVert: number;
+
+    cellSize: number;
+    padSize: number;
+    blockSize: number;
+
+    constructor(quilt: Quilt, cellSizeFn: (cH: number, cV: number) => number) {
+        this.hasSash = quilt.sash.levels !== Sashes.None;
+        this.blockCells = quilt.block.getSize();
+
+        // sum up the border sizes to get the total border units
+        let borderUnits = 0;
+        for (const border of quilt.borders) {
+            borderUnits += border.cellWidth;
+        }
+        this.borderUnits = borderUnits;
+
+        // "Border units" is in half-cells, so figure out the pixel size based on blockSize.
+        // Determine the number of cells horizontally and vertically.  This is determining the total
+        // border: borderUnits=1 means 1/2 cell * 2 sides.  Sashing goes between blocks only, and it
+        // is a fixed 1-cell width for the moment.  Thus, it adds blocks-1 cells to each dimension
+        // when present.
+        this.cHoriz = (this.blockCells * BLOCKS_HORIZ + borderUnits + (this.hasSash ? BLOCKS_HORIZ - 1 : 0));
+        this.cVert = (this.blockCells * BLOCKS_VERT + borderUnits + (this.hasSash ? BLOCKS_VERT - 1 : 0));
+
+        // okay, now that we have cell dimensions, call the cellSizeFn to get pixel information
+        this.cellSize = cellSizeFn(this.cHoriz, this.cVert);
+        this.padSize = this.cellSize * this.borderUnits / 2; // half on each side
+        this.blockSize = this.cellSize * this.blockCells;
+    }
+
+    resizeCanvas(canvas: HTMLCanvasElement, ignoreDPR?: boolean) {
+        const width = this.cellSize * this.cHoriz;
+        const height = this.cellSize * this.cVert;
+        sizeCanvasTo(canvas, width, height, ignoreDPR);
     }
 }
 
@@ -1262,8 +1294,8 @@ function onResizeViewport(): void {
     updateView();
 }
 
-function sizeCanvasTo(canvas: HTMLCanvasElement, width: number, height: number) {
-    const DPR = Math.max(window.devicePixelRatio || 1, 1);
+function sizeCanvasTo(canvas: HTMLCanvasElement, width: number, height: number, ignoreDPR?: boolean) {
+    const DPR = ignoreDPR ? 1 : Math.max(window.devicePixelRatio || 1, 1);
     canvas.width = width * DPR;
     canvas.height = height * DPR;
     canvas.style.width = "${width}px";
@@ -1409,43 +1441,6 @@ function updateEditor(colors: Palette, block: BlockInfo): void {
     // draw on the UI-only state after the block is copied out
     drawGuides(block, ctx);
 }
-/**
- * Determine initial number of cells in a quilt rendering.
- */
-function createRenderData(quilt: Quilt): RenderData {
-    const hasSash = quilt.sash.levels !== Sashes.None;
-    const blockCells = quilt.block.getSize();
-    let borderUnits = 0;
-
-    for (const border of quilt.borders) {
-        borderUnits += border.cellWidth;
-    }
-
-    // "Border units" is in half-cells, so figure out the pixel size based on blockSize.
-    // Determine the number of cells horizontally and vertically.  This is determining the total
-    // border: borderUnits=1 means 1/2 cell * 2 sides.  Sashing goes between blocks only, and it
-    // is a fixed 1-cell width for the moment.  Thus, it adds blocks-1 cells to each dimension
-    // when present.
-    const cHoriz = (blockCells * BLOCKS_HORIZ + borderUnits + (hasSash ? BLOCKS_HORIZ - 1 : 0));
-    const cVert = (blockCells * BLOCKS_VERT + borderUnits + (hasSash ? BLOCKS_VERT - 1 : 0));
-
-    return {
-        hasSash: hasSash,
-        blockCells: blockCells,
-        borderUnits: borderUnits,
-        cHoriz: cHoriz,
-        cVert: cVert
-    }
-}
-
-/**
- * Complete calculations for RenderData with finalized cellSize information.
- */
-function extendRenderData(r: RenderData, cellSize: number): void {
-    r.cellSize = cellSize;
-    r.padSize = cellSize * r.borderUnits / 2; // half on each side
-    r.blockSize = cellSize * r.blockCells;
-}
 
 function deepCopy<T>(x: T): T {
     return JSON.parse(JSON.stringify(x));
@@ -1563,13 +1558,11 @@ function updatePreview(source: HTMLCanvasElement, quilt: Quilt): void {
     const sash = quilt.sash;
 
     // get initial render data
-    const r = createRenderData(quilt);
-
-    // calculate draw dimensions
-    const cellSize = Math.floor(Math.min(PREVIEW_DRAW_WIDTH / r.cHoriz, PREVIEW_DRAW_HEIGHT / r.cVert) / 2) * 2;
-
-    // finish up the render data
-    extendRenderData(r, cellSize);
+    const r = new RenderData(
+        quilt,
+        (cH, cV) => 2 * Math.floor(Math.min(PREVIEW_DRAW_WIDTH / cH, PREVIEW_DRAW_HEIGHT / cV) / 2)
+    );
+    const cellSize = r.cellSize;
 
     let fullRedraw = (typeof view.quilt === "undefined");
     if (fullRedraw) {
@@ -1581,7 +1574,7 @@ function updatePreview(source: HTMLCanvasElement, quilt: Quilt): void {
     const layout = `${cellSize},${r.cHoriz},${r.cVert},${r.hasSash ? 'sash' : 'noSash'}`;
     if (layout !== view.layout) {
         view.layout = layout;
-        sizeCanvasTo(preview, cellSize * r.cHoriz, cellSize * r.cVert);
+        r.resizeCanvas(preview);
         fullRedraw = true; // resizing clears the canvas, so we need to paint everything
     }
 
@@ -1622,15 +1615,11 @@ function renderDownload(source: HTMLCanvasElement, quilt: Quilt): HTMLCanvasElem
     const canvas = document.createElement('canvas');
 
     // calculate draw dimensions
-    const s = createRenderData(quilt);
-
-    // we determine the canvas size here, so let's make something reasonably large.
-    const cellSize = Math.max(12, Math.ceil(DOWNLOAD_MIN_HEIGHT / s.cVert / 2) * 2);
-    canvas.width = cellSize * s.cHoriz;
-    canvas.height = cellSize * s.cVert;
-
-    // finish cellSize-dependent calculations
-    extendRenderData(s, cellSize);
+    const s = new RenderData(
+        quilt,
+        (_cH, cV) => Math.max(12, 2 * Math.ceil(DOWNLOAD_MIN_HEIGHT / cV / 2))
+    );
+    s.resizeCanvas(canvas, true);
 
     // start drawing
     const ctx = canvas.getContext('2d', {alpha: false});
