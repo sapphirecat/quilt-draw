@@ -249,10 +249,6 @@ class BlockInfo {
         return this.dirty;
     }
 
-    setDirty(): void {
-        this.dirty = true;
-    }
-
     getSource(pixelSize: number, colors: Palette): CanvasImageSource {
         // check our argument states
         if (!colors.equals(this.lastColors)) {
@@ -1383,37 +1379,19 @@ function drawCellAt(
 }
 
 function updateGuideColor(): void {
-    if (!guideType) {
+    if (!guideType || guideType.value === ui.guideColor) {
         return;
     }
 
-    const block = quilt.block;
-
-    if (guideType.value !== ui.guideColor && guideType.value === "") {
-        block.setDirty();
-        updateEditor(quilt.colorSet, block);
-    } else {
-        drawGuides(block);
-    }
+    updateEditor(quilt.colorSet, quilt.block);
 }
 
-function isGuideDirty(): boolean {
-    return guideType.value !== ui.guideColor;
-}
-
-function drawGuides(block: BlockInfo, ctx?: CanvasRenderingContext2D): void {
-    // if the block is clean and the guides are unchanged, do nothing
-    if (!ctx && !isGuideDirty()) {
-        return;
-    } else if (guideType.value === "") {
+function drawGuides(block: BlockInfo, ctx: CanvasRenderingContext2D): void {
+    if (guideType.value === "") {
         // we don't want to draw anything on it
         ui.guideColor = "";
 
         return;
-    }
-
-    if (!ctx) {
-        ctx = editor.getContext("2d");
     }
 
     const cW = ui.cellPx;
@@ -1422,7 +1400,7 @@ function drawGuides(block: BlockInfo, ctx?: CanvasRenderingContext2D): void {
 
     ctx.save();
     try {
-        let at = -0.5;
+        let at = 0;
         ctx.strokeStyle = guideType.value;
         ctx.beginPath();
         for (let i = 1; i < cellCount; ++i) {
@@ -1459,15 +1437,9 @@ function updateEditor(colors: Palette, block: BlockInfo): void {
         dirty = true;
     }
 
-    if (!dirty) {
-        // if UI-only state is dirty, redraw it
-        drawGuides(block);
-
-        return;
+    if (dirty) {
+        ui.editorState += 1; // we're redrawing the canvas!
     }
-
-    // note that we increased our render count
-    ui.editorState += 1;
 
     const ctx = editor.getContext("2d", { alpha: false });
     ctx.drawImage(block.getSource(editor.width, colors), 0, 0);
