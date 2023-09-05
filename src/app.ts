@@ -771,7 +771,7 @@ function initBorders(): void {
 
     const newBorder = () => {
         addBorder();
-        updatePreview(editor, quilt);
+        updatePreview(quilt);
         if (quilt.borders.length >= BORDER_LIMIT) {
             document.getElementById("border-new").classList.add("hide");
         }
@@ -946,12 +946,12 @@ function onSashColorPickerHide(i: number): void {
 
 function onSashColorChanged(i: number, value: Pickr.HSVaColor) {
     quilt.sash.colors[i] = value.toHSLA().toString();
-    updatePreview(editor, quilt);
+    updatePreview(quilt);
 }
 
 function onSashColorReset(i: number): void {
     quilt.sash.colors[i] = pickers[`sash.${i}`].saved;
-    updatePreview(editor, quilt);
+    updatePreview(quilt);
 }
 
 function addSashColor(i: number, button: HTMLElement, value: string): void {
@@ -972,12 +972,12 @@ function onBorderColorPickerHide(i: number): void {
 
 function onBorderColorChanged(i: number, value: Pickr.HSVaColor): void {
     quilt.borders[i].color = value.toHSLA().toString();
-    updatePreview(editor, quilt);
+    updatePreview(quilt);
 }
 
 function onBorderColorReset(i: number): void {
     quilt.borders[i].color = pickers[`border.${i}`].saved;
-    updatePreview(editor, quilt);
+    updatePreview(quilt);
 }
 
 /**
@@ -1112,7 +1112,7 @@ function onBorderSize(ev: Event): void {
 
     const i = parseInt(ev.target.getAttribute("data-border-index") || "0", 10) || 0;
     quilt.borders[i].cellWidth = parseInt(ev.target.value, 10);
-    updatePreview(editor, quilt);
+    updatePreview(quilt);
 }
 
 /**
@@ -1209,7 +1209,7 @@ function onSashChange(ev: MouseEvent): void {
             ? Sashes.Double
             : Sashes.Single
         : Sashes.None;
-    updatePreview(editor, quilt);
+    updatePreview(quilt);
 }
 
 function onDownload(ev: MouseEvent): void {
@@ -1222,7 +1222,7 @@ function onDownload(ev: MouseEvent): void {
 
     // figure out what we're downloading
     const isPreview = node.id === "download-preview";
-    const source = isPreview ? renderDownload(editor, quilt) : editor;
+    const source = isPreview ? renderDownload(quilt) : editor;
     const basename = isPreview ? "quilt" : "block";
 
     // generate download
@@ -1602,7 +1602,7 @@ function drawPreviewSash(
     }
 }
 
-function updatePreview(source: HTMLCanvasElement, quilt: Quilt): void {
+function updatePreview(quilt: Quilt): void {
     // shorten some names
     const sash = quilt.sash;
 
@@ -1656,7 +1656,7 @@ function updatePreview(source: HTMLCanvasElement, quilt: Quilt): void {
 /**
  * Draw a large-size preview and return the canvas
  */
-function renderDownload(source: HTMLCanvasElement, quilt: Quilt): HTMLCanvasElement {
+function renderDownload(quilt: Quilt): HTMLCanvasElement {
     // offscreen canvas
     const canvas = document.createElement("canvas");
 
@@ -1680,7 +1680,7 @@ function renderDownload(source: HTMLCanvasElement, quilt: Quilt): HTMLCanvasElem
 
 function updateView(): void {
     updateEditor(quilt.colorSet, quilt.block);
-    updatePreview(editor, quilt);
+    updatePreview(quilt);
 }
 
 if (editor && preview) {
