@@ -557,6 +557,20 @@ const ui: UI = {
 
 const view = new ViewData();
 
+function arrayEquals(a: any[], b: any[]): boolean {
+    if (a.length !== b.length) {
+        return false;
+    }
+
+    for (let i = 0; i < a.length; i++) {
+        if (a[i] !== b[i]) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 function newQuilt(): Quilt {
     return new Quilt(new BlockInfo(new CellList()), [], new Palette(), new SashInfo());
 }
@@ -1587,12 +1601,18 @@ function updatePreview(quilt: Quilt): void {
 
     // resize the canvas to the draw dimensions if needed
     const layout = `${cellSize},${r.cHoriz},${r.cVert},${r.hasSash ? "sash" : "noSash"}`;
-    const fullRedraw = layout !== view.layout;
+    let fullRedraw = layout !== view.layout;
     if (fullRedraw) {
         view.layout = layout;
         r.resizeCanvas(preview);
         // reset "last drawn" to an empty quilt, so that we redraw everything
         view.quilt = newQuilt();
+    } else if (
+        !view.quilt.colorSet.equals(quilt.colorSet) ||
+        (r.hasSash && !arrayEquals(view.quilt.sash.colors, quilt.sash.colors))
+    ) {
+        // if the palette has changed, redraw everything, but without resizing
+        fullRedraw = true;
     }
     const viewQuilt = view.quilt;
 
