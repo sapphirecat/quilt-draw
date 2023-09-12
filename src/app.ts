@@ -1359,7 +1359,7 @@ function drawCellAt(
     palette: Palette,
     cell: Cell,
 ): void {
-    // etermine all coordinates we can draw from: top/left/bottom/right pairs, and center
+    // Determine all coordinates we can draw from: top/left/bottom/right pairs, and center
     const half = cellPx / 2;
     const tl = new Point(oX, oY);
     const tr = new Point(oX + cellPx, oY);
