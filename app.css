@@ -348,6 +348,10 @@ div.pickr {
 }
 
 @media print {
+    @page {
+        size: landscape;
+    }
+
     #app {
         grid-template-columns: 1fr 1fr;
     }
