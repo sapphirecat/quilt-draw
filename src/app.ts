@@ -1137,7 +1137,7 @@ function onControlClick(ev: MouseEvent): void {
     if (!(target instanceof HTMLElement)) {
         return;
     }
-    if (!target.tagName.toLowerCase().match(/^(?:button|input)$/)) {
+    if (!target.tagName.match(/^(?:button|input)$/i)) {
         return;
     }
 
