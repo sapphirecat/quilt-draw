@@ -516,16 +516,26 @@ class Quilt {
     ) {}
 }
 
-interface PickrHandle {
-    handle: Pickr;
-    saved: Color;
+class PickrHandle {
+    constructor(
+        public handle: Pickr,
+        public saved: Color,
+    ) {}
+
+    /**
+     * Save the selected color to the picker, for use on the next reset event.
+     *
+     * Typically called when Pickr is popped down, by clicking outside of it.
+     *
+     * @param newColor Color that has been selected
+     */
+    saveColor(newColor: Color) {
+        this.saved = newColor; // remember the color for Reset
+        this.handle.applyColor(true); // apply without firing the event
+    }
 }
 
-interface PickrHandleMap {
-    [key: string]: PickrHandle;
-}
-
-const pickers: PickrHandleMap = {};
+const pickers: { [key: string]: PickrHandle } = {};
 
 const quilt = newQuilt();
 
@@ -924,17 +934,13 @@ function addColor(value: string): number | undefined {
     ui.colorBox.appendChild(item);
 
     // save the picker for future interaction
-    pickers[i] = {
-        handle: picker,
-        saved: value,
-    };
+    pickers[i] = new PickrHandle(picker, value);
 
     return i;
 }
 
 function onColorPickerHide(i: number): void {
-    pickers[i].saved = quilt.colorSet[i]; // save color for next cancel button click
-    pickers[i].handle.applyColor(true); // save color to button, without firing a save event
+    pickers[i].saveColor(quilt.colorSet[i]);
     document.getElementById("color-items").focus({ preventScroll: true });
     setPaintColor(i);
 }
@@ -950,8 +956,7 @@ function onColorReset(i: number): void {
 }
 
 function onSashColorPickerHide(i: number): void {
-    pickers[`sash.${i}`].saved = quilt.sash.colors[i]; // save color for next cancel button click
-    pickers[`sash.${i}`].handle.applyColor(true); // save color to button, without firing a save event
+    pickers[`sash.${i}`].saveColor(quilt.sash.colors[i]);
 }
 
 function onSashColorChanged(i: number, value: Pickr.HSVaColor) {
@@ -971,13 +976,12 @@ function addSashColor(i: number, button: HTMLElement, value: string): void {
     picker.on("hide", () => onSashColorPickerHide(i));
     picker.on("cancel", () => onSashColorReset(i));
 
-    pickers[`sash.${i}`] = { handle: picker, saved: value };
+    pickers[`sash.${i}`] = new PickrHandle(picker, value);
     quilt.sash.colors[i] = value;
 }
 
 function onBorderColorPickerHide(i: number): void {
-    pickers[`border.${i}`].saved = quilt.borders[i].color; // save color for next cancel button click
-    pickers[`border.${i}`].handle.applyColor(true); // save color to button, without firing a save event
+    pickers[`border.${i}`].saveColor(quilt.borders[i].color);
 }
 
 function onBorderColorChanged(i: number, value: Pickr.HSVaColor): void {
@@ -1018,7 +1022,7 @@ function addBorder(color?: string): void {
 
     // commit changes
     quilt.borders[i] = border;
-    pickers[`border.${i}`] = { handle: picker, saved: border.color };
+    pickers[`border.${i}`] = new PickrHandle(picker, border.color);
     ui.borderTemplate.parentElement.appendChild(item);
 }
 
