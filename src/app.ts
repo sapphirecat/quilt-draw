@@ -1120,7 +1120,7 @@ function onEditorMouse(ev: MouseEvent): void {
 }
 
 function onBorderSize(ev: Event): void {
-    if (!(ev instanceof InputEvent && ev.target instanceof HTMLInputElement)) {
+    if (!(ev instanceof Event && ev.target instanceof HTMLInputElement)) {
         return;
     }
 
