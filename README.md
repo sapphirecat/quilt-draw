@@ -1,4 +1,7 @@
-# ![Quilt Draw](src/logo.svg "Quilt Draw")
+<h1><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="src/logo-dk.svg">
+    <img alt="Quilt Draw" src="src/logo.svg">
+</picture></h1>
 
 Quarter-square triangle design assistant
 
