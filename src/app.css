@@ -19,6 +19,10 @@ a:hover, a:focus {
     border-bottom-style: solid;
 }
 
+.print-only {
+    display: none;
+}
+
 #logo {
     background-image: linear-gradient(transparent, transparent 38%, #85aa6c 38%, #85aa6c 43%, transparent 43%,
     transparent 48%, #85aa6c 48%, #85aa6c 53%, transparent 53%, transparent);
@@ -211,6 +215,10 @@ button.palette-select {
     margin: 1em auto auto;
 }
 
+#url-display {
+    margin: 1em auto auto;
+}
+
 .transform-title {
     grid-row: 1 / 2;
     text-align: center;
@@ -358,5 +366,9 @@ div.pickr {
 
     #transforms, #controls, footer {
         display: none;
+    }
+
+    .print-only {
+        display: block;
     }
 }
