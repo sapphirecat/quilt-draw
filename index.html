@@ -1,19 +1,21 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" prefix="og: https://ogp.me/ns#">
 <head>
     <meta charset="UTF-8">
-    <title>Quilt Draw - Designer</title>
+    <title>Quilt Draw – Designer</title>
 
     <link href="app.css" rel="stylesheet" type="text/css">
     <link href="pickr/nano.min.css" rel="stylesheet" type="text/css">
+    <meta content="Quilt Draw" property="og:title">
+    <meta content="images/social-share.png" property="og:image">
 </head>
 <body>
 
 <header id="logo">
     <h1>
         <picture>
-            <source media="(prefers-color-scheme: dark)" srcset="logo-dk.svg">
-            <img alt="Quilt Draw" src="logo.svg">
+            <source media="(prefers-color-scheme: dark)" srcset="images/logo-dk.svg">
+            <img alt="Quilt Draw" src="images/logo.svg">
         </picture>
     </h1>
 </header>
@@ -178,6 +180,10 @@
             <label class="transform" for="cell-size" id="resize">
                 <input class="resize" id="cell-size" max="12" min="2" type="range" value="4">
             </label>
+        </div>
+
+        <div class="print-only" id="url-display">
+            https://sapphirecat.github.io/quilt-draw/
         </div>
     </div>
 
