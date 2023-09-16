@@ -24,5 +24,5 @@ if [ ! -d dist ] ; then
 fi
 
 cd src
-cp -a ./*.html ./*.css pickr ./*.svg ../dist
+cp -a ./*.html ./*.css images pickr ../dist
 yarn run "${mode}"
