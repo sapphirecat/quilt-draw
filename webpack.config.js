@@ -1,17 +1,17 @@
-const Encore = require('@symfony/webpack-encore');
+const Encore = require("@symfony/webpack-encore");
 const path = require("path");
 
 // Manually configure the runtime environment if not already configured yet by the "encore" command.
 // It's useful when you use tools that rely on webpack.config.js file.
 if (!Encore.isRuntimeEnvironmentConfigured()) {
-    Encore.configureRuntimeEnvironment(process.env.NODE_ENV || 'dev');
+    Encore.configureRuntimeEnvironment(process.env.NODE_ENV || "dev");
 }
 
 Encore
     // directory where compiled assets will be stored
-    .setOutputPath('dist/build/')
+    .setOutputPath("dist/build/")
     // public path used by the web server to access the output path
-    .setPublicPath('/build')
+    .setPublicPath("/build")
     // only needed for CDN's or sub-directory deploy
     //.setManifestKeyPrefix('build/')
 
@@ -21,7 +21,7 @@ Encore
      * Each entry will result in one JavaScript file (e.g. app.js)
      * and one CSS file (e.g. app.css) if your JavaScript imports CSS.
      */
-    .addEntry('app', './src/app.ts')
+    .addEntry("app", "./src/app.ts")
 
     // enables the Symfony UX Stimulus bridge (used in assets/bootstrap.js)
     //.enableStimulusBridge('./assets/controllers.json')
@@ -48,37 +48,50 @@ Encore
     // enables hashed filenames (e.g. app.abc123.css)
     //.enableVersioning(Encore.isProduction())
 
-    /* Babel is configured externally
-    .configureBabel((config) => {
-        config.plugins.push('@babel/plugin-proposal-class-properties');
-    })
-
-    // enables @babel/preset-env polyfills
+    //*
+    .configureBabel(undefined, { includeNodeModules: ["@simonwep/pickr"] })
+    /*/
+    .configureBabel(
+        (config) => {
+            // config.plugins.push("@babel/plugin-transform-[...]");
+            // if we weren't using preset-env (see next configure method)
+        },
+        {
+            includeNodeModules: ["@simonwep/pickr"],
+        },
+    ) // */
     .configureBabelPresetEnv((config) => {
-        config.useBuiltIns = 'usage';
+        // enables @babel/preset-env polyfills
+        config.useBuiltIns = "usage";
         config.corejs = 3.22;
     })
-    // */
 
-    // enables Sass/SCSS support
     //.enableSassLoader()
-
-    // uncomment if you use TypeScript
-    .enableTypeScriptLoader()
-
-    // uncomment if you use React
     //.enableReactPreset()
+    //.autoProvidejQuery()
 
     // uncomment to get integrity="..." attributes on your script & link tags
     // requires WebpackEncoreBundle 1.4 or higher
     //.enableIntegrityHashes(Encore.isProduction())
 
-    // uncomment if you're having problems with a jQuery plugin
-    //.autoProvidejQuery()
-;
+    // uncomment if you use TypeScript
+    .enableTypeScriptLoader();
 
-// and now, shenanigans: to get the Pickr ES5 build to be packed instead of ES6 [its "main"]
+// and now, shenanigans: to give Pickr ES6 the modern plugin list
 const config = Encore.getWebpackConfig();
-config.resolve.alias["@simonwep/pickr"] = path.resolve(__dirname, 'node_modules/@simonwep/pickr/dist/pickr.es5.min.js');
+// annoying fixup for PHPStorm
+if (!config.resolve) {
+    config.resolve = {};
+} else if (!config.resolve.alias) {
+    config.resolve.alias = {};
+}
+// actual work: redirect the proposal-FOO to transform-FOO
+const fragments = ["class-properties", "object-rest-spread"];
+for (const name of fragments) {
+    config.resolve.alias[`@babel/plugin-proposal-${name}`] = path.resolve(
+        __dirname,
+        `node_modules/@babel/plugin-transform-${name}`,
+    );
+}
 
 module.exports = config;
