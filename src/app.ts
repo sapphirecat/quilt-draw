@@ -120,14 +120,26 @@ class Border {
 }
 
 class RenderData {
+    /** Width of the border, in cell halves */
     borderUnits: number;
+    /** Width (= height) of the single quilt block, in cells */
     blockCells: number;
+    /** Whether the sashing should be displayed at all */
     hasSash: boolean;
+    /** Total width of the quilt, in cells */
     cHoriz: number;
+    /** Total height of the quilt, in cells */
     cVert: number;
 
+    /**
+     * Number of pixels of a single cell, determined by callback
+     *
+     * This is also the width and height of the sashing (1 cell.)
+     */
     cellSize: number;
+    /** Per-edge border width, in pixels */
     padSize: number;
+    /** Width (= height) of a single quilt block, in pixels */
     blockSize: number;
 
     constructor(quilt: Quilt, cellSizeFn: (cH: number, cV: number) => number) {
@@ -158,6 +170,7 @@ class RenderData {
     }
 
     resizeCanvas(canvas: HTMLCanvasElement, ignoreDPR?: boolean) {
+        // calculate pixel dimensions, as px/cell * cells
         const width = this.cellSize * this.cHoriz;
         const height = this.cellSize * this.cVert;
         sizeCanvasTo(canvas, width, height, ignoreDPR);
