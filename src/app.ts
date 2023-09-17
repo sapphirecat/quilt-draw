@@ -41,6 +41,7 @@ const BORDER_LIMIT = 6; // maximum number of borders that may be added
 const COLOR_LIMIT = 12; // maximum number of colors in the palette
 
 const POINTER_EVENTS = "PointerEvent" in window;
+const POINTER_MOVE = POINTER_EVENTS ? "pointermove" : "mousemove";
 
 /**
  * Lookup table for calculating cell hits. A = top/right side, B = bottom/left;
@@ -1039,13 +1040,13 @@ function isSecondaryButton(ev: MouseEvent): boolean {
 }
 
 function editorClearMoveHandler(): void {
-    editor.removeEventListener(POINTER_EVENTS ? "pointermove" : "mousemove", onEditorMouse);
+    editor.removeEventListener(POINTER_MOVE, onEditorMouse);
     ui.moveStatus = Move.Allow;
 }
 
 function editorSetMoveHandler(): void {
     ui.moveStatus = Move.Tracking;
-    editor.addEventListener(POINTER_EVENTS ? "pointermove" : "mousemove", onEditorMouse);
+    editor.addEventListener(POINTER_MOVE, onEditorMouse);
 }
 
 function onEditorMouseRelease(ev: MouseEvent): void {
