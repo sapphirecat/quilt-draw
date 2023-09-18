@@ -59,6 +59,7 @@ const CELL_QUADRANTS = {
 
 type Color = string;
 type SashColors = [Color, Color];
+type PaintSlot = 0 | 1;
 
 enum Move {
     Ignore, // tool does not allow holding mouse down
@@ -558,8 +559,8 @@ interface UI {
     cellPx: number; // editor cell size in pixels (width & height)
     colorEvents: number; // whether clicks on Pickr elements should be passed into Pickr
     moveStatus: Move; // Whether the tool handles mousemove gracefully (Move.ALLOW)
-    selectedTool: string;
-    paintColors: Array<number>; // Primary and secondary paint colors
+    selectedTool: string; // Currently active tool ID
+    paintColors: [number, number]; // Primary and secondary paint colors
     guideColor: Color; // Current guide color, shown between squares in the block editor
     borderTemplate: HTMLTemplateElement | null; // HTML template for new borders
     colorTemplate: HTMLTemplateElement | null; // HTML template for new colors
@@ -623,17 +624,10 @@ function setChecked(id: string, checked = true): void {
  * Activate the paint tool with the selected palette entry.
  *
  * @param {number} i Palette index to be set as paint color.
- * @param {number} [slot] A slot number to set, or the primary slot (0) by default.
+ * @param {PaintSlot} [slot] A slot number to set, or the primary slot (0) by default.
  */
-function setPaintColor(i: number, slot = 0): void {
-    let paints = ui.paintColors;
-    if (slot === undefined) {
-        slot = 0;
-    } else if (slot < 0 || slot > paints.length) {
-        console.error("invalid slot; paint color %d rejected", slot);
-        return;
-    }
-
+function setPaintColor(i: number, slot: PaintSlot = 0): void {
+    const paints = ui.paintColors;
     const prev = paints[slot];
 
     paints[slot] = i;
