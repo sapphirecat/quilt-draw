@@ -563,7 +563,6 @@ interface UI {
     guideColor: Color; // Current guide color, shown between squares in the block editor
     borderTemplate: HTMLTemplateElement | null; // HTML template for new borders
     colorTemplate: HTMLTemplateElement | null; // HTML template for new colors
-    colorBox: Element | null; // Container for the color template in the page
 }
 
 const ui: UI = {
@@ -571,7 +570,6 @@ const ui: UI = {
     cellPx: 0,
     colorEvents: Click.Allow,
     colorTemplate: null,
-    colorBox: null,
     borderTemplate: null,
     guideColor: "",
     moveStatus: Move.Allow,
@@ -846,17 +844,17 @@ function initGuides(): void {
 function initColors(): void {
     // set up global data for addColor
     ui.colorTemplate = document.getElementById("color-item") as HTMLTemplateElement;
-    ui.colorBox = document.getElementById("color-items") as Element;
+    const colorBox = ui.colorTemplate.parentNode;
 
     // double-check that our requirements are fulfilled
-    if (!(ui.colorTemplate && ui.colorBox)) {
-        console.error("Invalid HTML: missing template#color-item or #colors");
+    if (!(ui.colorTemplate && colorBox instanceof Element)) {
+        console.error("Invalid HTML: missing *>template#color-item");
         return;
     }
 
     // parse the initial palette data and create Pickr UI
     // create Pickr UI for each initial palette entry
-    getPalette(ui.colorBox).forEach(addColor);
+    getPalette(colorBox).forEach(addColor);
 
     // set the radio state to reflect the selected JS color
     const colorIndex = Math.min(ui.paintColors[0], quilt.colorSet.length - 1);
@@ -945,7 +943,7 @@ function addColor(value: string): number | undefined {
     picker.on("cancel", () => onColorReset(i));
 
     // insert the whole template into the DOM
-    ui.colorBox.appendChild(item);
+    ui.colorTemplate.parentNode.appendChild(item);
 
     // save the picker for future interaction
     pickers[i] = new PickrHandle(picker, value);
