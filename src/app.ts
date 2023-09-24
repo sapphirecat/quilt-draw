@@ -73,9 +73,9 @@ enum Click {
 }
 
 enum Tool {
-    Paint = "paint",
-    Spin = "spin",
-    Flip = "flip",
+    Paint,
+    Spin,
+    Flip,
 }
 
 enum Sashes {
@@ -559,7 +559,7 @@ interface UI {
     cellPx: number; // editor cell size in pixels (width & height)
     colorEvents: number; // whether clicks on Pickr elements should be passed into Pickr
     moveStatus: Move; // Whether the tool handles mousemove gracefully (Move.ALLOW)
-    selectedTool: string; // Currently active tool ID
+    selectedTool: Tool; // Currently active tool ID
     paintColors: [number, number]; // Primary and secondary paint colors
     guideColor: Color; // Current guide color, shown between squares in the block editor
     borderTemplate: HTMLTemplateElement | null; // HTML template for new borders
@@ -576,6 +576,12 @@ const ui: UI = {
     moveStatus: Move.Allow,
     paintColors: [1, 0],
     selectedTool: Tool.Paint,
+};
+
+const toolForId: { [key: string]: Tool } = {
+    "tool-paint": Tool.Paint,
+    "tool-spin": Tool.Spin,
+    "tool-flip": Tool.Flip,
 };
 
 const view = new ViewData();
@@ -1119,7 +1125,8 @@ function onEditorMouse(ev: MouseEvent): void {
             quilt.block.flipCell(index, isSecondaryClick);
             break;
         default:
-            console.error("Unknown tool selected: %s", ui.selectedTool);
+            const t: never = ui.selectedTool;
+            console.error("Unknown tool selected: %d", t);
     }
 
     updateView();
@@ -1202,10 +1209,10 @@ function onPaletteClick(ev: MouseEvent): void {
 
 function onToolChange(ev: MouseEvent): void {
     const node = ev.target;
-    if (!(node instanceof HTMLElement)) {
+    if (!(node instanceof HTMLElement && (node.id || "") in toolForId)) {
         return;
     }
-    ui.selectedTool = node.id.replace(/^tool-/, "");
+    ui.selectedTool = toolForId[node.id];
 
     // update movement state
     if (ui.moveStatus === Move.Tracking) {
