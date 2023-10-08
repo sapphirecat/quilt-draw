@@ -3,10 +3,32 @@ set -eu
 
 cd "$(dirname "$0")"
 
+usage() {
+    cat <<EOF
+Usage: $(basename "$0") [-d]
+
+Runs the build, processing src/ to create dist/.
+
+Options (last wins):
+
+-d|--dev:  Development mode (default is production)
+-p|--prod: Production mode
+
+EOF
+    exit 0
+}
+
 mode=build
-case "${1:-.}" in
-    -d) mode=dev ;;
-esac
+while [ $# -gt 0 ] ; do
+    case "${1:-}" in
+        -d|--dev) mode=dev ;;
+        -p|--prod) mode=build ;;
+        -h|--help) usage ;;
+        --) shift ; break ;;
+        *) echo "Unrecognized argument: ${1:-}" >&2 ;;
+    esac
+    shift
+done
 
 # make sure we are probably in a reasonable place
 if [ ! -d src ] ; then
