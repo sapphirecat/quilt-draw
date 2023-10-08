@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."
 
 usage() {
     cat <<EOF
@@ -47,4 +47,9 @@ fi
 
 cd src
 cp -a ./*.html ./*.css images pickr ../dist
+cd ..
+if [ ! -d node_modules ] || [ -n "$(find package.json -newer build/.install 2>&1)" ] ; then
+    yarn install --frozen-lockfile
+    touch build/.install
+fi
 yarn run "${mode}"

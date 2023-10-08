@@ -1,0 +1,9 @@
+FROM docker.io/library/node:lts
+RUN npm install --global http-server
+ENV MODE=--dev
+ENV PORT=9001
+
+COPY . /app
+RUN ["/bin/sh", "-c", "/app/build/compile.sh $MODE"]
+EXPOSE ${PORT}
+CMD ["/bin/sh", "-c", "cd /app/dist && http-server"]

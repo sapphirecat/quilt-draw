@@ -11,26 +11,32 @@ Quarter-square triangle design assistant
 
 **[https://sapphirecat.github.io/quilt-draw/](https://sapphirecat.github.io/quilt-draw/)**
 
+This is the *recommended* option for using Quilt Draw.
+
 ## Development
 
-Initial setup:
+There are now two major options:
 
-1. Clone the repo
-2. `yarn install --frozen-lockfile` to download everything
-   (get [Yarn 1.x](https://classic.yarnpkg.com/) if you need it)
-3. `./build.sh -d` to do an initial build of the project:
-   the `-d` for development mode
+- **[Host-side mode](doc/host-side.md)** using [Node](https://nodejs.dev/),\*
+  [Yarn](https://classic.yarnpkg.com/lang/en/),\*
+  a POSIX shell (Linux/Mac/BSD), and a static HTTP server
+- **[Container mode](doc/container.md)** using [Podman](https://podman.io)\*,
+  [Docker](https://www.docker.com/)\*, or compatible
 
-NOTE: When run without options, `./build.sh` will create a release/minified
-version.
+Host-side mode requires the development environment as a whole to be installed
+on your computer, and is primarily focused on supporting Linux.
+Container mode should work on any OS with Docker-compatible tools.
 
-Ongoing development:
+In addition, container mode **does not require** a separate HTTP server to view
+the files in a Web browser, as the container provides this feature.
 
-* `yarn run dev-server`
-* Open [localhost:8080](http://localhost:8080/) in your browser
+\* Links are provided for convenience, and DO NOT represent an endorsement
+of the software or related web sites.
 
-This will only automatically pick up changes to `src/app.ts`.  Other changes
-need copied over manually.
+# Issue Tracker
+
+Report problems or request features at
+[GitHub Issues](https://github.com/sapphirecat/quilt-draw/issues/).
 
 # License
 

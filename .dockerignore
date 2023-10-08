@@ -1,0 +1,21 @@
+# auto generated or typically secret
+**/dist
+**/node_modules/
+**/vendor
+.git
+npm-debug.log
+.coverage
+.coverage.*
+.env
+.aws
+build/.install
+
+# developer-facing
+build/Dockerfile
+*.md
+.editorconfig
+.git
+.idea
+.vscode
+# if we get more swapfiles than this, we should probably fix vim first...
+**/.*.sw[a-p]
