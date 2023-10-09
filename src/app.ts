@@ -721,7 +721,7 @@ function initJs(): void {
     initQuiltBlock();
 
     // un-hide JS content
-    document.getElementById("app").className = "";
+    document.getElementById("app").classList.remove("hide");
 
     // set up semi-fluid UI
     window.addEventListener("resize", onResizeViewport);
@@ -1693,11 +1693,26 @@ function updateView(): void {
 }
 
 if (editor && preview) {
+    const err = document.getElementById("jsInitError");
     try {
         initJs();
+        err?.remove();
     } catch (e) {
-        document.getElementById("jsInitError").className = "";
-        document.getElementById("app").className = "hide";
+        console.error(e);
+
+        // if it crashed really late on, re-hide the UI that doesn't have all
+        // the necessary events
+        const app = document.getElementById("app");
+        if (app) {
+            app.classList.add("hide");
+        }
+
+        // display the error UI
+        if (err) {
+            err.classList.remove("hide");
+        } else {
+            alert("It crashed so hard, we can't even display a nice message.");
+        }
     }
 } else {
     console.error("Can't get editor and preview; doing nothing.");
