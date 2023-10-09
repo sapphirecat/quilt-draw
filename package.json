@@ -6,6 +6,7 @@
         "build": "encore production --progress"
     },
     "browserslist": [
+        "last 2 years",
         "firefox 52"
     ],
     "devDependencies": {
