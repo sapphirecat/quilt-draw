@@ -1919,6 +1919,12 @@ function updateView(): void {
     }
 }
 
+(function () {
+    const urlView = document.getElementById("url-display") as HTMLElement;
+    if (urlView && location?.href) {
+        urlView.innerText = location.href;
+    }
+})();
 if (editor && preview) {
     const err = document.getElementById("js-init-error");
     try {

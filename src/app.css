@@ -394,18 +394,17 @@ div.pickr {
 }
 
 @media print {
-    @page {
-        size: landscape;
-    }
-
-    #app {
-        grid-template-columns: 1fr 1fr;
-    }
-
-    #transforms, .controls, footer p {
+    /* UI controls */
+    .tabs-select-row, #transforms, .controls, footer p {
         display: none;
     }
 
+    /* special modifications */
+    #mini-preview {
+        display: none;
+    }
+
+    /* our URL */
     .print-only {
         display: block;
     }
