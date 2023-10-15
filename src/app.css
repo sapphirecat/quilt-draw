@@ -100,7 +100,7 @@ input[type=radio]:checked {
     background: #c0a0c0;
 }
 
-#controls input[type=range] {
+.controls input[type=range] {
     min-width: 80px;
     max-width: 160px;
     width: auto;
@@ -120,14 +120,7 @@ footer {
 
 #app {
     margin: auto;
-    display: grid;
-    grid-template-columns: 1fr 2fr 2fr;
-    grid-gap: 10px;
     max-width: 1600px;
-}
-
-#app.hide {
-    display: none;
 }
 
 .column {
@@ -136,7 +129,7 @@ footer {
     grid-gap: 0.4em;
 }
 
-#controls {
+.control-column {
     margin: 0 auto auto;
     display: grid;
     grid-template-columns: 1fr;
@@ -202,7 +195,7 @@ button.palette-select {
     border-color: #627178;
 }
 
-#editorArea {
+#editor-area {
     display: grid;
     grid-template-columns: 1fr;
     margin: 0 auto auto;
@@ -262,13 +255,18 @@ button.palette-select {
 
 #editor {
     cursor: pointer;
-    max-width: 540px;
-    max-height: 540px;
+    max-width: 630px;
+    max-height: 630px;
 }
 
 #preview {
     max-width: 600px;
     max-height: 750px;
+}
+
+#mini-preview {
+    max-width: 504px;
+    max-height: 630px;
 }
 
 
@@ -284,18 +282,58 @@ div.pickr {
     background-color: #f0f0f0;
 }
 
-#jsInitError {
+/* TODO: the rest of the tab styles, like borders & stuff */
+.tabs-select-row {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+}
+.tab-select {
+    margin: 0;
+    padding: 0.8em;
+    display: inline-block;
+    cursor: pointer;
+    border-radius: 3px 3px 0 0;
+    border: 1px solid;
+}
+.tab-select.active {
+    cursor: auto;
+    font-weight: bold;
+    border-bottom-color: transparent;
+}
+
+.tab-region.hide {
+    display: none;
+}
+.tab-region {
+    display: grid;
+    grid-gap: 10px;
+    padding-top: 1em;
+}
+#tab-block.tab-region {
+    grid-template-columns: 2fr 4fr 3fr;
+}
+#tab-quilt.tab-region {
+    grid-template-columns: 2fr 7fr;
+}
+
+/* hide the "please reload!" message if both HTML+CSS updated */
+#broken-tabs-alert {
+    display: none;
+}
+
+#js-init-error {
     line-height: 1.6;
     width: 80%;
     min-width: 300px;
     margin: 2em auto;
 }
 
-#jsInitError em {
+#js-init-error em {
     color: #660000;
 }
 
-#jsInitError p {
+#js-init-error p {
     margin: 1em 0;
 }
 
@@ -350,7 +388,7 @@ div.pickr {
         background-color: #303030;
     }
 
-    #jsInitError em {
+    #js-init-error em {
         color: #cc3333;
     }
 }
@@ -364,7 +402,7 @@ div.pickr {
         grid-template-columns: 1fr 1fr;
     }
 
-    #transforms, #controls, footer {
+    #transforms, .controls, footer p {
         display: none;
     }
 

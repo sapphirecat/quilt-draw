@@ -1,7 +1,7 @@
-/*! QuiltDraw 1.2.0 AGPL-3.0-or-later | https://github.com/sapphirecat/quilt-draw */
+/*! QuiltDraw 2.0.0 AGPL-3.0-or-later | https://github.com/sapphirecat/quilt-draw */
 /*
  * QuiltDraw - Quarter-Square Triangle Designer
- * Copyright (C) 2020 sapphirecat <devel@sapphirepaw.org>
+ * Copyright © 2020–2023 sapphirecat <devel@sapphirepaw.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -23,15 +23,23 @@ import Pickr from "@simonwep/pickr";
 
 const editor = document.getElementById("editor") as HTMLCanvasElement;
 const preview = document.getElementById("preview") as HTMLCanvasElement;
+const miniPreview = document.getElementById("mini-preview") as HTMLCanvasElement;
 const guideType = document.getElementById("guide-type") as HTMLSelectElement;
 
 let EDITOR_DRAW_WIDTH = editor.width;
-const EDITOR_MAX_WIDTH = 540; // HACK: this is specified in our CSS
+const EDITOR_MAX_WIDTH = 630; // HACK: this is specified in our CSS
 // no EDITOR_DRAW/MAX_HEIGHT: it is square.
+
 let PREVIEW_DRAW_WIDTH = preview.width;
 let PREVIEW_DRAW_HEIGHT = preview.height;
-const PREVIEW_MIN_RESIZE = 500;
-const PREVIEW_MAX_RESIZE = 1000;
+const PREVIEW_MIN_HEIGHT = 600;
+const PREVIEW_MAX_HEIGHT = 1200;
+
+let MINI_PREVIEW_DRAW_WIDTH = miniPreview.width;
+let MINI_PREVIEW_DRAW_HEIGHT = miniPreview.height;
+const MINI_PREVIEW_MIN_HEIGHT = 300;
+const MINI_PREVIEW_MAX_HEIGHT = 630;
+
 const DOWNLOAD_MIN_HEIGHT = 1400;
 
 const BLOCKS_HORIZ = 4; // number of block copies across the preview
@@ -90,9 +98,11 @@ class SashInfo {
 }
 
 class ViewData {
-    layout: string = "N/A";
     editorState: number = -1;
+    layout: string = "N/A";
     quilt: Quilt = newQuilt();
+    miniLayout: string = "N/A";
+    miniQuilt: Quilt = newQuilt();
 }
 
 class Point {
@@ -550,6 +560,91 @@ class PickrHandle {
     }
 }
 
+type CustomEventFn = (ev: CustomEvent) => void;
+
+class TabGroup {
+    current: string = "";
+    private handles: Map<string, TabHandle>;
+    private listeners: Map<string, Set<CustomEventFn>>;
+
+    constructor(public name: string) {
+        this.handles = new Map();
+        this.listeners = new Map();
+    }
+
+    addHandle(handle: TabHandle) {
+        // extra paranoia to make sure tab our initializer is invalid
+        if (handle.name === "") {
+            throw new Error("Tab name is required");
+        }
+
+        // store the handle by its name
+        this.handles.set(handle.name, handle);
+
+        // display first tab / hide subsequent tabs
+        if (this.current === "") {
+            this.select(handle.name);
+        } else {
+            handle.deactivate();
+        }
+    }
+
+    select(name: string) {
+        if (name === this.current) {
+            return;
+        }
+
+        for (const handle of this.handles.values()) {
+            handle.name === name ? handle.activate() : handle.deactivate();
+        }
+
+        const prevName = this.current;
+        this.current = name;
+        this.emit("change", { name: prevName });
+    }
+
+    addEventListener(name: string, fn: CustomEventFn) {
+        if (!this.listeners.has(name)) {
+            this.listeners.set(name, new Set([fn]));
+        } else {
+            this.listeners.get(name).add(fn);
+        }
+    }
+
+    removeEventListener(name: string, fn: CustomEventFn) {
+        this.listeners.get(name)?.delete(fn);
+    }
+
+    private emit(name: string, data: any) {
+        if (!this.listeners.has(name)) {
+            return;
+        }
+
+        for (const fn of this.listeners.get(name).values()) {
+            const ev = new CustomEvent(name, { detail: data });
+            fn(ev);
+        }
+    }
+}
+
+class TabHandle {
+    constructor(
+        public name: string,
+        public header: Element,
+        public region: Element,
+    ) {}
+
+    activate() {
+        this.header.classList.add("active");
+        this.region.classList.remove("hide");
+    }
+
+    deactivate() {
+        this.header.classList.remove("active");
+        this.region.classList.add("hide");
+    }
+}
+
 const pickers: { [key: string]: PickrHandle } = {};
 
 const quilt = newQuilt();
@@ -564,11 +659,13 @@ interface UI {
     guideColor: Color; // Current guide color, shown between squares in the block editor
     borderTemplate: HTMLTemplateElement | null; // HTML template for new borders
     colorTemplate: HTMLTemplateElement | null; // HTML template for new colors
+    tabs: TabGroup | null;
 }
 
 const ui: UI = {
     editorState: 0,
     cellPx: 0,
+    tabs: null,
     colorEvents: Click.Allow,
     colorTemplate: null,
     borderTemplate: null,
@@ -608,12 +705,12 @@ function newQuilt(): Quilt {
  * Update the display of currently-selected paint colors.
  */
 function showActiveColor(slot: number): void {
-    const view = document.getElementById(`colorActive${slot}`);
+    const view = document.getElementById(`color-active-${slot}`);
     if (view) {
         const colorIndex = ui.paintColors[slot];
         view.style.backgroundColor = quilt.colorSet[colorIndex];
     } else {
-        console.error("No element for #colorActive%d", slot);
+        console.error("No element for '#color-active-%d'", slot);
     }
 }
 
@@ -719,6 +816,12 @@ function initJs(): void {
 
     // generate a random initial quilt
     initQuiltBlock();
+
+    const tabs = initTabs();
+    if (tabs) {
+        tabs.addEventListener("change", onTabChange);
+        ui.tabs = tabs;
+    }
 
     // un-hide JS content
     document.getElementById("app").classList.remove("hide");
@@ -867,6 +970,49 @@ function initColors(): void {
 
     // set up "New Color" button
     document.getElementById("color-new").addEventListener("click", createColor);
+}
+
+function initTabs(): undefined | TabGroup {
+    // The app structure is hard-coded, because I want to get done soon.
+    const root = document.getElementById("tabs-app");
+    const tabRow = root?.querySelector(":scope > .tabs-select-row");
+    if (!(root && tabRow)) {
+        return;
+    }
+
+    const tabGroups = new TabGroup(root.id);
+    const regions = new Map<string, Element>();
+    // pre-process the regions so we don't have O(N^2) lookups
+    for (const region of root.querySelectorAll(":scope > .tab-region[data-tab-name]")) {
+        regions.set(region.getAttribute("data-tab-name"), region);
+    }
+    // process the tabs, that select the regions
+    for (const tab of tabRow.querySelectorAll(":scope > .tab-select[data-tab-name]")) {
+        const name = tab.getAttribute("data-tab-name");
+        if (!regions.has(name)) {
+            console.error("Tab missing related region in %s: %s", root.id, name);
+            continue;
+        }
+
+        tabGroups.addHandle(new TabHandle(name, tab, regions.get(name)));
+    }
+
+    // set event handler on tabRow
+    tabRow.addEventListener("click", (ev) => {
+        const e = ev.target;
+        ev.preventDefault();
+
+        if (!(e instanceof HTMLElement) || e.classList.contains("active")) {
+            return;
+        }
+
+        const name = e.getAttribute("data-tab-name");
+        if (name) {
+            tabGroups.select(name);
+        }
+    });
+
+    return tabGroups;
 }
 
 function createColor(): void {
@@ -1036,6 +1182,10 @@ function addBorder(color?: string): void {
     quilt.borders[i] = border;
     pickers[`border.${i}`] = new PickrHandle(picker, border.color);
     ui.borderTemplate.parentElement.appendChild(item);
+}
+
+function onTabChange(_ev: CustomEvent) {
+    updateView();
 }
 
 function isButtonRelevant(ev: MouseEvent): boolean {
@@ -1301,35 +1451,48 @@ function onResizeInput(ev: MouseEvent): void {
     updateView();
 }
 
+function clamp(n: number, lo: number, hi: number): number {
+    return Math.min(hi, Math.max(n, lo));
+}
+
+function fitRectH(boundW: number, boundH: number, aspect: number, modPxH: number): number {
+    const modPxW = Math.floor(modPxH * aspect);
+
+    // shrink the bounds to wrap the quantum of space the caller wanted
+    boundW -= boundW % modPxW;
+    boundH -= boundH % modPxH;
+
+    // calculate the width based purely on the actual height
+    const altW = Math.floor(boundH * aspect);
+    const finalW = Math.min(boundW, altW);
+
+    return Math.ceil(finalW / aspect);
+}
+
 function onResizeViewport(): void {
-    const width = Math.min(window.innerWidth, 1600); // HACK: takes a max-width into account
+    // HACK: Takes a max-width and grid (3 columns = 2*10px gap) into account
+    const width = Math.min(window.innerWidth, 1600) - 20;
     const height = window.innerHeight;
+    const previewAspect = BLOCKS_HORIZ / BLOCKS_VERT;
+    const modPxH = 30;
+    let gridWidth: number;
 
-    // determine the preview's natural width
-    let gridWidth = (width - 20) * 0.4; // 2fr of a total of 5fr w/ 10px gaps
-    gridWidth -= gridWidth % 30;
+    // determine the editor's natural size [4fr/9fr]
+    gridWidth = width * (4 / 9);
+    let editorH = fitRectH(gridWidth, height, 1.0, 12);
+    EDITOR_DRAW_WIDTH = Math.min(editorH, EDITOR_MAX_WIDTH);
 
-    // determine the width of the preview if it's height-limited
-    let gridHeight = height - 24;
-    gridHeight -= gridHeight % 24;
-    const heightWidth = Math.floor(gridHeight * (BLOCKS_HORIZ / BLOCKS_VERT));
+    // determine the mini preview's natural size [width/3 === *3fr/9fr]
+    gridWidth = width / 3;
+    const miniH = fitRectH(gridWidth, height, previewAspect, modPxH);
+    MINI_PREVIEW_DRAW_HEIGHT = clamp(miniH, MINI_PREVIEW_MIN_HEIGHT, MINI_PREVIEW_MAX_HEIGHT);
+    MINI_PREVIEW_DRAW_WIDTH = Math.floor(MINI_PREVIEW_DRAW_HEIGHT * previewAspect);
 
-    // now decide which of those gets used, then clamp it to our limits
-    const previewHeight = Math.ceil(
-        Math.min(gridWidth, heightWidth) * (BLOCKS_VERT / BLOCKS_HORIZ),
-    );
-    PREVIEW_DRAW_HEIGHT = Math.min(Math.max(previewHeight, PREVIEW_MIN_RESIZE), PREVIEW_MAX_RESIZE);
-    // calculate the width based on the final height
-    PREVIEW_DRAW_WIDTH = Math.floor(PREVIEW_DRAW_HEIGHT * (BLOCKS_HORIZ / BLOCKS_VERT));
-
-    // limit the editor width to the preview width, to the next lower 60; this
-    // maximizes usable space for 2-6 cell blocks, expected to be common.
-    EDITOR_DRAW_WIDTH = Math.max(360, PREVIEW_DRAW_WIDTH - 24);
-    if (EDITOR_DRAW_WIDTH > EDITOR_MAX_WIDTH) {
-        EDITOR_DRAW_WIDTH = EDITOR_MAX_WIDTH;
-    } else {
-        EDITOR_DRAW_WIDTH -= EDITOR_DRAW_WIDTH % 60;
-    }
+    // determine the full preview's natural size [7fr/9fr, usually height limited]
+    gridWidth = width * (7 / 9);
+    const previewH = fitRectH(gridWidth, height, previewAspect, modPxH);
+    PREVIEW_DRAW_HEIGHT = clamp(previewH, PREVIEW_MIN_HEIGHT, PREVIEW_MAX_HEIGHT);
+    PREVIEW_DRAW_WIDTH = Math.floor(PREVIEW_DRAW_HEIGHT * previewAspect);
 
     updateView();
 }
@@ -1662,6 +1825,66 @@ function updatePreview(quilt: Quilt): void {
     ctx.restore();
 }
 
+// TODO: REFACTOR! this is literally updatePreview() duplicated
+function updateMiniPreview(quilt: Quilt): void {
+    // shorten some names
+    const sash = quilt.sash;
+
+    // get initial render data
+    const r = new RenderData(
+        quilt,
+        (cH, cV) =>
+            2 *
+            Math.floor(Math.min(MINI_PREVIEW_DRAW_WIDTH / cH, MINI_PREVIEW_DRAW_HEIGHT / cV) / 2),
+    );
+    const cellSize = r.cellSize;
+
+    // resize the canvas to the draw dimensions if needed
+    const layout = `${cellSize},${r.cHoriz},${r.cVert},${r.hasSash ? "sash" : "noSash"}`;
+    let fullRedraw = layout !== view.miniLayout;
+    if (fullRedraw) {
+        view.miniLayout = layout;
+        r.resizeCanvas(miniPreview);
+        // reset "last drawn" to an empty quilt, so that we redraw everything
+        view.miniQuilt = newQuilt();
+    } else if (
+        !view.miniQuilt.colorSet.equals(quilt.colorSet) ||
+        (r.hasSash && !arrayEquals(view.miniQuilt.sash.colors, quilt.sash.colors))
+    ) {
+        // if the palette has changed, redraw everything, but without resizing
+        fullRedraw = true;
+    }
+    const viewQuilt = view.miniQuilt;
+
+    // start drawing
+    const ctx = miniPreview.getContext("2d", { alpha: false });
+    const DPR = miniPreview.width / (cellSize * r.cHoriz);
+    ctx.save();
+    ctx.scale(DPR, DPR);
+    const canvasSize = new Rect(cellSize * r.cHoriz, cellSize * r.cVert);
+
+    // draw changes to borders
+    drawPreviewBorders(fullRedraw ? null : viewQuilt.borders, ctx, r, canvasSize);
+    viewQuilt.borders = deepCopy(quilt.borders);
+
+    // draw main sashing, if applicable
+    if (r.hasSash) {
+        drawPreviewSash(fullRedraw ? null : viewQuilt.sash, ctx, sash, r, canvasSize);
+        viewQuilt.sash = deepCopy(sash);
+    } else if (viewQuilt.sash.levels !== Sashes.None) {
+        viewQuilt.sash = new SashInfo();
+    }
+
+    // draw the 5x4 blocks, inset by the half-border-width padSize, and offset
+    // by sashing if specified
+    if (fullRedraw || ui.editorState !== view.editorState) {
+        drawPreviewBlocks(quilt.block.getScaledSource(r.blockSize), ctx, r);
+        view.editorState = ui.editorState;
+    }
+
+    ctx.restore();
+}
+
 /**
  * Draw a large-size preview and return the canvas
  */
@@ -1688,12 +1911,16 @@ function renderDownload(quilt: Quilt): HTMLCanvasElement {
 }
 
 function updateView(): void {
-    updateEditor(quilt.colorSet, quilt.block);
-    updatePreview(quilt);
+    if (ui.tabs.current === "quilt") {
+        updatePreview(quilt);
+    } else {
+        updateEditor(quilt.colorSet, quilt.block);
+        updateMiniPreview(quilt);
+    }
 }
 
 if (editor && preview) {
-    const err = document.getElementById("jsInitError");
+    const err = document.getElementById("js-init-error");
     try {
         initJs();
         err?.remove();
