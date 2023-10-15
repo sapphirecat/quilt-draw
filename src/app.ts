@@ -570,6 +570,25 @@ class TabGroup {
     constructor(public name: string) {
         this.handles = new Map();
         this.listeners = new Map();
+        this.themeInit();
+    }
+
+    private themeInit() {
+        if (typeof window.matchMedia !== "function") {
+            return;
+        }
+
+        const mm = window.matchMedia("(prefers-color-scheme: dark)");
+        if (typeof mm.addEventListener === "function") {
+            const onChange = (_ev: MediaQueryListEvent) => {
+                // const isDark: boolean = ev.matches;
+                if (this.current !== "") {
+                    this.handles.get(this.current).update();
+                }
+            };
+
+            mm.addEventListener("change", onChange);
+        }
     }
 
     addHandle(handle: TabHandle) {
@@ -637,11 +656,25 @@ class TabHandle {
     activate() {
         this.header.classList.add("active");
         this.region.classList.remove("hide");
+        this.update();
     }
 
     deactivate() {
         this.header.classList.remove("active");
         this.region.classList.add("hide");
+        if (this.header instanceof HTMLElement) {
+            this.header.style.borderBottomColor = "transparent";
+        }
+    }
+
+    update() {
+        if (!(this.header instanceof HTMLElement)) {
+            return;
+        }
+
+        // i guess we MUST know which element actually has a style set
+        const src = getComputedStyle(document.body);
+        this.header.style.borderBottomColor = src.backgroundColor;
     }
 }
 

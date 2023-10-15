@@ -282,15 +282,15 @@ div.pickr {
     background-color: #f0f0f0;
 }
 
-/* TODO: the rest of the tab styles, like borders & stuff */
 .tabs-select-row {
     list-style-type: none;
     margin: 0;
     padding: 0;
+    border-bottom: 1px solid;
 }
 .tab-select {
-    margin: 0;
-    padding: 0.8em;
+    margin: 0 0 -1px 5px;
+    padding: 0.4em 0.8em;
     display: inline-block;
     cursor: pointer;
     border-radius: 3px 3px 0 0;
@@ -298,7 +298,6 @@ div.pickr {
 }
 .tab-select.active {
     cursor: auto;
-    font-weight: bold;
     border-bottom-color: transparent;
 }
 
