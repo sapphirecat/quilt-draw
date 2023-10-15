@@ -20,8 +20,8 @@ There are now two major options:
 - **[Host-side mode](doc/host-side.md)** using [Node](https://nodejs.dev/),\*
   [Yarn](https://classic.yarnpkg.com/lang/en/),\*
   a POSIX shell (Linux/Mac/BSD), and a static HTTP server
-- **[Container mode](doc/container.md)** using [Podman](https://podman.io)\*,
-  [Docker](https://www.docker.com/)\*, or compatible
+- **[Container mode](doc/container.md)** using [Podman](https://podman.io),\*
+  [Docker](https://www.docker.com/),\* or compatible
 
 Host-side mode requires the development environment as a whole to be installed
 on your computer, and is primarily focused on supporting Linux.
