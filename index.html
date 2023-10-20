@@ -20,25 +20,35 @@
     </h1>
 </header>
 
-<noscript>
+<section id="requirements">
     <h1>Welcome!</h1>
 
     <p>It looks like you do not have JavaScript available and enabled.
-        In order to use our app, you'll need to allow JavaScript for our domain:</p>
+        In order to use our app, you'll need to allow JavaScript and
+        <code>&lt;canvas&gt;</code> for our domain:</p>
 
     <ul>
         <li>sapphirecat.github.io</li>
     </ul>
 
     <canvas height="1" id="detect" width="1">
-        <p>You will also need full support for <code>&lt;canvas&gt;</code>,
-            or to enable it for our domain.</p>
+        <p>Hint: You currently do not have <code>&lt;canvas&gt;</code>.</p>
     </canvas>
 
     <p>If these requirements don't work for you, try the <a
         href="https://www.freequiltpatterns.info/custom/quilt-pattern-playground/quilt-pattern-playground.php"
-    >Quilter Pattern Playground</a> instead!</p>
-</noscript>
+    >Quilter Pattern Playground</a> instead! Please note that this site <strong>is not
+        affiliated</strong> with Quilt Draw, and may have similar requirements.</p>
+</section>
+<script>
+    (function(e) {
+        // we want basically *any* JS engine since IE6 to work with this one, so
+        // take the long and convoluted path, instead of e.remove()…
+        if (e && e.parentNode) {
+            e.parentNode.removeChild(e);
+        }
+    })(document.getElementById("requirements"));
+</script>
 
 <div class="hide" id="jsInitError">
     <p>
