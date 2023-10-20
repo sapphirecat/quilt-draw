@@ -13,6 +13,13 @@ Quarter-square triangle design assistant
 
 This is the *recommended* option for using Quilt Draw.
 
+Browsers supported:
+[Firefox 52](https://archive.org/details/firefox-for-winXP-Vista)
+([why?](https://sapphirecat.github.io/2023/236-quilt-draw-xp-vista/)),
+[Pale Moon](https://www.palemoon.org/)
+([why?](https://sapphirecat.github.io/2022/266-quilt-draw-pale-moon/)),
+and mainstream modern browsers.
+
 ## Development
 
 There are now two major options:
