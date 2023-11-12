@@ -101,8 +101,6 @@ class ViewData {
     editorState: number = -1;
     layout: string = "N/A";
     quilt: Quilt = newQuilt();
-    miniLayout: string = "N/A";
-    miniQuilt: Quilt = newQuilt();
 }
 
 class Point {
@@ -131,6 +129,8 @@ class Border {
 }
 
 class RenderData {
+    /** Quilt data being rendered */
+    quilt: Quilt;
     /** Width of the border, in cell halves */
     borderUnits: number;
     /** Width (= height) of the single quilt block, in cells */
@@ -154,6 +154,7 @@ class RenderData {
     blockSize: number;
 
     constructor(quilt: Quilt, cellSizeFn: (cH: number, cV: number) => number) {
+        this.quilt = quilt;
         this.hasSash = quilt.sash.levels !== Sashes.None;
         this.blockCells = quilt.block.getSize();
 
@@ -715,6 +716,7 @@ const toolForId: { [key: string]: Tool } = {
 };
 
 const view = new ViewData();
+const miniView = new ViewData();
 
 function arrayEquals(a: any[], b: any[]): boolean {
     if (a.length !== b.length) {
@@ -1801,121 +1803,87 @@ function drawPreviewSash(
     }
 }
 
-function updatePreview(quilt: Quilt): void {
-    // shorten some names
-    const sash = quilt.sash;
-
-    // get initial render data
-    const r = new RenderData(
-        quilt,
-        (cH, cV) => 2 * Math.floor(Math.min(PREVIEW_DRAW_WIDTH / cH, PREVIEW_DRAW_HEIGHT / cV) / 2),
-    );
-    const cellSize = r.cellSize;
+/**
+ * Draw a quilt to a canvas for on-screen display.
+ *
+ * @param canvas Canvas to draw into
+ * @param r Render data for the current quilt data
+ * @param v Visible quilt information (last render; updated to match this render)
+ */
+function drawPreviewOnScreen(canvas: HTMLCanvasElement, r: RenderData, v: ViewData): void {
+    // extract some information we will reference a lot
+    const cellSize = r.cellSize,
+        quilt = r.quilt,
+        visQuilt = v.quilt, // visible quilt on-screen
+        sash = quilt.sash;
 
     // resize the canvas to the draw dimensions if needed
     const layout = `${cellSize},${r.cHoriz},${r.cVert},${r.hasSash ? "sash" : "noSash"}`;
-    let fullRedraw = layout !== view.layout;
+    let fullRedraw = layout !== v.layout;
     if (fullRedraw) {
-        view.layout = layout;
-        r.resizeCanvas(preview);
+        v.layout = layout;
+        r.resizeCanvas(canvas);
         // reset "last drawn" to an empty quilt, so that we redraw everything
-        view.quilt = newQuilt();
+        v.quilt = newQuilt();
     } else if (
-        !view.quilt.colorSet.equals(quilt.colorSet) ||
-        (r.hasSash && !arrayEquals(view.quilt.sash.colors, quilt.sash.colors))
+        !v.quilt.colorSet.equals(quilt.colorSet) ||
+        (r.hasSash && !arrayEquals(v.quilt.sash.colors, quilt.sash.colors))
     ) {
         // if the palette has changed, redraw everything, but without resizing
         fullRedraw = true;
     }
-    const viewQuilt = view.quilt;
 
     // start drawing
-    const ctx = preview.getContext("2d", { alpha: false });
-    const DPR = preview.width / (cellSize * r.cHoriz);
+    const ctx = canvas.getContext("2d", { alpha: false });
+    const DPR = canvas.width / (cellSize * r.cHoriz);
+
     ctx.save();
     ctx.scale(DPR, DPR);
     const canvasSize = new Rect(cellSize * r.cHoriz, cellSize * r.cVert);
 
     // draw changes to borders
-    drawPreviewBorders(fullRedraw ? null : viewQuilt.borders, ctx, r, canvasSize);
-    viewQuilt.borders = deepCopy(quilt.borders);
+    drawPreviewBorders(fullRedraw ? null : visQuilt.borders, ctx, r, canvasSize);
+    visQuilt.borders = deepCopy(quilt.borders);
 
     // draw main sashing, if applicable
     if (r.hasSash) {
-        drawPreviewSash(fullRedraw ? null : viewQuilt.sash, ctx, sash, r, canvasSize);
-        viewQuilt.sash = deepCopy(sash);
-    } else if (viewQuilt.sash.levels !== Sashes.None) {
-        viewQuilt.sash = new SashInfo();
+        drawPreviewSash(fullRedraw ? null : visQuilt.sash, ctx, sash, r, canvasSize);
+        visQuilt.sash = deepCopy(sash);
+    } else if (visQuilt.sash.levels !== Sashes.None) {
+        visQuilt.sash = new SashInfo();
     }
 
     // draw the 5x4 blocks, inset by the half-border-width padSize, and offset
     // by sashing if specified
-    if (fullRedraw || ui.editorState !== view.editorState) {
+    if (fullRedraw || ui.editorState !== v.editorState) {
         drawPreviewBlocks(quilt.block.getScaledSource(r.blockSize), ctx, r);
-        view.editorState = ui.editorState;
+        v.editorState = ui.editorState;
     }
 
     ctx.restore();
 }
 
-// TODO: REFACTOR! this is literally updatePreview() duplicated
-function updateMiniPreview(quilt: Quilt): void {
-    // shorten some names
-    const sash = quilt.sash;
+function previewCellSizeFn(drawW: number, drawH: number) {
+    return (cH: number, cV: number) => {
+        const minDimension = Math.min(drawW / cH, drawH / cV);
 
-    // get initial render data
+        return 2 * Math.floor(minDimension / 2);
+    };
+}
+
+function updatePreview(quilt: Quilt): void {
+    const r = new RenderData(quilt, previewCellSizeFn(PREVIEW_DRAW_WIDTH, PREVIEW_DRAW_HEIGHT));
+
+    drawPreviewOnScreen(preview, r, view);
+}
+
+function updateMiniPreview(quilt: Quilt): void {
     const r = new RenderData(
         quilt,
-        (cH, cV) =>
-            2 *
-            Math.floor(Math.min(MINI_PREVIEW_DRAW_WIDTH / cH, MINI_PREVIEW_DRAW_HEIGHT / cV) / 2),
+        previewCellSizeFn(MINI_PREVIEW_DRAW_WIDTH, MINI_PREVIEW_DRAW_HEIGHT),
     );
-    const cellSize = r.cellSize;
 
-    // resize the canvas to the draw dimensions if needed
-    const layout = `${cellSize},${r.cHoriz},${r.cVert},${r.hasSash ? "sash" : "noSash"}`;
-    let fullRedraw = layout !== view.miniLayout;
-    if (fullRedraw) {
-        view.miniLayout = layout;
-        r.resizeCanvas(miniPreview);
-        // reset "last drawn" to an empty quilt, so that we redraw everything
-        view.miniQuilt = newQuilt();
-    } else if (
-        !view.miniQuilt.colorSet.equals(quilt.colorSet) ||
-        (r.hasSash && !arrayEquals(view.miniQuilt.sash.colors, quilt.sash.colors))
-    ) {
-        // if the palette has changed, redraw everything, but without resizing
-        fullRedraw = true;
-    }
-    const viewQuilt = view.miniQuilt;
-
-    // start drawing
-    const ctx = miniPreview.getContext("2d", { alpha: false });
-    const DPR = miniPreview.width / (cellSize * r.cHoriz);
-    ctx.save();
-    ctx.scale(DPR, DPR);
-    const canvasSize = new Rect(cellSize * r.cHoriz, cellSize * r.cVert);
-
-    // draw changes to borders
-    drawPreviewBorders(fullRedraw ? null : viewQuilt.borders, ctx, r, canvasSize);
-    viewQuilt.borders = deepCopy(quilt.borders);
-
-    // draw main sashing, if applicable
-    if (r.hasSash) {
-        drawPreviewSash(fullRedraw ? null : viewQuilt.sash, ctx, sash, r, canvasSize);
-        viewQuilt.sash = deepCopy(sash);
-    } else if (viewQuilt.sash.levels !== Sashes.None) {
-        viewQuilt.sash = new SashInfo();
-    }
-
-    // draw the 5x4 blocks, inset by the half-border-width padSize, and offset
-    // by sashing if specified
-    if (fullRedraw || ui.editorState !== view.editorState) {
-        drawPreviewBlocks(quilt.block.getScaledSource(r.blockSize), ctx, r);
-        view.editorState = ui.editorState;
-    }
-
-    ctx.restore();
+    drawPreviewOnScreen(miniPreview, r, miniView);
 }
 
 /**
