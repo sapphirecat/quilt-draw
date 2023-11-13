@@ -152,6 +152,8 @@ class RenderData {
     padSize: number;
     /** Width (= height) of a single quilt block, in pixels */
     blockSize: number;
+    /** Size of the entire canvas, in pixels */
+    canvasSize: Rect;
 
     constructor(quilt: Quilt, cellSizeFn: (cH: number, cV: number) => number) {
         this.quilt = quilt;
@@ -179,13 +181,28 @@ class RenderData {
         this.cellSize = cellSizeFn(this.cHoriz, this.cVert);
         this.padSize = (this.cellSize * this.borderUnits) / 2; // half on each side
         this.blockSize = this.cellSize * this.blockCells;
+
+        // calculate pixel dimensions, as px/cell * cells
+        this.canvasSize = new Rect(this.cellSize * this.cHoriz, this.cellSize * this.cVert);
     }
 
-    resizeCanvas(canvas: HTMLCanvasElement, ignoreDPR?: boolean) {
-        // calculate pixel dimensions, as px/cell * cells
-        const width = this.cellSize * this.cHoriz;
-        const height = this.cellSize * this.cVert;
-        sizeCanvasTo(canvas, width, height, ignoreDPR);
+    /**
+     * Resize the canvas to match the desired dimensions from the RenderData.
+     * @param canvas Canvas to be resized
+     * @param ignoreDPR Whether to ignore the device pixel ratio (for downloads)
+     */
+    resizeCanvas(canvas: HTMLCanvasElement, ignoreDPR?: boolean): void {
+        sizeCanvasTo(canvas, this.canvasSize.w, this.canvasSize.h, ignoreDPR);
+    }
+
+    /**
+     * Get the effective pixel ratio of a canvas after resizeCanvas()
+     * @param canvas Canvas that has been resized
+     * @return Device pixel ratio (float, probably >=1.0)
+     */
+    getDPR(canvas: HTMLCanvasElement): number {
+        // device-space width ÷ logical width
+        return this.canvasSize.w ? canvas.width / this.canvasSize.w : 1;
     }
 }
 
@@ -1709,12 +1726,11 @@ function drawPreviewBorders(
     prevState: Array<Border> | null,
     ctx: CanvasRenderingContext2D,
     r: RenderData,
-    canvasSize: Rect,
 ): void {
     let oX = 0;
     let oY = 0;
-    let w = canvasSize.w;
-    let h = canvasSize.h;
+    let w = r.canvasSize.w;
+    let h = r.canvasSize.h;
 
     const borders = quilt.borders;
     for (let i = 0; i < borders.length; i++) {
@@ -1757,7 +1773,6 @@ function drawPreviewSash(
     ctx: CanvasRenderingContext2D,
     sash: SashInfo,
     r: RenderData,
-    canvasSize: Rect,
 ): void {
     if (sash.levels === Sashes.None) {
         return;
@@ -1776,11 +1791,11 @@ function drawPreviewSash(
     if (drawMain) {
         ctx.fillStyle = sash.colors[0];
         for (let col = 1, oX = padStepSize; col < BLOCKS_HORIZ; col++) {
-            ctx.fillRect(oX - sashSpacing, padSize, sashSpacing, canvasSize.h - borderSize);
+            ctx.fillRect(oX - sashSpacing, padSize, sashSpacing, r.canvasSize.h - borderSize);
             oX += stepSize;
         }
         for (let row = 1, oY = padStepSize; row < BLOCKS_VERT; row++) {
-            ctx.fillRect(padSize, oY - sashSpacing, canvasSize.w - borderSize, sashSpacing);
+            ctx.fillRect(padSize, oY - sashSpacing, r.canvasSize.w - borderSize, sashSpacing);
             oY += stepSize;
         }
     }
@@ -1835,19 +1850,18 @@ function drawPreviewOnScreen(canvas: HTMLCanvasElement, r: RenderData, v: ViewDa
 
     // start drawing
     const ctx = canvas.getContext("2d", { alpha: false });
-    const DPR = canvas.width / (cellSize * r.cHoriz);
+    const DPR = r.getDPR(canvas);
 
     ctx.save();
     ctx.scale(DPR, DPR);
-    const canvasSize = new Rect(cellSize * r.cHoriz, cellSize * r.cVert);
 
     // draw changes to borders
-    drawPreviewBorders(fullRedraw ? null : visQuilt.borders, ctx, r, canvasSize);
+    drawPreviewBorders(fullRedraw ? null : visQuilt.borders, ctx, r);
     visQuilt.borders = deepCopy(quilt.borders);
 
     // draw main sashing, if applicable
     if (r.hasSash) {
-        drawPreviewSash(fullRedraw ? null : visQuilt.sash, ctx, sash, r, canvasSize);
+        drawPreviewSash(fullRedraw ? null : visQuilt.sash, ctx, sash, r);
         visQuilt.sash = deepCopy(sash);
     } else if (visQuilt.sash.levels !== Sashes.None) {
         visQuilt.sash = new SashInfo();
@@ -1894,19 +1908,18 @@ function renderDownload(quilt: Quilt): HTMLCanvasElement {
     const canvas = document.createElement("canvas");
 
     // calculate draw dimensions
-    const s = new RenderData(quilt, (_cH, cV) =>
+    const r = new RenderData(quilt, (_cH, cV) =>
         Math.max(12, 2 * Math.ceil(DOWNLOAD_MIN_HEIGHT / cV / 2)),
     );
-    s.resizeCanvas(canvas, true);
+    r.resizeCanvas(canvas, true);
 
     // start drawing
     const ctx = canvas.getContext("2d", { alpha: false });
-    const canvasSize = new Rect(canvas.width, canvas.height);
-    drawPreviewBorders(null, ctx, s, canvasSize);
-    if (s.hasSash) {
-        drawPreviewSash(null, ctx, quilt.sash, s, canvasSize);
+    drawPreviewBorders(null, ctx, r);
+    if (r.hasSash) {
+        drawPreviewSash(null, ctx, quilt.sash, r);
     }
-    drawPreviewBlocks(quilt.block.getScaledSource(s.blockSize), ctx, s);
+    drawPreviewBlocks(quilt.block.getScaledSource(r.blockSize), ctx, r);
 
     return canvas;
 }
