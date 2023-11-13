@@ -115,6 +115,14 @@ class Rect {
         readonly w: number,
         readonly h: number,
     ) {}
+
+    scale(m: number): Rect {
+        return new Rect(m * this.w, m * this.h);
+    }
+
+    toString(): string {
+        return `${this.w}×${this.h}`;
+    }
 }
 
 class Border {
@@ -137,10 +145,8 @@ class RenderData {
     blockCells: number;
     /** Whether the sashing should be displayed at all */
     hasSash: boolean;
-    /** Total width of the quilt, in cells */
-    cHoriz: number;
-    /** Total height of the quilt, in cells */
-    cVert: number;
+    /** Total width/height of the quilt, in cells */
+    cells: Rect;
 
     /**
      * Number of pixels of a single cell, determined by callback
@@ -155,7 +161,7 @@ class RenderData {
     /** Size of the entire canvas, in pixels */
     canvasSize: Rect;
 
-    constructor(quilt: Quilt, cellSizeFn: (cH: number, cV: number) => number) {
+    constructor(quilt: Quilt, cellSizeFn: (cells: Rect) => number) {
         this.quilt = quilt;
         this.hasSash = quilt.sash.levels !== Sashes.None;
         this.blockCells = quilt.block.getSize();
@@ -172,18 +178,18 @@ class RenderData {
         // border: borderUnits=1 means 1/2 cell * 2 sides.  Sashing goes between blocks only, and it
         // is a fixed 1-cell width for the moment.  Thus, it adds blocks-1 cells to each dimension
         // when present.
-        this.cHoriz =
-            this.blockCells * BLOCKS_HORIZ + borderUnits + (this.hasSash ? BLOCKS_HORIZ - 1 : 0);
-        this.cVert =
-            this.blockCells * BLOCKS_VERT + borderUnits + (this.hasSash ? BLOCKS_VERT - 1 : 0);
+        this.cells = new Rect(
+            this.blockCells * BLOCKS_HORIZ + borderUnits + (this.hasSash ? BLOCKS_HORIZ - 1 : 0),
+            this.blockCells * BLOCKS_VERT + borderUnits + (this.hasSash ? BLOCKS_VERT - 1 : 0),
+        );
 
         // okay, now that we have cell dimensions, call the cellSizeFn to get pixel information
-        this.cellSize = cellSizeFn(this.cHoriz, this.cVert);
+        this.cellSize = cellSizeFn(this.cells);
         this.padSize = (this.cellSize * this.borderUnits) / 2; // half on each side
         this.blockSize = this.cellSize * this.blockCells;
 
         // calculate pixel dimensions, as px/cell * cells
-        this.canvasSize = new Rect(this.cellSize * this.cHoriz, this.cellSize * this.cVert);
+        this.canvasSize = this.cells.scale(this.cellSize);
     }
 
     /**
@@ -1833,7 +1839,7 @@ function drawPreviewOnScreen(canvas: HTMLCanvasElement, r: RenderData, v: ViewDa
         sash = quilt.sash;
 
     // resize the canvas to the draw dimensions if needed
-    const layout = `${cellSize},${r.cHoriz},${r.cVert},${r.hasSash ? "sash" : "noSash"}`;
+    const layout = `${cellSize},${r.cells},${r.hasSash ? "sash" : "noSash"}`;
     let fullRedraw = layout !== v.layout;
     if (fullRedraw) {
         v.layout = layout;
@@ -1877,9 +1883,9 @@ function drawPreviewOnScreen(canvas: HTMLCanvasElement, r: RenderData, v: ViewDa
     ctx.restore();
 }
 
-function previewCellSizeFn(drawW: number, drawH: number) {
-    return (cH: number, cV: number) => {
-        const minDimension = Math.min(drawW / cH, drawH / cV);
+function previewCellSizeFn(drawW: number, drawH: number): (cells: Rect) => number {
+    return (cells: Rect) => {
+        const minDimension = Math.min(drawW / cells.w, drawH / cells.h);
 
         return 2 * Math.floor(minDimension / 2);
     };
@@ -1908,8 +1914,8 @@ function renderDownload(quilt: Quilt): HTMLCanvasElement {
     const canvas = document.createElement("canvas");
 
     // calculate draw dimensions
-    const r = new RenderData(quilt, (_cH, cV) =>
-        Math.max(12, 2 * Math.ceil(DOWNLOAD_MIN_HEIGHT / cV / 2)),
+    const r = new RenderData(quilt, (cells) =>
+        Math.max(12, 2 * Math.ceil(DOWNLOAD_MIN_HEIGHT / cells.h / 2)),
     );
     r.resizeCanvas(canvas, true);
 
