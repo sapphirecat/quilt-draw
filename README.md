@@ -5,6 +5,13 @@
 
 Quarter-square triangle design assistant
 
+# Repository Administrivia
+
+The practice of PGP-signing commits to this repository will be reviewed during 2024.
+The author will continue to sign commits until **at least**
+2024-03-31
+12:00:00 +0000.
+
 # Releases
 
 ## Stable
