@@ -100,7 +100,7 @@ class SashInfo {
 class ViewData {
     editorState: number = -1;
     layout: string = "N/A";
-    quilt: Quilt = newQuilt();
+    quilt: Quilt = new Quilt();
 }
 
 class Point {
@@ -557,12 +557,17 @@ class BlockInfo {
 }
 
 class Quilt {
-    constructor(
-        public block: BlockInfo,
-        public borders: Array<Border>,
-        public colorSet: Palette,
-        public sash: SashInfo,
-    ) {}
+    block: BlockInfo;
+    borders: Array<Border>;
+    colorSet: Palette;
+    sash: SashInfo;
+
+    constructor() {
+        this.block = new BlockInfo(new CellList());
+        this.borders = [];
+        this.colorSet = new Palette();
+        this.sash = new SashInfo();
+    }
 }
 
 class PickrHandle {
@@ -704,7 +709,7 @@ class TabHandle {
 
 const pickers: { [key: string]: PickrHandle } = {};
 
-const quilt = newQuilt();
+const quilt = new Quilt();
 
 interface UI {
     editorState: number; // generation of the editor, incremented on changes
@@ -753,10 +758,6 @@ function arrayEquals(a: any[], b: any[]): boolean {
     }
 
     return true;
-}
-
-function newQuilt(): Quilt {
-    return new Quilt(new BlockInfo(new CellList()), [], new Palette(), new SashInfo());
 }
 
 /**
@@ -1845,7 +1846,7 @@ function drawPreviewOnScreen(canvas: HTMLCanvasElement, r: RenderData, v: ViewDa
         v.layout = layout;
         r.resizeCanvas(canvas);
         // reset "last drawn" to an empty quilt, so that we redraw everything
-        v.quilt = newQuilt();
+        v.quilt = new Quilt();
     } else if (
         !v.quilt.colorSet.equals(quilt.colorSet) ||
         (r.hasSash && !arrayEquals(v.quilt.sash.colors, quilt.sash.colors))
