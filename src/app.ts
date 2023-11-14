@@ -138,33 +138,30 @@ class Border {
 
 class RenderData {
     /** Quilt data being rendered */
-    quilt: Quilt;
+    readonly quilt: Quilt;
     /** Width of the border, in cell halves */
-    borderUnits: number;
-    /** Width (= height) of the single quilt block, in cells */
-    blockCells: number;
+    readonly borderUnits: number;
     /** Whether the sashing should be displayed at all */
-    hasSash: boolean;
+    readonly hasSash: boolean;
     /** Total width/height of the quilt, in cells */
-    cells: Rect;
+    readonly cells: Rect;
 
     /**
      * Number of pixels of a single cell, determined by callback
      *
      * This is also the width and height of the sashing (1 cell.)
      */
-    cellSize: number;
+    readonly cellSize: number;
     /** Per-edge border width, in pixels */
-    padSize: number;
+    readonly padSize: number;
     /** Width (= height) of a single quilt block, in pixels */
-    blockSize: number;
+    readonly blockSize: number;
     /** Size of the entire canvas, in pixels */
-    canvasSize: Rect;
+    readonly canvasSize: Rect;
 
     constructor(quilt: Quilt, cellSizeFn: (cells: Rect) => number) {
         this.quilt = quilt;
         this.hasSash = quilt.sash.levels !== Sashes.None;
-        this.blockCells = quilt.block.getSize();
 
         // sum up the border sizes to get the total border units
         let borderUnits = 0;
@@ -179,14 +176,14 @@ class RenderData {
         // is a fixed 1-cell width for the moment.  Thus, it adds blocks-1 cells to each dimension
         // when present.
         this.cells = new Rect(
-            this.blockCells * BLOCKS_HORIZ + borderUnits + (this.hasSash ? BLOCKS_HORIZ - 1 : 0),
-            this.blockCells * BLOCKS_VERT + borderUnits + (this.hasSash ? BLOCKS_VERT - 1 : 0),
+            quilt.blockCells * BLOCKS_HORIZ + borderUnits + (this.hasSash ? BLOCKS_HORIZ - 1 : 0),
+            quilt.blockCells * BLOCKS_VERT + borderUnits + (this.hasSash ? BLOCKS_VERT - 1 : 0),
         );
 
         // okay, now that we have cell dimensions, call the cellSizeFn to get pixel information
         this.cellSize = cellSizeFn(this.cells);
         this.padSize = (this.cellSize * this.borderUnits) / 2; // half on each side
-        this.blockSize = this.cellSize * this.blockCells;
+        this.blockSize = this.cellSize * quilt.blockCells;
 
         // calculate pixel dimensions, as px/cell * cells
         this.canvasSize = this.cells.scale(this.cellSize);
@@ -557,16 +554,26 @@ class BlockInfo {
 }
 
 class Quilt {
-    block: BlockInfo;
+    blocks: Array<BlockInfo>;
     borders: Array<Border>;
     colorSet: Palette;
     sash: SashInfo;
 
     constructor() {
-        this.block = new BlockInfo(new CellList());
+        this.blocks = [new BlockInfo(new CellList())];
         this.borders = [];
         this.colorSet = new Palette();
         this.sash = new SashInfo();
+    }
+
+    get blockCells(): number {
+        return this.blocks[0].getSize();
+    }
+
+    set blockCells(size: number) {
+        for (const block of this.blocks) {
+            block.resize(size);
+        }
     }
 }
 
@@ -717,6 +724,7 @@ interface UI {
     colorEvents: number; // whether clicks on Pickr elements should be passed into Pickr
     moveStatus: Move; // Whether the tool handles mousemove gracefully (Move.ALLOW)
     selectedTool: Tool; // Currently active tool ID
+    editorBlock: number; // Currently selected block index
     paintColors: [number, number]; // Primary and secondary paint colors
     guideColor: Color; // Current guide color, shown between squares in the block editor
     borderTemplate: HTMLTemplateElement | null; // HTML template for new borders
@@ -725,6 +733,7 @@ interface UI {
 }
 
 const ui: UI = {
+    editorBlock: 0,
     editorState: 0,
     cellPx: 0,
     tabs: null,
@@ -893,17 +902,8 @@ function initJs(): void {
 function initQuiltBlock(): void {
     // get initial size from the HTML
     const sizeInput = document.getElementById("cell-size");
-    const size =
+    quilt.blockCells =
         sizeInput && sizeInput instanceof HTMLInputElement ? parseInt(sizeInput.value, 10) : 5;
-    const cells = new CellList();
-
-    for (let column = 0; column < size; column++) {
-        for (let row = 0; row < size; row++) {
-            cells.push(randomCell());
-        }
-    }
-
-    quilt.block = new BlockInfo(cells);
 }
 
 function initTools(): void {
@@ -1304,9 +1304,10 @@ function onEditorMouse(ev: MouseEvent): void {
     const _ = Math.floor;
 
     // calculate hit positions
-    const sz = quilt.block.getSize();
+    const sz = quilt.blockCells;
     const cellPx = editor.width / sz;
     const index = _(x / cellPx) + sz * _(y / cellPx);
+    const blk = ui.editorBlock;
 
     // act on the hit
     const isSecondaryClick = isSecondaryButton(ev);
@@ -1324,14 +1325,14 @@ function onEditorMouse(ev: MouseEvent): void {
 
             // apply color to the index that was hit
             const colorChosen = ui.paintColors[isSecondaryClick ? 1 : 0];
-            quilt.block.paintSubCell(index, colorIndex, colorChosen);
+            quilt.blocks[blk].paintSubCell(index, colorIndex, colorChosen);
 
             break;
         case Tool.Spin:
-            quilt.block.spinCell(index, isSecondaryClick);
+            quilt.blocks[blk].spinCell(index, isSecondaryClick);
             break;
         case Tool.Flip:
-            quilt.block.flipCell(index, isSecondaryClick);
+            quilt.blocks[blk].flipCell(index, isSecondaryClick);
             break;
         default:
             const t: never = ui.selectedTool;
@@ -1488,7 +1489,7 @@ function onRollerClick(ev: MouseEvent): void {
     const id = ev.target.id as keyof typeof movers;
     const callback = movers[id];
     if (callback) {
-        callback(quilt.block);
+        callback(quilt.blocks[ui.editorBlock]);
         updateView();
     }
 }
@@ -1503,8 +1504,7 @@ function onResizeInput(ev: MouseEvent): void {
     }
 
     // perform the resizing operation
-    const newSize = parseInt(node.value, 10);
-    quilt.block.resize(newSize);
+    quilt.blockCells = parseInt(node.value, 10);
 
     // update the view
     updateView();
@@ -1636,7 +1636,7 @@ function updateGuideColor(): void {
         return;
     }
 
-    updateEditor(quilt.colorSet, quilt.block);
+    updateEditor(quilt.colorSet, quilt.blocks[ui.editorBlock]);
 }
 
 function drawGuides(block: BlockInfo, ctx: CanvasRenderingContext2D): void {
@@ -1877,7 +1877,8 @@ function drawPreviewOnScreen(canvas: HTMLCanvasElement, r: RenderData, v: ViewDa
     // draw the 5x4 blocks, inset by the half-border-width padSize, and offset
     // by sashing if specified
     if (fullRedraw || ui.editorState !== v.editorState) {
-        drawPreviewBlocks(quilt.block.getScaledSource(r.blockSize), ctx, r);
+        // TODO: pass the whole quilt (all blocks + block-paint info)
+        drawPreviewBlocks(quilt.blocks[ui.editorBlock].getScaledSource(r.blockSize), ctx, r);
         v.editorState = ui.editorState;
     }
 
@@ -1926,7 +1927,8 @@ function renderDownload(quilt: Quilt): HTMLCanvasElement {
     if (r.hasSash) {
         drawPreviewSash(null, ctx, quilt.sash, r);
     }
-    drawPreviewBlocks(quilt.block.getScaledSource(r.blockSize), ctx, r);
+    // TODO: pass the whole quilt here, too
+    drawPreviewBlocks(quilt.blocks[ui.editorBlock].getScaledSource(r.blockSize), ctx, r);
 
     return canvas;
 }
@@ -1935,7 +1937,7 @@ function updateView(): void {
     if (ui.tabs.current === "quilt") {
         updatePreview(quilt);
     } else {
-        updateEditor(quilt.colorSet, quilt.block);
+        updateEditor(quilt.colorSet, quilt.blocks[ui.editorBlock]);
         updateMiniPreview(quilt);
     }
 }
