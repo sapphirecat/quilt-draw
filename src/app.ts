@@ -160,6 +160,9 @@ class RenderData {
     readonly canvasSize: Rect;
 
     constructor(quilt: Quilt, cellSizeFn: (cells: Rect) => number) {
+        const shape = quilt.shape;
+        const blockCells = quilt.blockCells;
+
         this.quilt = quilt;
         this.hasSash = quilt.sash.levels !== Sashes.None;
 
@@ -176,14 +179,14 @@ class RenderData {
         // is a fixed 1-cell width for the moment.  Thus, it adds blocks-1 cells to each dimension
         // when present.
         this.cells = new Rect(
-            quilt.blockCells * BLOCKS_HORIZ + borderUnits + (this.hasSash ? BLOCKS_HORIZ - 1 : 0),
-            quilt.blockCells * BLOCKS_VERT + borderUnits + (this.hasSash ? BLOCKS_VERT - 1 : 0),
+            blockCells * shape.w + borderUnits + (this.hasSash ? shape.w - 1 : 0),
+            blockCells * shape.h + borderUnits + (this.hasSash ? shape.h - 1 : 0),
         );
 
         // okay, now that we have cell dimensions, call the cellSizeFn to get pixel information
         this.cellSize = cellSizeFn(this.cells);
         this.padSize = (this.cellSize * this.borderUnits) / 2; // half on each side
-        this.blockSize = this.cellSize * quilt.blockCells;
+        this.blockSize = this.cellSize * blockCells;
 
         // calculate pixel dimensions, as px/cell * cells
         this.canvasSize = this.cells.scale(this.cellSize);
@@ -554,17 +557,11 @@ class BlockInfo {
 }
 
 class Quilt {
-    blocks: Array<BlockInfo>;
-    borders: Array<Border>;
-    colorSet: Palette;
-    sash: SashInfo;
-
-    constructor() {
-        this.blocks = [new BlockInfo(new CellList())];
-        this.borders = [];
-        this.colorSet = new Palette();
-        this.sash = new SashInfo();
-    }
+    blocks: Array<BlockInfo> = [new BlockInfo(new CellList())];
+    borders: Array<Border> = [];
+    colorSet: Palette = new Palette();
+    sash: SashInfo = new SashInfo();
+    shape: Rect = new Rect(BLOCKS_HORIZ, BLOCKS_VERT);
 
     get blockCells(): number {
         return this.blocks[0].getSize();
@@ -1532,7 +1529,7 @@ function onResizeViewport(): void {
     // HACK: Takes a max-width and grid (3 columns = 2*10px gap) into account
     const width = Math.min(window.innerWidth, 1600) - 20;
     const height = window.innerHeight;
-    const previewAspect = BLOCKS_HORIZ / BLOCKS_VERT;
+    const previewAspect = quilt.shape.w / quilt.shape.h;
     const modPxH = 30;
     let gridWidth: number;
 
@@ -1717,11 +1714,12 @@ function drawPreviewBlocks(
     const blockSize = r.blockSize;
     const padSize = r.padSize;
     const sashSize = r.hasSash ? r.cellSize : 0;
+    const shape = r.quilt.shape;
 
     // now draw from the pre-scaled image
     const stepSize = blockSize + sashSize; // common subexpression
-    for (let row = 0, oY = padSize; row < BLOCKS_VERT; row++) {
-        for (let col = 0, oX = padSize; col < BLOCKS_HORIZ; col++) {
+    for (let row = 0, oY = padSize; row < shape.h; row++) {
+        for (let col = 0, oX = padSize; col < shape.w; col++) {
             ctx.drawImage(scaled, oX, oY);
             oX += stepSize; // next column
         }
@@ -1793,15 +1791,16 @@ function drawPreviewSash(
     const drawMain = !(vs && viewColors && viewColors[0] === sash.colors[0]);
     const stepSize = blockSize + sashSpacing;
     const padStepSize = padSize + stepSize;
+    const shape = r.quilt.shape;
 
     // draw main sashing
     if (drawMain) {
         ctx.fillStyle = sash.colors[0];
-        for (let col = 1, oX = padStepSize; col < BLOCKS_HORIZ; col++) {
+        for (let col = 1, oX = padStepSize; col < shape.w; col++) {
             ctx.fillRect(oX - sashSpacing, padSize, sashSpacing, r.canvasSize.h - borderSize);
             oX += stepSize;
         }
-        for (let row = 1, oY = padStepSize; row < BLOCKS_VERT; row++) {
+        for (let row = 1, oY = padStepSize; row < shape.h; row++) {
             ctx.fillRect(padSize, oY - sashSpacing, r.canvasSize.w - borderSize, sashSpacing);
             oY += stepSize;
         }
@@ -1815,8 +1814,8 @@ function drawPreviewSash(
         return;
     }
     ctx.fillStyle = sash.colors[1];
-    for (let col = 1, oX = padStepSize; col < BLOCKS_HORIZ; col++) {
-        for (let row = 1, oY = padStepSize; row < BLOCKS_VERT; row++) {
+    for (let col = 1, oX = padStepSize; col < shape.w; col++) {
+        for (let row = 1, oY = padStepSize; row < shape.h; row++) {
             // draw cross sash: above left of current point
             ctx.fillRect(oX - sashSpacing, oY - sashSpacing, sashSpacing, sashSpacing);
             oY += stepSize;
