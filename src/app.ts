@@ -116,6 +116,10 @@ class Rect {
         readonly h: number,
     ) {}
 
+    get area(): number {
+        return this.w * this.h;
+    }
+
     scale(m: number): Rect {
         return new Rect(m * this.w, m * this.h);
     }
@@ -557,11 +561,23 @@ class BlockInfo {
 }
 
 class Quilt {
+    /** Individual blocks that make up the quilt */
     blocks: Array<BlockInfo> = [new BlockInfo(new CellList())];
+    /** Borders around the quilt */
     borders: Array<Border> = [];
+    /** Palette for cells */
     colorSet: Palette = new Palette();
+    /** Sash options */
     sash: SashInfo = new SashInfo();
+    /** Width and height of the quilt */
     shape: Rect = new Rect(BLOCKS_HORIZ, BLOCKS_VERT);
+    /** 1D array of indices into blocks[], in row-major order */
+    blockMap: Array<number>;
+
+    constructor() {
+        const end = this.shape.area;
+        this.blockMap = new Array(end).fill(0);
+    }
 
     get blockCells(): number {
         return this.blocks[0].getSize();
@@ -1703,24 +1719,29 @@ function deepCopy<T>(x: T): T {
 }
 
 /**
- * Draw scaled blocks into a canvas.
+ * Pre-scale and draw quilt blocks into a canvas.
  */
-function drawPreviewBlocks(
-    scaled: CanvasImageSource,
-    ctx: CanvasRenderingContext2D,
-    r: RenderData,
-): void {
+function drawPreviewBlocks(ctx: CanvasRenderingContext2D, r: RenderData): void {
     // parse render data
     const blockSize = r.blockSize;
     const padSize = r.padSize;
     const sashSize = r.hasSash ? r.cellSize : 0;
-    const shape = r.quilt.shape;
+    const q = r.quilt;
+    const shape = q.shape;
 
-    // now draw from the pre-scaled image
+    // pre-scale all blocks on the quilt
+    const sourceCount: number = q.blocks.length;
+    const scaled: CanvasImageSource[] = new Array(sourceCount);
+    for (let i = 0; i < sourceCount; i++) {
+        scaled[i] = q.blocks[i].getScaledSource(r.blockSize);
+    }
+
+    // draw from the pre-scaled images
     const stepSize = blockSize + sashSize; // common subexpression
+    let iBlock = 0;
     for (let row = 0, oY = padSize; row < shape.h; row++) {
         for (let col = 0, oX = padSize; col < shape.w; col++) {
-            ctx.drawImage(scaled, oX, oY);
+            ctx.drawImage(scaled[q.blockMap[iBlock++]], oX, oY);
             oX += stepSize; // next column
         }
         oY += stepSize; // next row
@@ -1876,8 +1897,7 @@ function drawPreviewOnScreen(canvas: HTMLCanvasElement, r: RenderData, v: ViewDa
     // draw the 5x4 blocks, inset by the half-border-width padSize, and offset
     // by sashing if specified
     if (fullRedraw || ui.editorState !== v.editorState) {
-        // TODO: pass the whole quilt (all blocks + block-paint info)
-        drawPreviewBlocks(quilt.blocks[ui.editorBlock].getScaledSource(r.blockSize), ctx, r);
+        drawPreviewBlocks(ctx, r);
         v.editorState = ui.editorState;
     }
 
@@ -1926,8 +1946,7 @@ function renderDownload(quilt: Quilt): HTMLCanvasElement {
     if (r.hasSash) {
         drawPreviewSash(null, ctx, quilt.sash, r);
     }
-    // TODO: pass the whole quilt here, too
-    drawPreviewBlocks(quilt.blocks[ui.editorBlock].getScaledSource(r.blockSize), ctx, r);
+    drawPreviewBlocks(ctx, r);
 
     return canvas;
 }
