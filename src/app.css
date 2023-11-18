@@ -129,20 +129,18 @@ footer {
     grid-gap: 0.4em;
 }
 
-.control-column {
-    margin: 0 auto auto;
-    display: grid;
-    grid-template-columns: 1fr;
-    grid-gap: 1.4em;
+.control-column > * {
+    margin: 0 0 1.4em;
 }
 
-.control {
-    display: grid;
-    grid-template-columns: 1fr 3fr;
-    align-items: baseline;
-    grid-gap: 0.3em;
-    margin: auto 0;
-    width: 100%;
+.control-column > *:last-child {
+    margin-bottom: 0;
+}
+
+.control > .heading {
+    text-align: center;
+    padding-bottom: 1px;
+    border-bottom: 1px dotted;
 }
 
 .color-item, .tool-item {
@@ -172,6 +170,13 @@ button.palette-select {
     border: 1px solid rgba(50%, 50%, 50%, 0.2);
     background: transparent;
     transition: all 50ms linear;
+}
+
+button.download {
+    box-sizing: border-box;
+    width: 100%;
+    height: auto;
+    padding: 4px 7px;
 }
 
 .sash-grid {
@@ -288,6 +293,7 @@ div.pickr {
     padding: 0;
     border-bottom: 1px solid;
 }
+
 .tab-select {
     margin: 0 0 -1px 5px;
     padding: 0.4em 0.8em;
@@ -296,6 +302,7 @@ div.pickr {
     border-radius: 3px 3px 0 0;
     border: 1px solid;
 }
+
 .tab-select.active {
     cursor: auto;
     border-bottom-color: transparent;
@@ -304,14 +311,17 @@ div.pickr {
 .tab-region.hide {
     display: none;
 }
+
 .tab-region {
     display: grid;
     grid-gap: 10px;
     padding-top: 1em;
 }
+
 #tab-block.tab-region {
     grid-template-columns: 2fr 4fr 3fr;
 }
+
 #tab-quilt.tab-region {
     grid-template-columns: 2fr 7fr;
 }

@@ -90,16 +90,16 @@
 <div class="hide" id="app">
     <div class="tabs-parent" id="tabs-app">
         <!-- CAUTION: NO WHITESPACE IN HERE -->
-        <ul class="tabs-select-row"><li class="tab-select" data-tab-name="block">Blocks
-            </li><li class="tab-select" data-tab-name="quilt">Quilt</li></ul>
+        <ul class="tabs-select-row">
+            <li class="tab-select" data-tab-name="block">Blocks
+            </li>
+            <li class="tab-select" data-tab-name="quilt">Quilt</li>
+        </ul>
 
         <div class="tab-region" data-tab-name="block" id="tab-block">
             <div class="controls control-column" id="block-controls">
-                <div class="control" id="colors">
-                    <div class="column">
-                        <p>Colors</p>
-                        <button id="color-new">Add</button>
-                    </div>
+                <div class="control column" id="colors">
+                    <div class="heading">Colors</div>
                     <div data-initial-palette="#f3f3f3,#0066cc,#c665c6|#c3c3c3,#0d457f,#a452c9"
                          id="color-items">
                         <template class="hide" id="color-item">
@@ -108,53 +108,52 @@
                             </label>
                         </template>
                     </div>
-                </div>
-
-                <div class="control" id="tools">
-                    <p>Tools</p>
-
-                    <div class="column">
-                        <div class="palette-row">
-                            <label class="tool-item">
-                                <input class="tool-active" data-move-tracking="1" id="tool-paint"
-                                       name="tool_select" type="radio">
-                                Paint
-                            </label>
-                            <button class="palette-select" id="color-active-0">&nbsp;</button>
-                            <button class="palette-select" id="color-active-1">&nbsp;</button>
-                        </div>
-                        <label class="tool-item">
-                            <input class="tool-active" id="tool-spin" name="tool_select"
-                                   type="radio">
-                            Spin
-                        </label>
-                        <label class="tool-item">
-                            <input class="tool-active" id="tool-flip" name="tool_select"
-                                   type="radio">
-                            Flip
-                        </label>
+                    <div>
+                        <button id="color-new">Add Color</button>
                     </div>
                 </div>
 
-                <div class="control" id="guides">
-                    <div class="column">
+                <div class="control column" id="tools">
+                    <div class="heading">Tools</div>
+
+                    <div class="palette-row">
+                        <label class="tool-item">
+                            <input class="tool-active" data-move-tracking="1" id="tool-paint"
+                                   name="tool_select" type="radio">
+                            Paint
+                        </label>
+                        <button class="palette-select" id="color-active-0">&nbsp;</button>
+                        <button class="palette-select" id="color-active-1">&nbsp;</button>
+                    </div>
+                    <label class="tool-item">
+                        <input class="tool-active" id="tool-spin" name="tool_select"
+                               type="radio">
+                        Spin
+                    </label>
+                    <label class="tool-item">
+                        <input class="tool-active" id="tool-flip" name="tool_select"
+                               type="radio">
+                        Flip
+                    </label>
+                </div>
+
+                <div class="control column" id="guides">
+                    <div class="heading">
                         <label for="guide-type">Guides</label>
                     </div>
-                    <div class="column">
-                        <select id="guide-type">
-                            <option value="">None</option>
-                            <option value="#000000">Black</option>
-                            <option value="#505050">Dark Gray</option>
-                            <option value="#a0a0a0">Light Gray</option>
-                            <option value="#ffffff">White</option>
-                        </select>
-                    </div>
+                    <select id="guide-type">
+                        <option value="">None</option>
+                        <option value="#000000">Black</option>
+                        <option value="#505050">Dark Gray</option>
+                        <option value="#a0a0a0">Light Gray</option>
+                        <option value="#ffffff">White</option>
+                    </select>
                 </div>
 
-                <div class="control downloads">
-                    <p>Down&shy;load</p>
+                <div class="control column downloads">
+                    <div class="heading">Down&shy;load</div>
 
-                    <div class="download-buttons column">
+                    <div class="download-buttons">
                         <button class="download" id="download-block">Block</button>
                     </div>
                 </div>
@@ -188,12 +187,11 @@
         <div class="tab-region" data-tab-name="quilt" id="tab-quilt">
             <div class="controls control-column" id="quilt-controls">
                 <!-- QUILT tab -->
-                <div class="control" id="borders">
-                    <div class="column">
-                        <p>Border</p>
-                        <button id="border-new">Add</button>
+                <div class="control column" id="borders">
+                    <div class="heading">
+                        Border
                     </div>
-                    <div class="column">
+                    <div>
                         <template class="hide" data-initial-palette="#ffbfd4|#d99fb2"
                                   id="border-item">
                             <div class="border-row">
@@ -204,11 +202,14 @@
                             </div>
                         </template>
                     </div>
+                    <div>
+                        <button id="border-new">Add Border</button>
+                    </div>
                 </div>
 
-                <div class="control" data-initial-palette="#d0ccfa,#749d6c|#3c237d,#4b8065"
+                <div class="control column" data-initial-palette="#d0ccfa,#749d6c|#3c237d,#4b8065"
                      id="sashing">
-                    <p>Sash&shy;ing</p>
+                    <div class="heading">Sash&shy;ing</div>
                     <div class="sash-grid">
                         <input class="sash-select" id="sash-on" type="checkbox">
                         <label for="sash-on">Main</label>
@@ -219,8 +220,8 @@
                     </div>
                 </div>
 
-                <div class="control downloads">
-                    <p>Down&shy;load</p>
+                <div class="control column downloads">
+                    <div class="heading">Down&shy;load</div>
 
                     <div class="download-buttons column">
                         <button class="download" id="download-preview">Preview</button>
