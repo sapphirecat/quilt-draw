@@ -1,6 +1,7 @@
-<h1><picture>
+<h1 id="logo"><picture>
     <source media="(prefers-color-scheme: dark)" srcset="src/images/logo-dk.svg">
-    <img alt="Quilt Draw" src="src/images/logo.svg">
+    <source srcset="src/images/logo.svg">
+    <img alt="Quilt Draw" src="src/images/logo.png">
 </picture></h1>
 
 Quarter-square triangle design assistant
