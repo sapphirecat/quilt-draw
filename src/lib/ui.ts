@@ -682,7 +682,7 @@ function onControlClick(ev: MouseEvent): void {
  */
 function onPaletteDown(ev: MouseEvent): void {
     ui.colorEvents = Click.Allow; // by default, we do not have full responsibility
-    if (!isButtonRelevant(ev) || !(ev.target instanceof HTMLElement)) {
+    if (!isButtonRelevant(ev) || !(ev.target instanceof HTMLButtonElement)) {
         return; // we don't handle this button/combo
     }
 
