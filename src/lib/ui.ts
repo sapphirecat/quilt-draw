@@ -13,16 +13,18 @@ const guideType = document.getElementById("guide-type") as HTMLSelectElement;
 let EDITOR_DRAW_WIDTH = editor.width;
 const EDITOR_MAX_WIDTH = 630; // HACK: this is specified in our CSS
 // no EDITOR_DRAW/MAX_HEIGHT: it is square.
+const VIEWPORT_MARGIN = 24;
 
 let PREVIEW_DRAW_WIDTH = preview.width;
 let PREVIEW_DRAW_HEIGHT = preview.height;
-const PREVIEW_MIN_HEIGHT = 600;
+const PREVIEW_MIN_HEIGHT = 480;
 const PREVIEW_MAX_HEIGHT = 1200;
 
 let MINI_PREVIEW_DRAW_WIDTH = miniPreview.width;
 let MINI_PREVIEW_DRAW_HEIGHT = miniPreview.height;
 const MINI_PREVIEW_MIN_HEIGHT = 300;
-const MINI_PREVIEW_MAX_HEIGHT = 630;
+// noinspection JSSuspiciousNameCombination
+const MINI_PREVIEW_MAX_HEIGHT = EDITOR_MAX_WIDTH;
 
 const DOWNLOAD_MIN_HEIGHT = 1400;
 
@@ -827,8 +829,8 @@ function fitRectH(boundW: number, boundH: number, aspect: number, modPxH: number
 
 function onResizeViewport(): void {
     // HACK: Takes a max-width and grid (3 columns = 2*10px gap) into account
-    const width = Math.min(window.innerWidth, 1600) - 20;
-    const height = window.innerHeight;
+    const width = Math.min(window.innerWidth, 1600) - 20 - VIEWPORT_MARGIN;
+    const height = window.innerHeight - VIEWPORT_MARGIN;
     const previewAspect = quilt.shape.w / quilt.shape.h;
     const modPxH = 30;
     let gridWidth: number;
