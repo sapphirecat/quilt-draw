@@ -157,6 +157,11 @@ button.new-thing {
     margin: 0.5em auto;
 }
 
+/* fix the specificity problem of ".hide" < "button.new-thing" */
+button.new-thing.hide {
+    display: none;
+}
+
 .color-item, .tool-item {
     white-space: nowrap;
 }

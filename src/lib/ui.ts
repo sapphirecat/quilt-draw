@@ -343,7 +343,6 @@ function initTabs(): undefined | TabGroup {
 
 function createColor(): void {
     if (quilt.colorSet.length >= COLOR_LIMIT) {
-        alert("That's just too many colors.");
         return;
     }
 
