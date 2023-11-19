@@ -18,13 +18,13 @@ which may not be available for all users.
 Likewise for the spin buttons.
 
 (Each one could still do its alternate mode with the secondary button, of course.
-H-Flip would do a V-Flip then.  But as it stands, there is no way to V-Flip
+The V-Flip tool would do an H-Flip then.  But as it stands, there is no way to V-Flip
 without a secondary click.)
 
 ### Move Tool
 
 Instead of the 4-way buttons in a 3×3 grid,
-have a move (hand?) tool that allows dragging the canvas.
+have a move tool (a hand?) that allows dragging the canvas.
 
 ### Floating Tool Preview
 
@@ -41,27 +41,17 @@ Instead of off/solid, add "dots" (cell corners only, like PikoPixel)
 and "dashed" line modes.
 
 Is there a reason we didn't use Pickr to select the guide color?
-Like, guides off:
+Like so:
 
-    ◼️ Guides 🟪
-
-Guides on:
-
-    🔲 Guides 🟦
+    ✅ Guides 🟦
 
 ## Block/Quilt Tabs
 
-This idea is a pretty deep rewrite of the UI.
-
-The Blocks tab would contain the editor, a mini preview,
-block color palette, and guide settings.
-
-The Quilt tab would show the full preview,
-along with the sashing/border options.
+Done!
 
 ### Multiple Blocks
 
-The Blocks tab would also let the user add more than one block.
+The Blocks tab should let the user add more than one block.
 The Quilt tab would then have a way to associate blocks,
 whether that's a simple A/B checkerboard (and 2-block limit) at first,
 or a complete set of tools for putting blocks on the preview.
