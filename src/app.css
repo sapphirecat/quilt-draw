@@ -14,7 +14,7 @@ a {
     border-bottom: 1px dotted;
 }
 
-a:hover, a:focus {
+a:hover {
     color: blue;
     border-bottom-style: solid;
 }
@@ -312,7 +312,6 @@ button.download {
     margin: 0 0 -1px 5px;
     padding: 0.4em 0.8em;
     display: inline-block;
-    cursor: pointer;
     border-radius: 3px 3px 0 0;
     border: 1px solid;
 }
@@ -320,6 +319,20 @@ button.download {
 .tab-select.active {
     cursor: auto;
     border-bottom-color: transparent;
+}
+
+.tab-select a {
+    border: 0;
+    color: inherit;
+}
+
+.tab-select.active a {
+    cursor: default;
+}
+
+.tab-select.active a:hover {
+    color: inherit;
+    cursor: default;
 }
 
 .tab-region.hide {
@@ -371,7 +384,7 @@ button.download {
         color: dodgerblue;
     }
 
-    a:hover, a:focus {
+    a:hover {
         color: lightskyblue;
     }
 

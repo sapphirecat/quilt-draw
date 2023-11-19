@@ -1,5 +1,5 @@
 import Pickr from "@simonwep/pickr";
-import { TabGroup, TabHandle } from "./tabs";
+import { TabGroup } from "./tabs";
 import { Click, PickrHandle, RenderData, Tool, UI, ViewData } from "./view";
 import { BlockInfo, Border, Color, Move, Palette, Quilt, Rect, Sashes, SashInfo } from "./model";
 
@@ -332,46 +332,13 @@ function initColors(): void {
 }
 
 function initTabs(): undefined | TabGroup {
-    // The app structure is hard-coded, because I want to get done soon.
     const root = document.getElementById("tabs-app");
-    const tabRow = root?.querySelector(":scope > .tabs-select-row");
-    if (!(root && tabRow)) {
+    if (!root) {
+        console.error("No #tabs-app element found");
         return;
     }
 
-    const tabGroups = new TabGroup(root.id);
-    const regions = new Map<string, Element>();
-    // pre-process the regions so we don't have O(N^2) lookups
-    for (const region of root.querySelectorAll(":scope > .tab-region[data-tab-name]")) {
-        regions.set(region.getAttribute("data-tab-name"), region);
-    }
-    // process the tabs, that select the regions
-    for (const tab of tabRow.querySelectorAll(":scope > .tab-select[data-tab-name]")) {
-        const name = tab.getAttribute("data-tab-name");
-        if (!regions.has(name)) {
-            console.error("Tab missing related region in %s: %s", root.id, name);
-            continue;
-        }
-
-        tabGroups.addHandle(new TabHandle(name, tab, regions.get(name)));
-    }
-
-    // set event handler on tabRow
-    tabRow.addEventListener("click", (ev) => {
-        const e = ev.target;
-        ev.preventDefault();
-
-        if (!(e instanceof HTMLElement) || e.classList.contains("active")) {
-            return;
-        }
-
-        const name = e.getAttribute("data-tab-name");
-        if (name) {
-            tabGroups.select(name);
-        }
-    });
-
-    return tabGroups;
+    return new TabGroup(root);
 }
 
 function createColor(): void {
@@ -1097,7 +1064,7 @@ function drawPreviewOnScreen(canvas: HTMLCanvasElement, r: RenderData, v: ViewDa
 
     // resize the canvas to the draw dimensions if needed
     const layout = `${cellSize},${r.cells},${r.hasSash ? "sash" : "noSash"}`;
-    let fullRedraw = layout !== v.layout;
+    let fullRedraw = layout !== v.layout || v.editorState < 0;
     if (fullRedraw) {
         v.layout = layout;
         sizeCanvasTo(canvas, r.canvasSize);
@@ -1188,7 +1155,7 @@ function renderDownload(quilt: Quilt): HTMLCanvasElement {
 }
 
 function updateView(): void {
-    if (ui.tabs.current === "quilt") {
+    if (ui.tabs.current === "tab-quilt") {
         updatePreview(quilt);
     } else {
         updateEditor(quilt.colorSet, quilt.blocks[ui.editorBlock]);
