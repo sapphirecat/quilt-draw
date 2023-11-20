@@ -45,6 +45,14 @@ Like so:
 
     ✅ Guides 🟦
 
+## Left-handed switch
+
+To flip the display of primary/secondary paint colors.
+Then the left swatch matches the physical left (secondary) button
+on a mouse in left-handed mode.
+
+#the&zwnj;dev&zwnj;team&zwnj;thinks&zwnj;of&zwnj;everything
+
 ## Block/Quilt Tabs
 
 Done!
