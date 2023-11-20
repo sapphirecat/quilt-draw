@@ -46,7 +46,10 @@ if [ ! -d dist ] ; then
 fi
 
 cd src
-cp -a ./*.html ./*.css images pickr ../dist
+# cp lines: our files / favicon / destination
+cp -a ./*.html ./*.css images pickr \
+     ./*.png favicon.ico safari-pinned-tab.svg \
+    ../dist
 cd ..
 if [ ! -d node_modules ] || [ -n "$(find package.json -newer build/.install 2>&1)" ] ; then
     yarn install --frozen-lockfile
