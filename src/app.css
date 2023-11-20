@@ -331,11 +331,16 @@ button.download {
     color: inherit;
 }
 
+.tab-select a:hover {
+    border-bottom: 1px solid;
+}
+
 .tab-select.active a {
     cursor: default;
 }
 
 .tab-select.active a:hover {
+    border: 0;
     color: inherit;
     cursor: default;
 }
