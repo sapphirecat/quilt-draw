@@ -5,23 +5,23 @@ import { BlockInfo, Border, Color, Move, Palette, Quilt, Rect, Sashes, SashInfo 
 
 type PaintSlot = 0 | 1;
 
-const editor = document.getElementById("editor") as HTMLCanvasElement;
-const preview = document.getElementById("preview") as HTMLCanvasElement;
-const miniPreview = document.getElementById("mini-preview") as HTMLCanvasElement;
-const guideType = document.getElementById("guide-type") as HTMLSelectElement;
+let editor: HTMLCanvasElement;
+let preview: HTMLCanvasElement;
+let miniPreview: HTMLCanvasElement;
+let guideType: HTMLSelectElement;
 
-let EDITOR_DRAW_WIDTH = editor.width;
+let EDITOR_DRAW_WIDTH: number;
 const EDITOR_MAX_WIDTH = 630; // HACK: this is specified in our CSS
 // no EDITOR_DRAW/MAX_HEIGHT: it is square.
 const VIEWPORT_MARGIN = 24;
 
-let PREVIEW_DRAW_WIDTH = preview.width;
-let PREVIEW_DRAW_HEIGHT = preview.height;
+let PREVIEW_DRAW_WIDTH: number;
+let PREVIEW_DRAW_HEIGHT: number;
 const PREVIEW_MIN_HEIGHT = 480;
 const PREVIEW_MAX_HEIGHT = 1200;
 
-let MINI_PREVIEW_DRAW_WIDTH = miniPreview.width;
-let MINI_PREVIEW_DRAW_HEIGHT = miniPreview.height;
+let MINI_PREVIEW_DRAW_WIDTH: number;
+let MINI_PREVIEW_DRAW_HEIGHT: number;
 const MINI_PREVIEW_MIN_HEIGHT = 300;
 // noinspection JSSuspiciousNameCombination
 const MINI_PREVIEW_MAX_HEIGHT = EDITOR_MAX_WIDTH;
@@ -216,12 +216,34 @@ function criticalError(e: any) {
     }
 }
 
+function setupGlobalElements(): void {
+    editor = document.getElementById("editor") as HTMLCanvasElement;
+    preview = document.getElementById("preview") as HTMLCanvasElement;
+    miniPreview = document.getElementById("mini-preview") as HTMLCanvasElement;
+    guideType = document.getElementById("guide-type") as HTMLSelectElement;
+
+    if (editor) {
+        EDITOR_DRAW_WIDTH = editor.width;
+    }
+
+    if (preview) {
+        PREVIEW_DRAW_WIDTH = preview.width;
+        PREVIEW_DRAW_HEIGHT = preview.height;
+    }
+
+    if (miniPreview) {
+        MINI_PREVIEW_DRAW_WIDTH = miniPreview.width;
+        MINI_PREVIEW_DRAW_HEIGHT = miniPreview.height;
+    }
+}
+
 export function initJs(): void {
     const urlView = document.getElementById("url-display") as HTMLElement;
     if (urlView && location?.href) {
         urlView.innerText = location.href;
     }
 
+    setupGlobalElements();
     if (!(editor && preview)) {
         criticalError("Can't get editor and preview; doing nothing.");
         return;
