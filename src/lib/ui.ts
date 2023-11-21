@@ -172,6 +172,50 @@ function initJsCore(): void {
     onResizeViewport();
 }
 
+function criticalError(e: any) {
+    let message: string | false;
+
+    try {
+        console.error(e);
+
+        if (e instanceof Error) {
+            message = e.message;
+        } else if (typeof e === "string") {
+            message = e;
+        } else {
+            message = false;
+        }
+    } catch (e2) {
+        console.error(e2);
+    }
+
+    // ensure the UI is hidden
+    const app = document.getElementById("app");
+    const err = document.getElementById("js-init-error");
+    try {
+        if (app) {
+            app.classList.add("hide");
+        }
+
+        if (!err) {
+            alert("An error occurred, and the HTML to display it is missing!");
+            return;
+        }
+
+        const target = err.querySelector(".js-error-message");
+        if (message && target instanceof HTMLElement) {
+            target.innerText = message;
+            target.parentElement.classList.remove("hide");
+        }
+    } catch (e3) {
+        console.error(e3);
+    }
+
+    if (err) {
+        err.classList.remove("hide");
+    }
+}
+
 export function initJs(): void {
     const urlView = document.getElementById("url-display") as HTMLElement;
     if (urlView && location?.href) {
@@ -179,30 +223,15 @@ export function initJs(): void {
     }
 
     if (!(editor && preview)) {
-        console.error("Can't get editor and preview; doing nothing.");
+        criticalError("Can't get editor and preview; doing nothing.");
         return;
     }
 
-    const err = document.getElementById("js-init-error");
     try {
         initJsCore();
-        err?.remove();
+        document.getElementById("js-init-error")?.remove();
     } catch (e) {
-        console.error(e);
-
-        // if it crashed really late on, re-hide the UI that doesn't have all
-        // the necessary events
-        const app = document.getElementById("app");
-        if (app) {
-            app.classList.add("hide");
-        }
-
-        // display the error UI
-        if (err) {
-            err.classList.remove("hide");
-        } else {
-            alert("Sorry!  The script crashed so hard, we can't even display a nice message.");
-        }
+        criticalError(e);
     }
 }
 

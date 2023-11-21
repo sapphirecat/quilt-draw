@@ -383,6 +383,15 @@ button.download {
     margin: 1em 0;
 }
 
+#js-init-error .js-error-parent {
+    margin: 1em 0; /* emulate <p> */
+}
+
+#js-init-error .js-error-message {
+    font-weight: bold;
+    color: #002233;
+}
+
 /* dark mode! the best mode. */
 @media (prefers-color-scheme: dark) {
     body {
@@ -436,6 +445,10 @@ button.download {
 
     #js-init-error em {
         color: #cc3333;
+    }
+
+    #js-init-error .js-error-message {
+        color: #6699cc;
     }
 }
 
