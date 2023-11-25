@@ -126,7 +126,7 @@ footer {
 .column {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 0.4em;
+    grid-gap: 0.4em;
 }
 
 .control-column > * {
@@ -147,7 +147,7 @@ footer {
     display: grid;
     /* repeat() partial support in Fx 52-75; avoid calc(), auto-fill, auto-fit */
     grid-template-columns: repeat(4, 2em);
-    gap: 0.4em;
+    grid-gap: 0.4em;
     margin: auto;
 }
 
@@ -191,7 +191,7 @@ button.download {
 .sash-grid {
     display: grid;
     grid-template-columns: 16px 6em auto;
-    gap: 0.2em 0.4em;
+    grid-gap: 0.2em 0.4em;
     align-items: center;
 }
 
@@ -202,7 +202,7 @@ button.download {
     display: grid;
     /* repeat() partial support in Fx 52-75; avoid calc(), auto-fill, auto-fit */
     grid-template-columns: repeat(3, 2em);
-    gap: 0.4em;
+    grid-gap: 0.4em;
     margin: auto;
 }
 #tools .palette-row {
@@ -366,7 +366,7 @@ button.download {
 
 .tab-region {
     display: grid;
-    gap: 10px;
+    grid-gap: 10px;
     padding-top: 1em;
 }
 
