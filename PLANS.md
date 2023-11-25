@@ -3,23 +3,7 @@
 What could be next?  Anything!
 But something from this document is more likely than the alternatives.
 
-## Tool Icons
-
-Instead of radio buttons, we should have "tool buttons"
-in the style of paint programs.
-We are, after all, just a slightly weird paint program.
-
-### Full Flip (and Spin) Support for Single Button
-
-Instead of a single "flip" tool, have separate &harr; and &varr; buttons.
-We should **never require** the secondary (or other) mouse buttons,
-which may not be available for all users.
-
-Likewise for the spin buttons.
-
-(Each one could still do its alternate mode with the secondary button, of course.
-The V-Flip tool would do an H-Flip then.  But as it stands, there is no way to V-Flip
-without a secondary click.)
+## Tools
 
 ### Move Tool
 
@@ -35,7 +19,7 @@ Highlight the cell or block to be affected by the current tool.
 Spin and Flip are relevant operations for the entire block,
 not only cells.
 
-## More Flexible Guides
+### More Flexible Guides
 
 Instead of off/solid, add "dots" (cell corners only, like PikoPixel)
 and "dashed" line modes.
@@ -45,17 +29,12 @@ Like so:
 
     ✅ Guides 🟦
 
-## Left-handed switch
+### Left-handed switch
 
-To flip the display of primary/secondary paint colors.
-Then the left swatch matches the physical left (secondary) button
-on a mouse in left-handed mode.
+Potentially obsolete: the swatches are stacked _vertically_ now,
+in an attempt to eliminate the left/right confusion with left-handed mousing.
 
-#the&zwnj;dev&zwnj;team&zwnj;thinks&zwnj;of&zwnj;everything
-
-## Block/Quilt Tabs
-
-Done!
+## General/Tabs
 
 ### Multiple Blocks
 

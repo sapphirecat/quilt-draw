@@ -181,12 +181,12 @@ export class BlockInfo {
         return target;
     }
 
-    spinCell(i: number, reverse?: boolean): void {
+    spinCell(i: number, leftward?: boolean): void {
         if (i >= this.cells.length) {
             return;
         }
 
-        if (reverse) {
+        if (leftward) {
             this.cells[i].rotateCCW();
         } else {
             this.cells[i].rotateCW();

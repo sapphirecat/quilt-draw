@@ -56,8 +56,10 @@ const ui = new UI();
 
 const toolForId: { [key: string]: Tool } = {
     "tool-paint": Tool.Paint,
-    "tool-spin": Tool.Spin,
-    "tool-flip": Tool.Flip,
+    "tool-spin-r": Tool.SpinR,
+    "tool-spin-l": Tool.SpinL,
+    "tool-flip-h": Tool.FlipH,
+    "tool-flip-v": Tool.FlipV,
 };
 
 /**
@@ -234,6 +236,16 @@ function setupGlobalElements(): void {
     if (miniPreview) {
         MINI_PREVIEW_DRAW_WIDTH = miniPreview.width;
         MINI_PREVIEW_DRAW_HEIGHT = miniPreview.height;
+    }
+
+    // put the active highlight on the selected tool before we go
+    for (const [id, tool] of Object.entries(toolForId)) {
+        if (ui.selectedTool === tool) {
+            const button = document.getElementById(id);
+            if (button) {
+                button.classList.add("active");
+            }
+        }
     }
 }
 
@@ -645,11 +657,18 @@ function onEditorMouse(ev: MouseEvent): void {
             quilt.blocks[blk].paintSubCell(index, colorIndex, colorChosen);
 
             break;
-        case Tool.Spin:
-            quilt.blocks[blk].spinCell(index, isSecondaryClick);
+        case Tool.SpinR:
+        case Tool.SpinL:
+            const spinLeft = ui.selectedTool === Tool.SpinL;
+            // use not-equal as logical XOR: rotate leftward if exactly one of
+            // "the leftward tool mode is active" or "isSecondaryClick happened"
+            quilt.blocks[blk].spinCell(index, spinLeft !== isSecondaryClick);
             break;
-        case Tool.Flip:
-            quilt.blocks[blk].flipCell(index, isSecondaryClick);
+        case Tool.FlipH:
+        case Tool.FlipV:
+            const flipVertical = ui.selectedTool === Tool.FlipV;
+            // logical XOR (see Spin above for details)
+            quilt.blocks[blk].flipCell(index, flipVertical !== isSecondaryClick);
             break;
         default:
             console.error("Unknown tool selected: %d", ui.selectedTool);
@@ -673,20 +692,21 @@ function onBorderSize(ev: Event): void {
  */
 function onControlClick(ev: MouseEvent): void {
     const target = ev.target;
-    if (!(target instanceof HTMLElement)) {
+    if (!(target instanceof Element)) {
         return;
     }
-    if (!target.tagName.match(/^(?:button|input)$/i)) {
+    const parentInput = target.closest("button, input");
+    if (!parentInput) {
         return;
     }
 
-    const classes = target.classList;
+    const classes = parentInput.classList;
     if (classes.contains("resize")) {
         onResizeInput(ev);
     } else if (classes.contains("sash-select")) {
         onSashChange(ev);
-    } else if (classes.contains("tool-active")) {
-        onToolChange(ev);
+    } else if (classes.contains("tool-item")) {
+        onToolChange(ev, parentInput);
     } else if (classes.contains("roll")) {
         onRollerClick(ev);
     } else if (classes.contains("download")) {
@@ -733,9 +753,9 @@ function onPaletteClick(ev: MouseEvent): void {
     ui.colorEvents = Click.Allow;
 }
 
-function onToolChange(ev: MouseEvent): void {
-    const node = ev.target;
-    if (!(node instanceof HTMLElement && (node.id || "") in toolForId)) {
+function onToolChange(ev: MouseEvent, node: Element): void {
+    const region = ev.currentTarget;
+    if (!((node.id || "") in toolForId)) {
         return;
     }
     ui.selectedTool = toolForId[node.id];
@@ -745,6 +765,14 @@ function onToolChange(ev: MouseEvent): void {
         editorClearMoveHandler();
     }
     ui.moveStatus = node.getAttribute("data-move-tracking") === "1" ? Move.Allow : Move.Ignore;
+
+    // change the active-button state
+    if (region instanceof Element) {
+        for (const button of region.querySelectorAll(".tool-item.active")) {
+            button.classList.remove("active");
+        }
+    }
+    node.classList.add("active");
 }
 
 function onSashChange(ev: MouseEvent): void {

@@ -127,24 +127,48 @@
                     <div class="heading">Tools</div>
 
                     <div class="palette-row">
-                        <label class="tool-item">
-                            <input class="tool-active" data-move-tracking="1" id="tool-paint"
-                                   name="tool_select" type="radio">
-                            Paint
-                        </label>
-                        <button class="palette-select" id="color-active-0">&nbsp;</button>
-                        <button class="palette-select" id="color-active-1">&nbsp;</button>
+                        <button class="palette-select" id="color-active-0" title="Primary paint color">&nbsp;</button>
+                        <button class="palette-select" id="color-active-1" title="Secondary paint color">&nbsp;</button>
                     </div>
-                    <label class="tool-item">
-                        <input class="tool-active" id="tool-spin" name="tool_select"
-                               type="radio">
-                        Spin
-                    </label>
-                    <label class="tool-item">
-                        <input class="tool-active" id="tool-flip" name="tool_select"
-                               type="radio">
-                        Flip
-                    </label>
+
+                    <div class="tool-grid">
+                        <button class="tool-item tool-paint" data-move-tracking="1" id="tool-paint"
+                                title="Paint Triangle">
+                            <picture>
+                                <source media="(prefers-color-scheme: dark)"
+                                        srcset="images/paint-dk.png">
+                                <img alt="Paint" src="images/paint.png">
+                            </picture>
+                        </button>
+                        <button class="tool-item tool-spin" id="tool-spin-l" title="Rotate Square">
+                            <picture>
+                                <source media="(prefers-color-scheme: dark)"
+                                        srcset="images/rotate-l-dk.png">
+                                <img alt="Rotate Counter-clockwise" src="images/rotate-l.png">
+                            </picture>
+                        </button>
+                        <button class="tool-item tool-spin" id="tool-spin-r" title="Rotate Square">
+                            <picture>
+                                <source media="(prefers-color-scheme: dark)"
+                                        srcset="images/rotate-r-dk.png">
+                                <img alt="Rotate Clockwise" src="images/rotate-r.png">
+                            </picture>
+                        </button>
+                        <button class="tool-item tool-flip" id="tool-flip-h" title="Flip Square">
+                            <picture>
+                                <source media="(prefers-color-scheme: dark)"
+                                        srcset="images/flip-h-dk.png">
+                                <img alt="Flip Horizontally" src="images/flip-h.png">
+                            </picture>
+                        </button>
+                        <button class="tool-item tool-flip" id="tool-flip-v" title="Flip Square">
+                            <picture>
+                                <source media="(prefers-color-scheme: dark)"
+                                        srcset="images/flip-v-dk.png">
+                                <img alt="Flip Vertically" src="images/flip-v.png">
+                            </picture>
+                        </button>
+                    </div>
                 </div>
 
                 <div class="control column" id="guides">

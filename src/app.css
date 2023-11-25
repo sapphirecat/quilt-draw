@@ -181,20 +181,6 @@ button.new-thing.hide {
     align-items: center;
 }
 
-.palette-row {
-    display: grid;
-    grid-template-columns: 5fr 1fr 1fr;
-    margin: auto 0;
-}
-
-button.palette-select {
-    width: 1.5rem;
-    height: 1.5rem;
-    border: 1px solid rgba(50%, 50%, 50%, 0.2);
-    background: transparent;
-    transition: all 50ms linear;
-}
-
 button.download {
     box-sizing: border-box;
     width: 100%;
@@ -209,19 +195,48 @@ button.download {
     align-items: center;
 }
 
-#tools button {
-    border-color: #dcdcdc;
-    justify-self: end;
+#tools {
+    position: relative;
+}
+.tool-grid {
+    display: grid;
+    /* repeat() partial support in Fx 52-75; avoid calc(), auto-fill, auto-fit */
+    grid-template-columns: repeat(3, 2em);
+    gap: 0.4em;
+    margin: auto;
+}
+#tools .palette-row {
+    position: absolute;
+    top: 1.75rem;
+    right: 0;
+    width: 26px;
+    padding: 0;
+    text-align: right;
+}
+#tools button.palette-select {
+    width: 24px;
+    height: 24px;
+    margin-bottom: 2px;
+    border: 1px solid #dcdcdc;
+    background: transparent;
+    transition: all 50ms linear;
 }
 
-#tools li {
-    margin-bottom: 1em;
+#tools button.tool-item img {
+    width: 24px;
+    height: 24px;
 }
-
-#tools button.active {
-    color: #ffffff;
-    background-color: #6690cf;
-    border-color: #627178;
+#tools button.tool-item {
+    box-sizing: content-box;
+    width: 24px;
+    height: 24px;
+    padding: 2px;
+    background: none;
+    border: 1px solid transparent;
+}
+#tools button.tool-item.active {
+    border-color: #85aa6c;
+    background-color: #f0f0f0;
 }
 
 #editor-area {
@@ -429,14 +444,12 @@ button.download {
         border: 3px double #bf7fbf;
     }
 
-    #tools button {
+    #tools button, #tools button.palette-select {
         border-color: #3a3a3a;
     }
 
-    #tools button.active {
-        color: #000000;
-        background-color: #1e2a3b;
-        border-color: #475156;
+    #tools button.tool-item.active {
+        background-color: #303030;
     }
 
     .page blockquote {

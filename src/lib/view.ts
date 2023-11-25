@@ -4,8 +4,10 @@ import { TabGroup } from "./tabs";
 
 export enum Tool {
     Paint,
-    Spin,
-    Flip,
+    SpinR,
+    FlipH,
+    SpinL,
+    FlipV,
 }
 
 export enum Click {
