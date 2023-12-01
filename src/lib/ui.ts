@@ -34,20 +34,6 @@ const COLOR_LIMIT = 12; // maximum number of colors in the palette
 const POINTER_EVENTS = "PointerEvent" in window;
 const POINTER_MOVE = POINTER_EVENTS ? "pointermove" : "mousemove";
 
-/**
- * Lookup table for calculating cell hits. A = top/right side, B = bottom/left;
- * X = bottom/right, Y = top/left.  AY = intersect(A, Y) = top.  The value in
- * this object is the index into the Cell.colors for the sub-area that was hit.
- * That is, we calculate A-or-B, and X-or-Y, then look up the results here to
- * determine which triangle gets painted.
- */
-const CELL_QUADRANTS = {
-    AY: 0,
-    AX: 1,
-    BX: 2,
-    BY: 3,
-};
-
 const pickers: { [key: string]: PickrHandle } = {};
 const view = new ViewData();
 const miniView = new ViewData();
@@ -648,13 +634,22 @@ function onEditorMouse(ev: MouseEvent): void {
             const hitX = x - left;
             const hitY = y - top;
 
-            // determine which quadrant of the cell was hit
-            const quadrantKey = `${hitX > hitY ? "A" : "B"}${hitX > cellPx - hitY ? "X" : "Y"}`;
-            const colorIndex = CELL_QUADRANTS[quadrantKey as keyof typeof CELL_QUADRANTS];
+            // Map cell hits to sub-cell.  This uses the two diagonals: being
+            // above both of them (y=x or TL/BR, and y=H-x or TR/BL) means being
+            // in the "top" sub-cell.  TL and TR share the Top in common.  The
+            // sub-cells are in CSS style, 0=top, 1=right, 2=bottom, 3=left.
+            //
+            // prettier-ignore
+            const colorIndex = hitX > hitY ? // TR vs BL halves
+                (hitX > cellPx - hitY ? 1 : 0) : // TR+BR ? right  : top
+                (hitX > cellPx - hitY ? 2 : 3); //  BL+BR ? bottom : left
 
             // apply color to the index that was hit
-            const colorChosen = ui.paintColors[isSecondaryClick ? 1 : 0];
-            quilt.blocks[blk].paintSubCell(index, colorIndex, colorChosen);
+            quilt.blocks[blk].paintSubCell(
+                index,
+                colorIndex,
+                ui.paintColors[isSecondaryClick ? 1 : 0],
+            );
 
             break;
         case Tool.SpinR:

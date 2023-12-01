@@ -209,8 +209,8 @@ export class BlockInfo {
         this.dirty = true;
     }
 
-    paintSubCell(i: number, j: number, color: number): void {
-        if (i >= this.cells.length || j > 3) {
+    paintSubCell(i: number, j: 0 | 1 | 2 | 3, color: number): void {
+        if (i >= this.cells.length || i < 0 || color < 0) {
             return; // out of bounds
         }
         if (this.cells[i].colors[j] === color) {
