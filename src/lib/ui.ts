@@ -1,27 +1,34 @@
 import Pickr from "@simonwep/pickr";
 import { TabGroup } from "./tabs";
-import { Click, PickrHandle, RenderData, Tool, UI, ViewData } from "./view";
-import { BlockInfo, Border, Color, Move, Palette, Quilt, Rect, Sashes, SashInfo } from "./model";
+import { Click, PickrHandle, Previewer, sizeCanvasTo, Tool, UI } from "./view";
+import {
+    BlockInfo,
+    Border,
+    Move,
+    Palette,
+    Quilt,
+    Rect,
+    RectBounds,
+    RenderData,
+    Sashes,
+} from "./model";
 
 type PaintSlot = 0 | 1;
 
 let editor: HTMLCanvasElement;
-let preview: HTMLCanvasElement;
-let miniPreview: HTMLCanvasElement;
 let guideType: HTMLSelectElement;
+let previewer: Previewer;
+let miniPreviewer: Previewer;
+
+const EDITOR_MAX_WIDTH = 630; // HACK: this is specified in our CSS
 
 let EDITOR_DRAW_WIDTH: number;
-const EDITOR_MAX_WIDTH = 630; // HACK: this is specified in our CSS
 // no EDITOR_DRAW/MAX_HEIGHT: it is square.
 const VIEWPORT_MARGIN = 24;
 
-let PREVIEW_DRAW_WIDTH: number;
-let PREVIEW_DRAW_HEIGHT: number;
-const PREVIEW_MIN_HEIGHT = 480;
+const PREVIEW_MIN_HEIGHT = 420;
 const PREVIEW_MAX_HEIGHT = 1200;
 
-let MINI_PREVIEW_DRAW_WIDTH: number;
-let MINI_PREVIEW_DRAW_HEIGHT: number;
 const MINI_PREVIEW_MIN_HEIGHT = 300;
 // noinspection JSSuspiciousNameCombination
 const MINI_PREVIEW_MAX_HEIGHT = EDITOR_MAX_WIDTH;
@@ -35,8 +42,6 @@ const POINTER_EVENTS = "PointerEvent" in window;
 const POINTER_MOVE = POINTER_EVENTS ? "pointermove" : "mousemove";
 
 const pickers: { [key: string]: PickrHandle } = {};
-const view = new ViewData();
-const miniView = new ViewData();
 const quilt = new Quilt();
 const ui = new UI();
 
@@ -206,22 +211,28 @@ function criticalError(e: any) {
 
 function setupGlobalElements(): void {
     editor = document.getElementById("editor") as HTMLCanvasElement;
-    preview = document.getElementById("preview") as HTMLCanvasElement;
-    miniPreview = document.getElementById("mini-preview") as HTMLCanvasElement;
     guideType = document.getElementById("guide-type") as HTMLSelectElement;
 
     if (editor) {
         EDITOR_DRAW_WIDTH = editor.width;
     }
 
-    if (preview) {
-        PREVIEW_DRAW_WIDTH = preview.width;
-        PREVIEW_DRAW_HEIGHT = preview.height;
+    const preview = document.getElementById("preview");
+    if (preview instanceof HTMLCanvasElement) {
+        previewer = new Previewer(
+            preview,
+            new RectBounds(undefined, PREVIEW_MAX_HEIGHT),
+            new RectBounds(undefined, PREVIEW_MIN_HEIGHT),
+        );
     }
 
-    if (miniPreview) {
-        MINI_PREVIEW_DRAW_WIDTH = miniPreview.width;
-        MINI_PREVIEW_DRAW_HEIGHT = miniPreview.height;
+    const miniPreview = document.getElementById("mini-preview");
+    if (miniPreview instanceof HTMLCanvasElement) {
+        miniPreviewer = new Previewer(
+            miniPreview,
+            new RectBounds(undefined, editor?.width ?? MINI_PREVIEW_MAX_HEIGHT),
+            new RectBounds(undefined, MINI_PREVIEW_MIN_HEIGHT),
+        );
     }
 
     // put the active highlight on the selected tool before we go
@@ -242,7 +253,7 @@ export function initJs(): void {
     }
 
     setupGlobalElements();
-    if (!(editor && preview)) {
+    if (!(editor && previewer)) {
         criticalError("Can't get editor and preview; doing nothing.");
         return;
     }
@@ -314,7 +325,7 @@ function initBorders(): void {
 
     const newBorder = () => {
         addBorder();
-        updatePreview(quilt);
+        updatePreview(quilt, previewer);
         if (quilt.borders.length >= BORDER_LIMIT) {
             document.getElementById("border-new").classList.add("hide");
         }
@@ -493,12 +504,12 @@ function onSashColorPickerHide(i: number): void {
 
 function onSashColorChanged(i: number, value: Pickr.HSVaColor) {
     quilt.sash.colors[i] = value.toHSLA().toString();
-    updatePreview(quilt);
+    updatePreview(quilt, previewer);
 }
 
 function onSashColorReset(i: number): void {
     quilt.sash.colors[i] = pickers[`sash.${i}`].saved;
-    updatePreview(quilt);
+    updatePreview(quilt, previewer);
 }
 
 function addSashColor(i: number, button: HTMLElement, value: string): void {
@@ -518,12 +529,12 @@ function onBorderColorPickerHide(i: number): void {
 
 function onBorderColorChanged(i: number, value: Pickr.HSVaColor): void {
     quilt.borders[i].color = value.toHSLA().toString();
-    updatePreview(quilt);
+    updatePreview(quilt, previewer);
 }
 
 function onBorderColorReset(i: number): void {
     quilt.borders[i].color = pickers[`border.${i}`].saved;
-    updatePreview(quilt);
+    updatePreview(quilt, previewer);
 }
 
 /**
@@ -679,7 +690,7 @@ function onBorderSize(ev: Event): void {
 
     const i = parseInt(ev.target.getAttribute("data-border-index") || "0", 10) || 0;
     quilt.borders[i].cellWidth = parseInt(ev.target.value, 10);
-    updatePreview(quilt);
+    updatePreview(quilt, previewer);
 }
 
 /**
@@ -785,7 +796,7 @@ function onSashChange(ev: MouseEvent): void {
             ? Sashes.Double
             : Sashes.Single
         : Sashes.None;
-    updatePreview(quilt);
+    updatePreview(quilt, previewer);
 }
 
 function onDownload(ev: MouseEvent): void {
@@ -849,10 +860,6 @@ function onResizeInput(ev: MouseEvent): void {
     updateView();
 }
 
-function clamp(n: number, lo: number, hi: number): number {
-    return Math.min(hi, Math.max(n, lo));
-}
-
 function fitRectH(boundW: number, boundH: number, aspect: number, modPxH: number): number {
     const modPxW = Math.floor(modPxH * aspect);
 
@@ -882,42 +889,13 @@ function onResizeViewport(): void {
 
     // determine the mini preview's natural size [width/3 === *3fr/9fr]
     gridWidth = width / 3;
-    const miniH = fitRectH(gridWidth, height, previewAspect, modPxH);
-    MINI_PREVIEW_DRAW_HEIGHT = clamp(miniH, MINI_PREVIEW_MIN_HEIGHT, MINI_PREVIEW_MAX_HEIGHT);
-    MINI_PREVIEW_DRAW_WIDTH = Math.floor(MINI_PREVIEW_DRAW_HEIGHT * previewAspect);
+    miniPreviewer.resizeToBounds(new Rect(gridWidth, height), previewAspect, modPxH);
 
     // determine the full preview's natural size [7fr/9fr, usually height limited]
     gridWidth = width * (7 / 9);
-    const previewH = fitRectH(gridWidth, height, previewAspect, modPxH);
-    PREVIEW_DRAW_HEIGHT = clamp(previewH, PREVIEW_MIN_HEIGHT, PREVIEW_MAX_HEIGHT);
-    PREVIEW_DRAW_WIDTH = Math.floor(PREVIEW_DRAW_HEIGHT * previewAspect);
+    previewer.resizeToBounds(new Rect(gridWidth, height), previewAspect, modPxH);
 
     updateView();
-}
-
-/**
- * Resize a canvas to a specific physical and logical size.
- * @param canvas Canvas to resize
- * @param size Logical size (CSS pixels) to resize to
- * @param ignoreDPR TRUE to ignore the device pixel ratio (for downloads)
- */
-function sizeCanvasTo(canvas: HTMLCanvasElement, size: Rect, ignoreDPR?: boolean) {
-    const DPR = ignoreDPR ? 1 : Math.max(window.devicePixelRatio || 1, 1);
-    canvas.width = size.w * DPR;
-    canvas.height = size.h * DPR;
-    canvas.style.width = `${size.w}px`;
-    canvas.style.height = `${size.h}px`;
-}
-
-/**
- * Get the effective pixel ratio of a canvas after sizeCanvasTo()
- * @param canvas Canvas that has been resized
- * @param size Logical size of the canvas
- * @return Device pixel ratio (float, probably >=1.0)
- */
-function getDPR(canvas: HTMLCanvasElement, size: Rect): number {
-    // device-space width ÷ logical width
-    return size.w ? canvas.width / size.w : 1;
 }
 
 function updateGuideColor(): void {
@@ -990,196 +968,6 @@ function updateEditor(colors: Palette, block: BlockInfo): void {
     drawGuides(block, ctx);
 }
 
-function deepCopy<T>(x: T): T {
-    return JSON.parse(JSON.stringify(x));
-}
-
-/**
- * Pre-scale and draw quilt blocks into a canvas.
- */
-function drawPreviewBlocks(ctx: CanvasRenderingContext2D, r: RenderData): void {
-    // parse render data
-    const blockSize = r.blockSize;
-    const padSize = r.padSize;
-    const sashSize = r.hasSash ? r.cellSize : 0;
-    const q = r.quilt;
-    const shape = q.shape;
-
-    // pre-scale all blocks on the quilt
-    const sourceCount: number = q.blocks.length;
-    const scaled: CanvasImageSource[] = new Array(sourceCount);
-    for (let i = 0; i < sourceCount; i++) {
-        scaled[i] = q.blocks[i].getScaledSource(r.blockSize);
-    }
-
-    // draw from the pre-scaled images
-    const stepSize = blockSize + sashSize; // common subexpression
-    let iBlock = 0;
-    for (let row = 0, oY = padSize; row < shape.h; row++) {
-        for (let col = 0, oX = padSize; col < shape.w; col++) {
-            ctx.drawImage(scaled[q.blockMap[iBlock++]], oX, oY);
-            oX += stepSize; // next column
-        }
-        oY += stepSize; // next row
-    }
-}
-
-function drawPreviewBorders(
-    prevState: Array<Border> | null,
-    ctx: CanvasRenderingContext2D,
-    r: RenderData,
-): void {
-    let oX = 0;
-    let oY = 0;
-    let w = r.canvasSize.w;
-    let h = r.canvasSize.h;
-
-    const borders = quilt.borders;
-    for (let i = 0; i < borders.length; i++) {
-        const border = borders[i];
-        const viewBorder = prevState && i < prevState.length ? prevState[i] : null;
-
-        // skip everything if this border is not visible
-        if (border.cellWidth === 0) {
-            continue;
-        }
-
-        // determine the border sizes
-        const delta = border.cellWidth * r.cellSize; // full border space
-        const strip = delta / 2; // space of one strip of the border
-
-        // if this is a full redraw or the border has changed, repaint it
-        if (!border.equals(viewBorder)) {
-            // draw an outer edge, then inner edge, then fill even-odd so that
-            // only the actual border pixels get painted. overdraws vastly
-            // fewer pixels than our old fillRect() code.
-            ctx.beginPath();
-            ctx.rect(oX, oY, w, h);
-            ctx.rect(oX + strip, oY + strip, w - delta, h - delta);
-            ctx.closePath();
-
-            ctx.fillStyle = border.color;
-            ctx.fill("evenodd");
-        }
-
-        // adjust next drawing area
-        oX += strip;
-        oY += strip;
-        w -= delta;
-        h -= delta;
-    }
-}
-
-function drawPreviewSash(
-    vs: SashInfo | null,
-    ctx: CanvasRenderingContext2D,
-    sash: SashInfo,
-    r: RenderData,
-): void {
-    if (sash.levels === Sashes.None) {
-        return;
-    }
-
-    const sashSpacing = r.cellSize;
-    const blockSize = r.blockSize;
-    const padSize = r.padSize;
-    const borderSize = 2 * padSize;
-    const viewColors = vs && vs.levels === sash.levels ? vs.colors : ([] as Color[]);
-    const drawMain = !(vs && viewColors && viewColors[0] === sash.colors[0]);
-    const stepSize = blockSize + sashSpacing;
-    const padStepSize = padSize + stepSize;
-    const shape = r.quilt.shape;
-
-    // draw main sashing
-    if (drawMain) {
-        ctx.fillStyle = sash.colors[0];
-        for (let col = 1, oX = padStepSize; col < shape.w; col++) {
-            ctx.fillRect(oX - sashSpacing, padSize, sashSpacing, r.canvasSize.h - borderSize);
-            oX += stepSize;
-        }
-        for (let row = 1, oY = padStepSize; row < shape.h; row++) {
-            ctx.fillRect(padSize, oY - sashSpacing, r.canvasSize.w - borderSize, sashSpacing);
-            oY += stepSize;
-        }
-    }
-
-    // draw cross sashing, if applicable
-    if (sash.levels !== Sashes.Double) {
-        return;
-    } else if (!drawMain && viewColors.length >= 2 && viewColors[1] === sash.colors[1]) {
-        // cross sashing neither changed nor drawn over
-        return;
-    }
-    ctx.fillStyle = sash.colors[1];
-    for (let col = 1, oX = padStepSize; col < shape.w; col++) {
-        for (let row = 1, oY = padStepSize; row < shape.h; row++) {
-            // draw cross sash: above left of current point
-            ctx.fillRect(oX - sashSpacing, oY - sashSpacing, sashSpacing, sashSpacing);
-            oY += stepSize;
-        }
-        oX += stepSize;
-    }
-}
-
-/**
- * Draw a quilt to a canvas for on-screen display.
- *
- * @param canvas Canvas to draw into
- * @param r Render data for the current quilt data
- * @param v Visible quilt information (last render; updated to match this render)
- */
-function drawPreviewOnScreen(canvas: HTMLCanvasElement, r: RenderData, v: ViewData): void {
-    // extract some information we will reference a lot
-    const cellSize = r.cellSize,
-        quilt = r.quilt,
-        visQuilt = v.quilt, // visible quilt on-screen
-        sash = quilt.sash;
-
-    // resize the canvas to the draw dimensions if needed
-    const layout = `${cellSize},${r.cells},${r.hasSash ? "sash" : "noSash"}`;
-    let fullRedraw = layout !== v.layout || v.editorState < 0;
-    if (fullRedraw) {
-        v.layout = layout;
-        sizeCanvasTo(canvas, r.canvasSize);
-        // reset "last drawn" to an empty quilt, so that we redraw everything
-        v.quilt = new Quilt();
-    } else if (
-        !v.quilt.colorSet.equals(quilt.colorSet) ||
-        (r.hasSash && !arrayEquals(v.quilt.sash.colors, quilt.sash.colors))
-    ) {
-        // if the palette has changed, redraw everything, but without resizing
-        fullRedraw = true;
-    }
-
-    // start drawing
-    const ctx = canvas.getContext("2d", { alpha: false });
-    const DPR = getDPR(canvas, r.canvasSize);
-
-    ctx.save();
-    ctx.scale(DPR, DPR);
-
-    // draw changes to borders
-    drawPreviewBorders(fullRedraw ? null : visQuilt.borders, ctx, r);
-    visQuilt.borders = deepCopy(quilt.borders);
-
-    // draw main sashing, if applicable
-    if (r.hasSash) {
-        drawPreviewSash(fullRedraw ? null : visQuilt.sash, ctx, sash, r);
-        visQuilt.sash = deepCopy(sash);
-    } else if (visQuilt.sash.levels !== Sashes.None) {
-        visQuilt.sash = new SashInfo();
-    }
-
-    // draw the 5x4 blocks, inset by the half-border-width padSize, and offset
-    // by sashing if specified
-    if (fullRedraw || ui.editorState !== v.editorState) {
-        drawPreviewBlocks(ctx, r);
-        v.editorState = ui.editorState;
-    }
-
-    ctx.restore();
-}
-
 function previewCellSizeFn(drawW: number, drawH: number): (cells: Rect) => number {
     return (cells: Rect) => {
         const minDimension = Math.min(drawW / cells.w, drawH / cells.h);
@@ -1188,66 +976,43 @@ function previewCellSizeFn(drawW: number, drawH: number): (cells: Rect) => numbe
     };
 }
 
-function updatePreview(quilt: Quilt): void {
-    const r = new RenderData(quilt, previewCellSizeFn(PREVIEW_DRAW_WIDTH, PREVIEW_DRAW_HEIGHT));
+function updatePreview(quilt: Quilt, preview: Previewer): void {
+    const draw = preview.drawSize;
+    const r = new RenderData(quilt, previewCellSizeFn(draw.w, draw.h));
 
-    drawPreviewOnScreen(preview, r, view);
-}
-
-function updateMiniPreview(quilt: Quilt): void {
-    const r = new RenderData(
-        quilt,
-        previewCellSizeFn(MINI_PREVIEW_DRAW_WIDTH, MINI_PREVIEW_DRAW_HEIGHT),
-    );
-
-    drawPreviewOnScreen(miniPreview, r, miniView);
+    preview.render(r, ui.editorState);
 }
 
 /**
  * Draw a large-size preview and return the canvas
  */
 function renderDownload(quilt: Quilt): HTMLCanvasElement {
-    // offscreen canvas
     const canvas = document.createElement("canvas");
+    let renderer = new Previewer(
+        canvas,
+        new RectBounds(undefined, DOWNLOAD_MIN_HEIGHT),
+        new RectBounds(),
+    );
+    renderer.ignoreDPR = true; // switch to download mode
 
     // calculate draw dimensions
     const r = new RenderData(quilt, (cells) =>
         Math.max(12, 2 * Math.ceil(DOWNLOAD_MIN_HEIGHT / cells.h / 2)),
     );
-    sizeCanvasTo(canvas, r.canvasSize, true);
 
-    // start drawing
-    const ctx = canvas.getContext("2d", { alpha: false });
-    drawPreviewBorders(null, ctx, r);
-    if (r.hasSash) {
-        drawPreviewSash(null, ctx, quilt.sash, r);
-    }
-    drawPreviewBlocks(ctx, r);
+    // no sequence number = redraw everything
+    renderer.render(r);
 
     return canvas;
 }
 
 function updateView(): void {
     if (ui.tabs.current === "tab-quilt") {
-        updatePreview(quilt);
+        updatePreview(quilt, previewer);
     } else {
         updateEditor(quilt.colorSet, quilt.blocks[ui.editorBlock]);
-        updateMiniPreview(quilt);
+        updatePreview(quilt, miniPreviewer);
     }
-}
-
-function arrayEquals(a: any[], b: any[]): boolean {
-    if (a.length !== b.length) {
-        return false;
-    }
-
-    for (let i = 0; i < a.length; i++) {
-        if (a[i] !== b[i]) {
-            return false;
-        }
-    }
-
-    return true;
 }
 
 function randomColor(): string {
