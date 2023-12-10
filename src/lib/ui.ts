@@ -1,19 +1,20 @@
 import Pickr from "@simonwep/pickr";
 import { TabGroup } from "./tabs";
-import { Click, PickrHandle, Previewer, sizeCanvasTo, Tool, UI } from "./view";
-import { BlockInfo, Border, Move, Palette, Quilt, Rect, RectBounds, Sashes } from "./model";
+import { BlockEditor, Previewer } from "./view";
+import { BlockInfo, Border, Guide, Palette, Quilt, Rect, RectBounds, Sashes } from "./model";
+import { Click, Move, PickrHandle, Tool, UI } from "./ui-model";
 
 type PaintSlot = 0 | 1;
 
-let editor: HTMLCanvasElement;
+let editor: BlockEditor;
 let guideType: HTMLSelectElement;
 let previewer: Previewer;
 let miniPreviewer: Previewer;
 
+// no editor heights: it is square (height=width)
 const EDITOR_MAX_WIDTH = 630; // HACK: this is specified in our CSS
+const EDITOR_MIN_WIDTH = 180; // necessary?
 
-let EDITOR_DRAW_WIDTH: number;
-// no EDITOR_DRAW/MAX_HEIGHT: it is square.
 const VIEWPORT_MARGIN = 24;
 
 const PREVIEW_MIN_HEIGHT = 420;
@@ -200,11 +201,11 @@ function criticalError(e: any) {
 }
 
 function setupGlobalElements(): void {
-    editor = document.getElementById("editor") as HTMLCanvasElement;
+    const edit = document.getElementById("editor") as HTMLCanvasElement;
     guideType = document.getElementById("guide-type") as HTMLSelectElement;
 
-    if (editor) {
-        EDITOR_DRAW_WIDTH = editor.width;
+    if (edit) {
+        editor = new BlockEditor(edit, EDITOR_MAX_WIDTH, EDITOR_MIN_WIDTH);
     }
 
     const preview = document.getElementById("preview");
@@ -258,13 +259,14 @@ export function initJs(): void {
 
 function initTools(): void {
     const colorItems = document.getElementById("color-items");
+    const canvas = editor.canvas;
 
     // Pointer-related events: try Pointer, fall back to Mouse.
     if (POINTER_EVENTS) {
         // set up editor
-        editor.addEventListener("pointerdown", onEditorMouse);
-        editor.addEventListener("pointerup", onEditorMouseRelease);
-        editor.addEventListener("pointercancel", onEditorMouseRelease);
+        canvas.addEventListener("pointerdown", onEditorMouse);
+        canvas.addEventListener("pointerup", onEditorMouseRelease);
+        canvas.addEventListener("pointercancel", onEditorMouseRelease);
 
         // set up main controls
         // we still get a click event, so we use ui.colorEvents to ignore one
@@ -272,15 +274,15 @@ function initTools(): void {
         colorItems.addEventListener("pointerdown", onPaletteDown, { capture: true });
         colorItems.addEventListener("click", onPaletteClick, { capture: true });
     } else {
-        editor.addEventListener("mousedown", onEditorMouse);
-        editor.addEventListener("mouseup", onEditorMouseRelease);
+        canvas.addEventListener("mousedown", onEditorMouse);
+        canvas.addEventListener("mouseup", onEditorMouseRelease);
 
         colorItems.addEventListener("mousedown", onPaletteDown, { capture: true });
         colorItems.addEventListener("click", onPaletteClick, { capture: true });
     }
 
     // set up the remaining (non-pointer) editor and color-picker events
-    editor.addEventListener("contextmenu", (ev) => ev.preventDefault());
+    canvas.addEventListener("contextmenu", (ev) => ev.preventDefault());
     colorItems.addEventListener("contextmenu", (ev) => ev.preventDefault());
 
     // pre-select the paint tool to match the script state
@@ -347,7 +349,7 @@ function initSashColors(): void {
 
 function initGuides(): void {
     if (guideType) {
-        ui.guideColor = guideType.value;
+        ui.guides = new Guide(guideType.value);
         guideType.addEventListener("change", updateGuideColor);
         guideType.addEventListener("keyup", updateGuideColor);
     }
@@ -576,13 +578,13 @@ function isSecondaryButton(ev: MouseEvent): boolean {
 }
 
 function editorClearMoveHandler(): void {
-    editor.removeEventListener(POINTER_MOVE, onEditorMouse);
+    editor.canvas.removeEventListener(POINTER_MOVE, onEditorMouse);
     ui.moveStatus = Move.Allow;
 }
 
 function editorSetMoveHandler(): void {
     ui.moveStatus = Move.Tracking;
-    editor.addEventListener(POINTER_MOVE, onEditorMouse);
+    editor.canvas.addEventListener(POINTER_MOVE, onEditorMouse);
 }
 
 function onEditorMouseRelease(ev: MouseEvent): void {
@@ -614,7 +616,7 @@ function onEditorMouse(ev: MouseEvent): void {
     }
 
     // the BoundingClientRect is relative to the viewport, as are clientX/Y
-    const rect = editor.getBoundingClientRect();
+    const rect = editor.canvas.getBoundingClientRect();
     const x = ev.clientX - rect.left;
     const y = ev.clientY - rect.top;
     const _ = Math.floor;
@@ -623,7 +625,7 @@ function onEditorMouse(ev: MouseEvent): void {
     const sz = quilt.blockCells;
     const cellPx = editor.width / sz;
     const index = _(x / cellPx) + sz * _(y / cellPx);
-    const blk = ui.editorBlock;
+    const blk = editor.currentBlock;
 
     // act on the hit
     const isSecondaryClick = isSecondaryButton(ev);
@@ -799,7 +801,7 @@ function onDownload(ev: MouseEvent): void {
 
     // figure out what we're downloading
     const isPreview = node.id === "download-preview";
-    const source = isPreview ? renderDownload(quilt) : editor;
+    const source = isPreview ? renderDownload(quilt) : editor.canvas;
     const basename = isPreview ? "quilt" : "block";
 
     // generate download
@@ -829,7 +831,7 @@ function onRollerClick(ev: MouseEvent): void {
     const id = ev.target.id as keyof typeof movers;
     const callback = movers[id];
     if (callback) {
-        callback(quilt.blocks[ui.editorBlock]);
+        callback(quilt.blocks[editor.currentBlock]);
         updateView();
     }
 }
@@ -850,20 +852,6 @@ function onResizeInput(ev: MouseEvent): void {
     updateView();
 }
 
-function fitRectH(boundW: number, boundH: number, aspect: number, modPxH: number): number {
-    const modPxW = Math.floor(modPxH * aspect);
-
-    // shrink the bounds to wrap the quantum of space the caller wanted
-    boundW -= boundW % modPxW;
-    boundH -= boundH % modPxH;
-
-    // calculate the width based purely on the actual height
-    const altW = Math.floor(boundH * aspect);
-    const finalW = Math.min(boundW, altW);
-
-    return Math.ceil(finalW / aspect);
-}
-
 function onResizeViewport(): void {
     // HACK: Takes a max-width and grid (3 columns = 2*10px gap) into account
     const width = Math.min(window.innerWidth, 1600) - 20 - VIEWPORT_MARGIN;
@@ -874,8 +862,7 @@ function onResizeViewport(): void {
 
     // determine the editor's natural size [4fr/9fr]
     gridWidth = width * (4 / 9);
-    let editorH = fitRectH(gridWidth, height, 1.0, 12);
-    EDITOR_DRAW_WIDTH = Math.min(editorH, EDITOR_MAX_WIDTH);
+    editor.resizeToBounds(gridWidth, height);
 
     // determine the mini preview's natural size [width/3 === *3fr/9fr]
     gridWidth = width / 3;
@@ -889,73 +876,8 @@ function onResizeViewport(): void {
 }
 
 function updateGuideColor(): void {
-    if (!guideType || guideType.value === ui.guideColor) {
-        return;
-    }
-
-    updateEditor(quilt.colorSet, quilt.blocks[ui.editorBlock]);
-}
-
-function drawGuides(block: BlockInfo, ctx: CanvasRenderingContext2D): void {
-    if (guideType.value === "") {
-        // we don't want to draw anything on it
-        ui.guideColor = "";
-
-        return;
-    }
-
-    const cW = ui.cellPx;
-    const cellCount = block.getSize();
-    const pixelSize = cW * cellCount;
-
-    ctx.save();
-    try {
-        let at = 0;
-        ctx.strokeStyle = guideType.value;
-        ctx.beginPath();
-        for (let i = 1; i < cellCount; ++i) {
-            at += cW;
-            ctx.moveTo(at, 0);
-            ctx.lineTo(at, pixelSize);
-            ctx.moveTo(0, at);
-            ctx.lineTo(pixelSize, at);
-        }
-
-        ctx.stroke();
-
-        ui.guideColor = guideType.value;
-    } catch (e) {
-        console.error(e);
-    }
-    ctx.restore();
-}
-
-/**
- * Draw a block into the editor area of the canvas.
- */
-function updateEditor(colors: Palette, block: BlockInfo): void {
-    // render the blockInfo into the editor canvas
-    const cellCount = block.getSize();
-    let dirty = block.isDirty();
-
-    // Resize editor if needed, assuming square
-    const cW = 2 * Math.floor(EDITOR_DRAW_WIDTH / cellCount / 2);
-    const pixelSize = cW * cellCount;
-    if (cW !== ui.cellPx || editor.style.width === "") {
-        ui.cellPx = cW;
-        sizeCanvasTo(editor, new Rect(pixelSize, pixelSize));
-        dirty = true;
-    }
-
-    if (dirty) {
-        ui.editorState += 1; // we're redrawing the canvas!
-    }
-
-    const ctx = editor.getContext("2d", { alpha: false });
-    ctx.drawImage(block.getSource(editor.width, colors), 0, 0);
-
-    // draw on the UI-only state after the block is copied out
-    drawGuides(block, ctx);
+    ui.guides.type = guideType.value;
+    editor.render(quilt, ui.guides);
 }
 
 function updatePreview(quilt: Quilt, preview: Previewer): void {
@@ -966,7 +888,7 @@ function updatePreview(quilt: Quilt, preview: Previewer): void {
         return 2 * Math.floor(minDimension / 2);
     };
 
-    preview.render(quilt, cellSizeFn, ui.editorState);
+    preview.render(quilt, cellSizeFn, editor.state);
 }
 
 /**
@@ -993,7 +915,7 @@ function updateView(): void {
     if (ui.tabs.current === "tab-quilt") {
         updatePreview(quilt, previewer);
     } else {
-        updateEditor(quilt.colorSet, quilt.blocks[ui.editorBlock]);
+        editor.render(quilt, ui.guides);
         updatePreview(quilt, miniPreviewer);
     }
 }

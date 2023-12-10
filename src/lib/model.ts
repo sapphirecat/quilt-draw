@@ -4,16 +4,15 @@ const BLOCKS_VERT = 5; // number of block copies down the preview
 export type Color = string;
 export type SashColors = [Color, Color];
 
-export enum Move {
-    Ignore, // tool does not allow holding mouse down
-    Allow, // tool supports holding mouse down, but handler is inactive
-    Tracking, // mouse is down, and event handler is active
-}
-
 export enum Sashes {
     None, // no sashing
     Single, // all one color
     Double, // second color at intersections
+}
+
+export enum GuideType {
+    None,
+    Grid,
 }
 
 export class SashInfo {
@@ -56,6 +55,43 @@ export class Rect extends RectBounds {
 
     scale(m: number): Rect {
         return new Rect(m * this.w, m * this.h);
+    }
+}
+
+export class Guide {
+    constructor(guideType: string) {
+        this.type = guideType;
+    }
+
+    private _type: GuideType;
+
+    get type(): GuideType {
+        return this._type;
+    }
+
+    set type(value: string) {
+        if (value === "") {
+            this._type = GuideType.None;
+        } else {
+            this._type = GuideType.Grid;
+            this._color = value;
+        }
+    }
+
+    private _color: Color;
+
+    get color(): Color {
+        return this._color;
+    }
+
+    equals(other: Guide | undefined | null) {
+        return other && this._type === other.type && this._color === other.color;
+    }
+
+    copy() {
+        const htmlType = this._type === GuideType.Grid ? this._color : "";
+
+        return new Guide(htmlType);
     }
 }
 

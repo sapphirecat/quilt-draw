@@ -1,19 +1,15 @@
-import Pickr from "@simonwep/pickr";
-import { Border, Color, Move, Quilt, Rect, RectBounds, Sashes, SashInfo } from "./model";
-import { TabGroup } from "./tabs";
-
-export enum Tool {
-    Paint,
-    SpinR,
-    FlipH,
-    SpinL,
-    FlipV,
-}
-
-export enum Click {
-    Ignore,
-    Allow,
-}
+import {
+    BlockInfo,
+    Border,
+    Color,
+    Guide,
+    GuideType,
+    Quilt,
+    Rect,
+    RectBounds,
+    Sashes,
+    SashInfo,
+} from "./model";
 
 /**
  * Last rendered view information, for optimizing updates in Previewer.
@@ -119,7 +115,7 @@ function getDPR(canvas: HTMLCanvasElement, size: Rect): number {
  * @param size Logical size (CSS pixels) to resize to
  * @param ignoreDPR TRUE to ignore the device pixel ratio (for downloads)
  */
-export function sizeCanvasTo(canvas: HTMLCanvasElement, size: Rect, ignoreDPR: boolean = false) {
+function sizeCanvasTo(canvas: HTMLCanvasElement, size: Rect, ignoreDPR: boolean = false) {
     const DPR = ignoreDPR ? 1 : Math.max(window.devicePixelRatio || 1, 1);
     canvas.width = size.w * DPR;
     canvas.height = size.h * DPR;
@@ -374,46 +370,119 @@ export class Previewer {
     }
 }
 
-export class UI {
-    /** currently selected block index */
-    editorBlock: number = 0;
+/**
+ * Current block view in the editor, and overlay canvas
+ */
+export class BlockEditor {
+    /** currently selected block index (not yet changeable/usable) */
+    private _current: number = 0;
+    /** cell size during the most recent render() call */
+    private lastCellPx: number = -1;
+    /** most recent guide types drawn by render() */
+    private lastGuides: Guide;
+    private readonly maxSize: RectBounds;
+    private readonly minSize: RectBounds;
+    private readonly _canvas: HTMLCanvasElement;
+
+    constructor(canvas: HTMLCanvasElement, maxWidth: number, minWidth: number) {
+        this._canvas = canvas;
+        this._width = canvas.width;
+        // the block is always square
+        this.maxSize = new Rect(maxWidth, maxWidth);
+        this.minSize = new Rect(minWidth, minWidth);
+
+        this.lastGuides = new Guide(""); // last drawn: nothing
+    }
+
     /** generation of the editor, incremented on changes */
-    editorState: number = 0;
-    /** editor cell size in pixels (width & height) */
-    cellPx: number = 0;
-    /** tabs (editor/preview) */
-    tabs: TabGroup | null = null;
-    /** whether clicks on Pickr elements should be passed into Pickr */
-    colorEvents: Click = Click.Allow;
-    /** HTML template for new colors */
-    colorTemplate: HTMLTemplateElement | null = null;
-    /** HTML template for new borders */
-    borderTemplate: HTMLTemplateElement | null = null;
-    /** Current guide color, shown between squares in the block editor */
-    guideColor: string = "";
-    /** Primary and secondary paint colors */
-    paintColors: [number, number] = [1, 0];
-    /** Currently active tool ID */
-    selectedTool: Tool = Tool.Paint;
-    /** Whether the selectedTool handles mousemove gracefully (Move.ALLOW) */
-    moveStatus: Move = Move.Allow;
-}
+    private _state: number = 0;
 
-export class PickrHandle {
-    constructor(
-        public handle: Pickr,
-        public saved: Color,
-    ) {}
+    get state(): number {
+        return this._state;
+    }
 
-    /**
-     * Save the selected color to the picker, for use on the next reset event.
-     *
-     * Typically called when Pickr is popped down, by clicking outside of it.
-     *
-     * @param newColor Color that has been selected
-     */
-    saveColor(newColor: Color) {
-        this.saved = newColor; // remember the color for Reset
-        this.handle.applyColor(true); // apply without firing the event
+    /** current canvas size (w/h) */
+    private _width: number = 0;
+
+    get width(): number {
+        return this._width;
+    }
+
+    get currentBlock(): number {
+        return this._current;
+    }
+
+    get canvas(): HTMLCanvasElement {
+        return this._canvas;
+    }
+
+    resizeToBounds(width: number, height: number) {
+        const draw = getDrawSize(new Rect(width, height), this.maxSize, this.minSize, 12);
+        this._width = Math.min(draw.w, draw.h, this.maxSize.w);
+    }
+
+    render(quilt: Quilt, guides: Guide) {
+        const colors = quilt.colorSet,
+            block = quilt.blocks[this._current],
+            editor = this._canvas;
+
+        // render the current blockInfo into the editor canvas
+        const cellCount = block.getSize();
+        let dirty = block.isDirty();
+
+        // Resize editor if needed, assuming square
+        const cW = 2 * Math.floor(this._width / cellCount / 2);
+        const pixelSize = cW * cellCount;
+        if (cW !== this.lastCellPx || editor.style.width === "") {
+            this.lastCellPx = cW;
+            sizeCanvasTo(editor, new Rect(pixelSize, pixelSize));
+            dirty = true;
+        }
+        if (!guides.equals(this.lastGuides)) {
+            dirty = true;
+        }
+
+        // if nothing changed, we're done
+        if (!dirty) {
+            return;
+        }
+
+        ++this._state; // we're redrawing the canvas!
+
+        const ctx = editor.getContext("2d", { alpha: false });
+        ctx.drawImage(block.getSource(editor.width, colors), 0, 0);
+
+        // draw the overlay after the block is copied out
+        this.drawGuides(guides, block, ctx);
+        this.lastGuides = guides.copy();
+    }
+
+    private drawGuides(guides: Guide, block: BlockInfo, ctx: CanvasRenderingContext2D): void {
+        if (guides.type === GuideType.None) {
+            return;
+        }
+
+        const cW = this.lastCellPx;
+        const cellCount = block.getSize();
+        const pixelSize = cW * cellCount;
+
+        ctx.save();
+        try {
+            let at = 0;
+            ctx.strokeStyle = guides.color;
+            ctx.beginPath();
+            for (let i = 1; i < cellCount; ++i) {
+                at += cW;
+                ctx.moveTo(at, 0);
+                ctx.lineTo(at, pixelSize);
+                ctx.moveTo(0, at);
+                ctx.lineTo(pixelSize, at);
+            }
+
+            ctx.stroke();
+        } catch (e) {
+            console.error(e);
+        }
+        ctx.restore();
     }
 }
