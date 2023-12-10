@@ -1,17 +1,7 @@
 import Pickr from "@simonwep/pickr";
 import { TabGroup } from "./tabs";
 import { Click, PickrHandle, Previewer, sizeCanvasTo, Tool, UI } from "./view";
-import {
-    BlockInfo,
-    Border,
-    Move,
-    Palette,
-    Quilt,
-    Rect,
-    RectBounds,
-    RenderData,
-    Sashes,
-} from "./model";
+import { BlockInfo, Border, Move, Palette, Quilt, Rect, RectBounds, Sashes } from "./model";
 
 type PaintSlot = 0 | 1;
 
@@ -968,19 +958,15 @@ function updateEditor(colors: Palette, block: BlockInfo): void {
     drawGuides(block, ctx);
 }
 
-function previewCellSizeFn(drawW: number, drawH: number): (cells: Rect) => number {
-    return (cells: Rect) => {
-        const minDimension = Math.min(drawW / cells.w, drawH / cells.h);
+function updatePreview(quilt: Quilt, preview: Previewer): void {
+    const draw = preview.drawSize;
+    const cellSizeFn = (cells: Rect) => {
+        const minDimension = Math.min(draw.w / cells.w, draw.h / cells.h);
 
         return 2 * Math.floor(minDimension / 2);
     };
-}
 
-function updatePreview(quilt: Quilt, preview: Previewer): void {
-    const draw = preview.drawSize;
-    const r = new RenderData(quilt, previewCellSizeFn(draw.w, draw.h));
-
-    preview.render(r, ui.editorState);
+    preview.render(quilt, cellSizeFn, ui.editorState);
 }
 
 /**
@@ -995,13 +981,10 @@ function renderDownload(quilt: Quilt): HTMLCanvasElement {
     );
     renderer.ignoreDPR = true; // switch to download mode
 
-    // calculate draw dimensions
-    const r = new RenderData(quilt, (cells) =>
+    // no sequence number = redraw everything
+    renderer.render(quilt, (cells) =>
         Math.max(12, 2 * Math.ceil(DOWNLOAD_MIN_HEIGHT / cells.h / 2)),
     );
-
-    // no sequence number = redraw everything
-    renderer.render(r);
 
     return canvas;
 }

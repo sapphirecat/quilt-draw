@@ -1,15 +1,5 @@
 import Pickr from "@simonwep/pickr";
-import {
-    Border,
-    Color,
-    Move,
-    Quilt,
-    Rect,
-    RectBounds,
-    RenderData,
-    Sashes,
-    SashInfo,
-} from "./model";
+import { Border, Color, Move, Quilt, Rect, RectBounds, Sashes, SashInfo } from "./model";
 import { TabGroup } from "./tabs";
 
 export enum Tool {
@@ -32,6 +22,60 @@ class ViewData {
     editorState: number = -1;
     layout: string = "N/A";
     quilt: Quilt = new Quilt();
+}
+
+class RenderData {
+    /** Width of the border, in cell halves */
+    readonly borderUnits: number;
+    /** Whether the sashing should be displayed at all */
+    readonly hasSash: boolean;
+    /** Total width/height of the quilt, in cells */
+    readonly cells: Rect;
+
+    /**
+     * Number of pixels of a single cell, determined by callback
+     *
+     * This is also the width and height of the sashing (1 cell.)
+     */
+    readonly cellSize: number;
+    /** Per-edge border width, in pixels */
+    readonly padSize: number;
+    /** Width (= height) of a single quilt block, in pixels */
+    readonly blockSize: number;
+    /** Size of the entire canvas, in pixels */
+    readonly canvasSize: Rect;
+
+    constructor(quilt: Quilt, cellSizeFn: (cells: Rect) => number) {
+        const shape = quilt.shape;
+        const blockCells = quilt.blockCells;
+
+        this.hasSash = quilt.sash.levels !== Sashes.None;
+
+        // sum up the border sizes to get the total border units
+        let borderUnits = 0;
+        for (const border of quilt.borders) {
+            borderUnits += border.cellWidth;
+        }
+        this.borderUnits = borderUnits;
+
+        // "Border units" is in half-cells, so figure out the pixel size based on blockSize.
+        // Determine the number of cells horizontally and vertically.  This is determining the total
+        // border: borderUnits=1 means 1/2 cell * 2 sides.  Sashing goes between blocks only, and it
+        // is a fixed 1-cell width for the moment.  Thus, it adds blocks-1 cells to each dimension
+        // when present.
+        this.cells = new Rect(
+            blockCells * shape.w + borderUnits + (this.hasSash ? shape.w - 1 : 0),
+            blockCells * shape.h + borderUnits + (this.hasSash ? shape.h - 1 : 0),
+        );
+
+        // okay, now that we have cell dimensions, call the cellSizeFn to get pixel information
+        this.cellSize = cellSizeFn(this.cells);
+        this.padSize = (this.cellSize * this.borderUnits) / 2; // half on each side
+        this.blockSize = this.cellSize * blockCells;
+
+        // calculate pixel dimensions, as px/cell * cells
+        this.canvasSize = this.cells.scale(this.cellSize);
+    }
 }
 
 function clamp(n: number, lo?: number, hi?: number): number {
@@ -75,12 +119,52 @@ function getDPR(canvas: HTMLCanvasElement, size: Rect): number {
  * @param size Logical size (CSS pixels) to resize to
  * @param ignoreDPR TRUE to ignore the device pixel ratio (for downloads)
  */
-export function sizeCanvasTo(canvas: HTMLCanvasElement, size: Rect, ignoreDPR?: boolean) {
+export function sizeCanvasTo(canvas: HTMLCanvasElement, size: Rect, ignoreDPR: boolean = false) {
     const DPR = ignoreDPR ? 1 : Math.max(window.devicePixelRatio || 1, 1);
     canvas.width = size.w * DPR;
     canvas.height = size.h * DPR;
     canvas.style.width = `${size.w}px`;
     canvas.style.height = `${size.h}px`;
+}
+
+function getDrawSize(
+    available: Rect,
+    maxSize: RectBounds,
+    minSize: RectBounds,
+    quantum: number,
+    aspect?: number,
+) {
+    aspect ??= available.w / available.h;
+    const quantumW = Math.max(1, Math.floor(quantum * aspect));
+    const limit = new Rect(
+        clamp(available.w, minSize.w, maxSize.w) | 0,
+        clamp(available.h, minSize.h, maxSize.h) | 0,
+    );
+
+    // first, quantize the available dimensions
+    let w = limit.w - (limit.w % quantumW),
+        h = limit.h - (limit.h % quantum);
+    const tmpAspect = w / h;
+
+    // reduce the resulting width/height to attain the desired aspect ratio
+    if (tmpAspect > aspect) {
+        w = h * aspect;
+    } else if (tmpAspect < aspect) {
+        h = w / aspect;
+    }
+
+    // expand back to the minima if necessary (minSize beats maxSize)
+    if (w < (minSize.w ?? -1)) {
+        w = minSize.w;
+        h = minSize.w / aspect;
+    }
+    if (h < (minSize.h ?? -1)) {
+        w = minSize.h * aspect;
+        h = minSize.h;
+    }
+
+    // we now have the final dimensions
+    return new Rect(Math.round(w), Math.round(h));
 }
 
 /**
@@ -108,45 +192,15 @@ export class Previewer {
         return this._drawSize;
     }
 
-    resizeToBounds(available: Rect, aspect?: number, quantum: number = 1): Rect {
-        aspect ??= available.w / available.h;
-        const quantumW = Math.max(1, Math.floor(quantum * aspect));
-        const limit = new Rect(
-            clamp(available.w, this.minSize.w, this.maxSize.w) | 0,
-            clamp(available.h, this.minSize.h, this.maxSize.h) | 0,
-        );
-
-        // first, quantize the available dimensions
-        let w = limit.w - (limit.w % quantumW),
-            h = limit.h - (limit.h % quantum);
-        const tmpAspect = w / h;
-
-        // reduce the resulting width/height to attain the desired aspect ratio
-        if (tmpAspect > aspect) {
-            w = h * aspect;
-        } else if (tmpAspect < aspect) {
-            h = w / aspect;
-        }
-
-        // expand back to the minima if necessary (minSize beats maxSize)
-        if (w < (this.minSize.w ?? -1)) {
-            w = this.minSize.w;
-            h = this.minSize.w / aspect;
-        }
-        if (h < (this.minSize.h ?? -1)) {
-            w = this.minSize.h * aspect;
-            h = this.minSize.h;
-        }
-
-        // set the draw dimensions we just calculated
-        return (this._drawSize = new Rect(Math.round(w), Math.round(h)));
+    resizeToBounds(available: Rect, aspect?: number, quantum: number = 1) {
+        this._drawSize = getDrawSize(available, this.maxSize, this.minSize, quantum, aspect);
     }
 
-    render(r: RenderData, seq?: number) {
+    render(quilt: Quilt, sizeFn: (cells: Rect) => number, seq?: number) {
         // extract some information we will reference a lot
-        const v = this.view,
+        const r = new RenderData(quilt, sizeFn),
+            v = this.view,
             cellSize = r.cellSize,
-            quilt = r.quilt,
             visQuilt = v.quilt, // visible quilt on-screen
             sash = quilt.sash;
 
@@ -175,12 +229,12 @@ export class Previewer {
         ctx.scale(DPR, DPR);
 
         // draw changes to borders
-        this.drawBorders(fullRedraw ? undefined : visQuilt.borders, ctx, r);
+        this.drawBorders(fullRedraw ? undefined : visQuilt.borders, quilt.borders, ctx, r);
         visQuilt.borders = deepCopy(quilt.borders);
 
         // draw main sashing, if applicable
         if (r.hasSash) {
-            this.drawSash(fullRedraw ? null : visQuilt.sash, ctx, sash, r);
+            this.drawSash(fullRedraw ? null : visQuilt.sash, sash, quilt.shape, ctx, r);
             visQuilt.sash = deepCopy(sash);
         } else if (visQuilt.sash.levels !== Sashes.None) {
             visQuilt.sash = new SashInfo();
@@ -189,7 +243,7 @@ export class Previewer {
         // draw the 5x4 blocks, inset by the half-border-width padSize, and offset
         // by sashing if specified
         if (fullRedraw || seq !== v.editorState) {
-            this.drawBlocks(ctx, r);
+            this.drawBlocks(quilt, ctx, r);
             v.editorState = seq;
         }
 
@@ -198,16 +252,15 @@ export class Previewer {
 
     private drawBorders(
         prior: Array<Border> | undefined,
+        borders: Array<Border>,
         ctx: CanvasRenderingContext2D,
         r: RenderData,
     ) {
-        const quilt = r.quilt;
         let oX = 0;
         let oY = 0;
         let w = r.canvasSize.w;
         let h = r.canvasSize.h;
 
-        const borders = quilt.borders;
         for (let i = 0; i < borders.length; i++) {
             const border = borders[i];
             const viewBorder = prior && i < prior.length ? prior[i] : null;
@@ -245,8 +298,9 @@ export class Previewer {
 
     private drawSash(
         prior: SashInfo | undefined,
-        ctx: CanvasRenderingContext2D,
         sash: SashInfo,
+        shape: Rect,
+        ctx: CanvasRenderingContext2D,
         r: RenderData,
     ) {
         if (sash.levels === Sashes.None) {
@@ -261,7 +315,6 @@ export class Previewer {
         const drawMain = !(prior && viewColors && viewColors[0] === sash.colors[0]);
         const stepSize = blockSize + sashSpacing;
         const padStepSize = padSize + stepSize;
-        const shape = r.quilt.shape;
 
         // draw main sashing
         if (drawMain) {
@@ -294,12 +347,11 @@ export class Previewer {
         }
     }
 
-    private drawBlocks(ctx: CanvasRenderingContext2D, r: RenderData) {
+    private drawBlocks(q: Quilt, ctx: CanvasRenderingContext2D, r: RenderData) {
         // parse render data
         const blockSize = r.blockSize;
         const padSize = r.padSize;
         const sashSize = r.hasSash ? r.cellSize : 0;
-        const q = r.quilt;
         const shape = q.shape;
 
         // pre-scale all blocks on the quilt
