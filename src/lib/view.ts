@@ -4,6 +4,7 @@ import {
     Color,
     Guide,
     GuideType,
+    Palette,
     Quilt,
     Rect,
     RectBounds,
@@ -226,14 +227,14 @@ export class Previewer {
 
         // draw changes to borders
         this.drawBorders(fullRedraw ? undefined : visQuilt.borders, quilt.borders, ctx, r);
-        visQuilt.borders = deepCopy(quilt.borders);
+        v.quilt.borders = deepCopy(quilt.borders);
 
         // draw main sashing, if applicable
         if (r.hasSash) {
             this.drawSash(fullRedraw ? null : visQuilt.sash, sash, quilt.shape, ctx, r);
-            visQuilt.sash = deepCopy(sash);
+            v.quilt.sash = deepCopy(sash);
         } else if (visQuilt.sash.levels !== Sashes.None) {
-            visQuilt.sash = new SashInfo();
+            v.quilt.sash = new SashInfo();
         }
 
         // draw the 5x4 blocks, inset by the half-border-width padSize, and offset
@@ -241,6 +242,7 @@ export class Previewer {
         if (fullRedraw || seq !== v.editorState) {
             this.drawBlocks(quilt, ctx, r);
             v.editorState = seq;
+            v.quilt.colorSet = quilt.colorSet.copy();
         }
 
         ctx.restore();
@@ -256,13 +258,14 @@ export class Previewer {
         let oY = 0;
         let w = r.canvasSize.w;
         let h = r.canvasSize.h;
+        let drawRest = false;
 
         for (let i = 0; i < borders.length; i++) {
             const border = borders[i];
             const viewBorder = prior && i < prior.length ? prior[i] : null;
 
-            // skip everything if this border is not visible
-            if (border.cellWidth === 0) {
+            // skip everything if this border is (still) not visible
+            if (border.cellWidth === 0 && (viewBorder?.cellWidth || 0) === 0) {
                 continue;
             }
 
@@ -271,7 +274,7 @@ export class Previewer {
             const strip = delta / 2; // space of one strip of the border
 
             // if this is a full redraw or the border has changed, repaint it
-            if (!border.equals(viewBorder)) {
+            if (drawRest || !border.equals(viewBorder)) {
                 // draw an outer edge, then inner edge, then fill even-odd so that
                 // only the actual border pixels get painted. overdraws vastly
                 // fewer pixels than our old fillRect() code.
@@ -282,6 +285,10 @@ export class Previewer {
 
                 ctx.fillStyle = border.color;
                 ctx.fill("evenodd");
+
+                if (!drawRest && border.cellWidth !== viewBorder?.cellWidth) {
+                    drawRest = true; // if the size changed, redraw everything inside
+                }
             }
 
             // adjust next drawing area
@@ -380,6 +387,7 @@ export class BlockEditor {
     private lastCellPx: number = -1;
     /** most recent guide types drawn by render() */
     private lastGuides: Guide;
+    private lastColors: Palette;
     private readonly maxSize: RectBounds;
     private readonly minSize: RectBounds;
     private readonly _canvas: HTMLCanvasElement;
@@ -391,7 +399,9 @@ export class BlockEditor {
         this.maxSize = new Rect(maxWidth, maxWidth);
         this.minSize = new Rect(minWidth, minWidth);
 
-        this.lastGuides = new Guide(""); // last drawn: nothing
+        // last drawn: nothing
+        this.lastGuides = new Guide("");
+        this.lastColors = new Palette();
     }
 
     /** generation of the editor, incremented on changes */
@@ -437,8 +447,7 @@ export class BlockEditor {
             this.lastCellPx = cW;
             sizeCanvasTo(editor, new Rect(pixelSize, pixelSize));
             dirty = true;
-        }
-        if (!guides.equals(this.lastGuides)) {
+        } else if (!guides.equals(this.lastGuides) || !colors.equals(this.lastColors)) {
             dirty = true;
         }
 
@@ -454,7 +463,10 @@ export class BlockEditor {
 
         // draw the overlay after the block is copied out
         this.drawGuides(guides, block, ctx);
+
+        // save the last-drawn state
         this.lastGuides = guides.copy();
+        this.lastColors = colors.copy();
     }
 
     private drawGuides(guides: Guide, block: BlockInfo, ctx: CanvasRenderingContext2D): void {
