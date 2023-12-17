@@ -174,13 +174,15 @@ export class CellList extends Array<Cell> {
 
 export class BlockInfo {
     private dirty: boolean = true;
+    private cells: CellList;
     private readonly canvas: HTMLCanvasElement;
     private lastColors?: Palette;
     private lastPixelSize?: number;
     private savedCells: CellList;
 
-    constructor(private cells: CellList) {
-        this.savedCells = cells.copy();
+    constructor() {
+        this.cells = new CellList();
+        this.savedCells = this.cells.copy();
         this.canvas = document.createElement("canvas");
     }
 
@@ -454,7 +456,7 @@ export class BlockInfo {
 
 export class Quilt {
     /** Individual blocks that make up the quilt */
-    blocks: Array<BlockInfo> = [new BlockInfo(new CellList())];
+    blocks: Array<BlockInfo> = [new BlockInfo()];
     /** Borders around the quilt */
     borders: Array<Border> = [];
     /** Palette for cells */
