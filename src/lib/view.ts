@@ -9,7 +9,7 @@ import {
     Rect,
     RectBounds,
     Sashes,
-    SashInfo,
+    SashInfo
 } from "./model";
 
 /**
@@ -355,7 +355,6 @@ export class Previewer {
         const blockSize = r.blockSize;
         const padSize = r.padSize;
         const sashSize = r.hasSash ? r.cellSize : 0;
-        const shape = q.shape;
 
         // pre-scale all blocks on the quilt
         const sourceCount: number = q.blocks.length;
@@ -366,13 +365,15 @@ export class Previewer {
 
         // draw from the pre-scaled images
         const stepSize = blockSize + sashSize; // common subexpression
-        let iBlock = 0;
-        for (let row = 0, oY = padSize; row < shape.h; row++) {
-            for (let col = 0, oX = padSize; col < shape.w; col++) {
-                ctx.drawImage(scaled[q.blockMap[iBlock++]], oX, oY);
+        let oY = padSize;
+        let oX = padSize;
+        for (const rowMap of q) {
+            for (const iBlock of rowMap) {
+                ctx.drawImage(scaled[iBlock], oX, oY);
                 oX += stepSize; // next column
             }
             oY += stepSize; // next row
+            oX = padSize; // reset to first column
         }
     }
 }

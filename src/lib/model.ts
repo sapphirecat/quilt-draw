@@ -48,11 +48,6 @@ export class Rect extends RectBounds {
     ) {
         super(w, h);
     }
-
-    get area(): number {
-        return this.w * this.h;
-    }
-
     scale(m: number): Rect {
         return new Rect(m * this.w, m * this.h);
     }
@@ -464,13 +459,30 @@ export class Quilt {
     /** Sash options */
     sash: SashInfo = new SashInfo();
     /** Width and height of the quilt */
-    shape: Rect = new Rect(BLOCKS_HORIZ, BLOCKS_VERT);
-    /** 1D array of indices into blocks[], in row-major order */
-    blockMap: Array<number>;
+    shape: Rect;
+    /** Quilt structure, containing indices of blocks */
+    private blockMap: Array<Array<number>>;
 
-    constructor() {
-        const end = this.shape.area;
-        this.blockMap = new Array(end).fill(0);
+    constructor(size?: Rect) {
+        this.shape = size || new Rect(BLOCKS_HORIZ, BLOCKS_VERT);
+        this.blockMap = this.newBlockMap(this.shape);
+    }
+
+    /**
+     * Iterate over the rows of the quilt
+     *
+     * This makes Quilt behave as a 2D array of block-map data.
+     *
+     * @yields {number[]} Iterable for the columns within each row
+     */
+    *[Symbol.iterator]() {
+        const w = this.shape.w;
+        // noinspection UnnecessaryLocalVariableJS
+        const h = this.shape.h;
+
+        for (let r = 0; r < h; r++) {
+            yield this.blockMap[r].slice(0, w);
+        }
     }
 
     get blockCells(): number {
@@ -481,6 +493,54 @@ export class Quilt {
         for (const block of this.blocks) {
             block.resize(size);
         }
+    }
+
+    resize(toShape: Rect) {
+        // block map's width/height
+        const bmW = this.blockMap.length;
+        const bmH = this.blockMap[0].length;
+
+        // delta width/height
+        const dW = toShape.w - bmW;
+        const dH = toShape.h - bmH;
+
+        if (dW <= 0 && dH <= 0) {
+            // we already have enough size in both dimensions to cover this
+            this.shape = toShape;
+
+            return;
+        }
+
+        // add columns if we need to add width
+        if (dW > 0) {
+            for (let r = 0; r < bmH; r++) {
+                const items = (new Array(dW)).fill(0);
+                this.blockMap[r].push(...items);
+            }
+        }
+
+        // add rows if we need to add height
+        if (dH > 0) {
+            const w = Math.max(toShape.w, bmW);
+            for (let r = bmH; r < toShape.h; r++) {
+                this.blockMap.push((new Array(w)).fill(0));
+            }
+        }
+
+        // save the new shape
+        this.shape = toShape;
+    }
+
+    private newBlockMap(size: Rect): Array<Array<number>> {
+        const rows = size.h;
+        const cols = size.w;
+
+        const m: Array<Array<number>> = [];
+        for (let r = 0; r < rows; r++) {
+            m.push((new Array(cols)).fill(0));
+        }
+
+        return m;
     }
 }
 
