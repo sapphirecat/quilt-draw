@@ -40,6 +40,18 @@ export class UI {
     selectedTool: Tool = Tool.Paint;
     /** Whether the selectedTool handles mousemove gracefully (Move.ALLOW) */
     moveStatus: Move = Move.Allow;
+    /** Selected tool's cursor-defining class name */
+    toolClass: string = "";
+
+    setCursor(target: HTMLElement, name: string) {
+        if (this.toolClass !== "") {
+            target.classList.remove(this.toolClass);
+        }
+        if (name !== "") {
+            target.classList.add(name);
+            this.toolClass = name;
+        }
+    }
 }
 
 export class PickrHandle {

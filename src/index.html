@@ -132,36 +132,41 @@
                     </div>
 
                     <div class="tool-grid">
-                        <button class="tool-item tool-paint" data-move-tracking="1" id="tool-paint"
-                                title="Paint Triangle">
+                        <button class="tool-item tool-paint" data-cursor-type="ptr-paint"
+                                data-move-tracking="1"
+                                id="tool-paint" title="Paint Triangle">
                             <picture>
                                 <source media="(prefers-color-scheme: dark)"
                                         srcset="images/paint-dk.png">
                                 <img alt="Paint" src="images/paint.png">
                             </picture>
                         </button>
-                        <button class="tool-item tool-spin" id="tool-spin-l" title="Rotate Square">
-                            <picture>
+                        <button class="tool-item tool-spin" data-cursor-type="ptr-spin"
+                                id="tool-spin-l" title="Rotate Square">
+                        <picture>
                                 <source media="(prefers-color-scheme: dark)"
                                         srcset="images/rotate-l-dk.png">
                                 <img alt="Rotate Counter-clockwise" src="images/rotate-l.png">
                             </picture>
                         </button>
-                        <button class="tool-item tool-spin" id="tool-spin-r" title="Rotate Square">
+                        <button class="tool-item tool-spin" data-cursor-type="ptr-spin"
+                                id="tool-spin-r" title="Rotate Square">
                             <picture>
                                 <source media="(prefers-color-scheme: dark)"
                                         srcset="images/rotate-r-dk.png">
                                 <img alt="Rotate Clockwise" src="images/rotate-r.png">
                             </picture>
                         </button>
-                        <button class="tool-item tool-flip" id="tool-flip-h" title="Flip Square">
+                        <button class="tool-item tool-flip" data-cursor-type="ptr-flip-h"
+                                id="tool-flip-h" title="Flip Square">
                             <picture>
                                 <source media="(prefers-color-scheme: dark)"
                                         srcset="images/flip-h-dk.png">
                                 <img alt="Flip Horizontally" src="images/flip-h.png">
                             </picture>
                         </button>
-                        <button class="tool-item tool-flip" id="tool-flip-v" title="Flip Square">
+                        <button class="tool-item tool-flip" data-cursor-type="ptr-flip-v"
+                                id="tool-flip-v" title="Flip Square">
                             <picture>
                                 <source media="(prefers-color-scheme: dark)"
                                         srcset="images/flip-v-dk.png">

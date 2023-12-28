@@ -57,15 +57,6 @@ function showActiveColor(slot: number): void {
     }
 }
 
-function setChecked(id: string, checked = true): void {
-    try {
-        const el = document.getElementById(id) as HTMLInputElement | null;
-        el.checked = checked;
-    } catch (e) {
-        console.error(e);
-    }
-}
-
 /**
  * Activate the paint tool with the selected palette entry.
  *
@@ -85,7 +76,7 @@ function setPaintColor(i: number, slot: PaintSlot = 0): void {
 
     // activate the tool
     ui.selectedTool = Tool.Paint;
-    setChecked("tool-paint");
+    ui.setCursor(editor.canvas, getPaintClass());
     if (ui.moveStatus === Move.Ignore) {
         ui.moveStatus = Move.Allow;
     }
@@ -95,6 +86,12 @@ function setPaintColor(i: number, slot: PaintSlot = 0): void {
         document.getElementById(`color${prev}`).classList.remove("selected");
         document.getElementById(`color${i}`).classList.add("selected");
     }
+}
+
+function getPaintClass(): string {
+    const paintNode = document.getElementById('tool-paint');
+
+    return paintNode?.getAttribute('data-cursor-type') || "";
 }
 
 function getPalette(element?: Element): Palette {
@@ -264,7 +261,7 @@ function initTools(): void {
     // Pointer-related events: try Pointer, fall back to Mouse.
     if (POINTER_EVENTS) {
         // set up editor
-        canvas.addEventListener("pointerdown", onEditorMouse);
+        canvas.addEventListener("pointerdown", e => onEditorMouse(e, true));
         canvas.addEventListener("pointerup", onEditorMouseRelease);
         canvas.addEventListener("pointercancel", onEditorMouseRelease);
 
@@ -274,7 +271,7 @@ function initTools(): void {
         colorItems.addEventListener("pointerdown", onPaletteDown, { capture: true });
         colorItems.addEventListener("click", onPaletteClick, { capture: true });
     } else {
-        canvas.addEventListener("mousedown", onEditorMouse);
+        canvas.addEventListener("mousedown", e => onEditorMouse(e, true));
         canvas.addEventListener("mouseup", onEditorMouseRelease);
 
         colorItems.addEventListener("mousedown", onPaletteDown, { capture: true });
@@ -285,8 +282,9 @@ function initTools(): void {
     canvas.addEventListener("contextmenu", (ev) => ev.preventDefault());
     colorItems.addEventListener("contextmenu", (ev) => ev.preventDefault());
 
-    // pre-select the paint tool to match the script state
-    setChecked("tool-paint");
+    // pre-select the paint tool
+    ui.selectedTool = Tool.Paint;
+    ui.setCursor(editor.canvas, getPaintClass());
 
     // wire in the rest of the controls' events
     const nodeList = document.querySelectorAll(
@@ -589,12 +587,13 @@ function editorSetMoveHandler(): void {
 
 function onEditorMouseRelease(ev: MouseEvent): void {
     ev.preventDefault();
+    editor.canvas.classList.remove('mouse-down');
     if (ui.moveStatus !== Move.Ignore) {
         editorClearMoveHandler();
     }
 }
 
-function onEditorMouse(ev: MouseEvent): void {
+function onEditorMouse(ev: MouseEvent, isMouseDown?: boolean): void {
     // if multiple buttons or a higher (aux etc.) button was pressed, ignore
     // everything. don't even prevent default.
     if (ev.buttons && !isButtonRelevant(ev)) {
@@ -610,9 +609,12 @@ function onEditorMouse(ev: MouseEvent): void {
         return;
     }
 
-    // if this is the first mousedown, set us up to be called on move
-    if (ui.moveStatus === Move.Allow) {
-        editorSetMoveHandler();
+    // if this is mouse-down (not move), set up the classes/move tracking
+    if (isMouseDown) {
+        editor.canvas.classList.add('mouse-down');
+        if (ui.moveStatus === Move.Allow) {
+            editorSetMoveHandler();
+        }
     }
 
     // the BoundingClientRect is relative to the viewport, as are clientX/Y
@@ -753,16 +755,20 @@ function onPaletteClick(ev: MouseEvent): void {
 
 function onToolChange(ev: MouseEvent, node: Element): void {
     const region = ev.currentTarget;
-    if (!((node.id || "") in toolForId)) {
+    if (!((node.id || "") in toolForId && node instanceof HTMLElement)) {
         return;
     }
     ui.selectedTool = toolForId[node.id];
+    const data = node.dataset;
 
     // update movement state
     if (ui.moveStatus === Move.Tracking) {
         editorClearMoveHandler();
     }
-    ui.moveStatus = node.getAttribute("data-move-tracking") === "1" ? Move.Allow : Move.Ignore;
+    ui.moveStatus = data.moveTracking === "1" ? Move.Allow : Move.Ignore;
+
+    // change the editor cursor
+    ui.setCursor(editor.canvas, data.cursorType);
 
     // change the active-button state
     if (region instanceof Element) {

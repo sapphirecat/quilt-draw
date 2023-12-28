@@ -111,6 +111,19 @@ canvas {
     display: block;
 }
 
+canvas.ptr-flip-h {
+    cursor: ew-resize;
+}
+canvas.ptr-flip-v {
+    cursor: ns-resize;
+}
+canvas.ptr-spin {
+    cursor: cell;
+}
+canvas.ptr-paint {
+    cursor: crosshair;
+}
+
 footer {
     margin: 2rem 0;
     text-align: center;
@@ -298,7 +311,6 @@ button.download {
 
 
 #editor {
-    cursor: pointer;
     max-width: 630px;
     max-height: 630px;
 }
