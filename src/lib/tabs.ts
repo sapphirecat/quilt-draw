@@ -1,7 +1,5 @@
 export type CustomEventFn = (ev: CustomEvent) => void;
 
-// FIXME: when we change TO the Quilt tab, the preview isn't redrawn
-
 function getAnchorName(a: HTMLAnchorElement): string {
     const href = a.href;
     const split = href.lastIndexOf("#");
