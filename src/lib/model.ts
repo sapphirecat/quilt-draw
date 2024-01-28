@@ -2,6 +2,7 @@ const BLOCKS_HORIZ = 4; // number of block copies across the preview
 const BLOCKS_VERT = 5; // number of block copies down the preview
 
 export type Color = string;
+/** Main and cross (intersections) sash colors */
 export type SashColors = [Color, Color];
 
 export enum Sashes {

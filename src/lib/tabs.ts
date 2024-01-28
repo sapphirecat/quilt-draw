@@ -1,5 +1,12 @@
 export type CustomEventFn = (ev: CustomEvent) => void;
 
+/**
+ * Get the fragment of an anchor element, to be used as the tab name.
+ *
+ * @param {HTMLAnchorElement} a Element to examine
+ *
+ * @return {string} Fragment contents, or empty string if none exists
+ */
 function getAnchorName(a: HTMLAnchorElement): string {
     const href = a.href;
     const split = href.lastIndexOf("#");
@@ -136,6 +143,9 @@ export class TabGroup {
     }
 
     private themeInit() {
+        // I couldn't get rid of the line under the tab with CSS alone.  Thus,
+        // script gets the page's background-color, styles the line to match,
+        // and listens for theme changes to update the color.  If supported.
         if (typeof window.matchMedia !== "function") {
             return;
         }

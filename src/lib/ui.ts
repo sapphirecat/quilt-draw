@@ -4,38 +4,58 @@ import { BlockEditor, Previewer } from "./view";
 import { BlockInfo, Border, Guide, Palette, Quilt, Rect, RectBounds, Sashes } from "./model";
 import { Click, Move, PickrHandle, Tool, UI } from "./ui-model";
 
+// Indicates primary(0) or secondary(1) mouse button when setting active colors
 type PaintSlot = 0 | 1;
 
+// Block editor for the Editor tab
 let editor: BlockEditor;
+// Guides requested for the block editor
 let guideType: HTMLSelectElement;
-let previewer: Previewer;
+// Small quilt preview for the Editor tab
 let miniPreviewer: Previewer;
+// Large quilt preview for the Preview tab
+let previewer: Previewer;
 
-// no editor heights: it is square (height=width)
+// Maximum width and height (it is square) of the block editor
 const EDITOR_MAX_WIDTH = 630; // HACK: this is specified in our CSS
-const EDITOR_MIN_WIDTH = 180; // necessary?
+// Minimum width/height of he block editor
+const EDITOR_MIN_WIDTH = 180;
 
+// Number of pixels to leave between the edge of the window and our UI
 const VIEWPORT_MARGIN = 24;
 
+// Minimum size of the on-screen preview on the Preview tab
 const PREVIEW_MIN_HEIGHT = 420;
+// Maximum size of the on-screen preview on the Preview tab
 const PREVIEW_MAX_HEIGHT = 1200;
 
+// Minimum size of the preview on the Editor tab
 const MINI_PREVIEW_MIN_HEIGHT = 300;
+// Maximum size of the preview on the Editor tab
 // noinspection JSSuspiciousNameCombination
 const MINI_PREVIEW_MAX_HEIGHT = EDITOR_MAX_WIDTH;
 
+// Minimum height of a rendered download, in pixels
 const DOWNLOAD_MIN_HEIGHT = 1400;
 
-const BORDER_LIMIT = 6; // maximum number of borders that may be added
-const COLOR_LIMIT = 12; // maximum number of colors in the palette
+// Maximum number of borders that may be added
+const BORDER_LIMIT = 6;
+// Maximum number of colors in the palette
+const COLOR_LIMIT = 12;
 
+// Whether to use pointer events or mouse events
 const POINTER_EVENTS = "PointerEvent" in window;
+// Move event type to use
 const POINTER_MOVE = POINTER_EVENTS ? "pointermove" : "mousemove";
 
+// All active Pickr elements in the page, indexed like "1" or "sash.0"
 const pickers: { [key: string]: PickrHandle } = {};
+// Quilt being displayed/edited
 const quilt = new Quilt();
+// Current UI state, e.g. selected tool
 const ui = new UI();
 
+// Mapping of HTML ID values to the Tool enum
 const toolForId: { [key: string]: Tool } = {
     "tool-paint": Tool.Paint,
     "tool-spin-r": Tool.SpinR,
@@ -564,6 +584,7 @@ function onTabChange(_ev: CustomEvent) {
 }
 
 function isButtonRelevant(ev: MouseEvent): boolean {
+    // accept only primary or secondary button, alone
     return !!(ev.buttons && ev.buttons < 3);
 }
 
