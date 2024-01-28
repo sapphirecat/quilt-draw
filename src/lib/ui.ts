@@ -194,9 +194,7 @@ function criticalError(e: any) {
     const app = document.getElementById("app");
     const err = document.getElementById("js-init-error");
     try {
-        if (app) {
-            app.classList.add("hide");
-        }
+        app?.classList?.add("hide");
 
         if (!err) {
             alert("An error occurred, and the HTML to display it is missing!");
@@ -212,9 +210,7 @@ function criticalError(e: any) {
         console.error(e3);
     }
 
-    if (err) {
-        err.classList.remove("hide");
-    }
+    err?.classList?.remove("hide");
 }
 
 function setupGlobalElements(): void {
