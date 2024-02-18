@@ -43,11 +43,6 @@ The Quilt tab would then have a way to associate blocks,
 whether that's a simple A/B checkerboard (and 2-block limit) at first,
 or a complete set of tools for putting blocks on the preview.
 
-### Resizable Preview
-
-A new quilt setting would allow resizing the quilt,
-instead of hard-coding 4x5 blocks.
-
 ### Print Tab
 
 With tabs and especially multiple blocks,

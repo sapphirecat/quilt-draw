@@ -203,12 +203,13 @@ export class Previewer {
 
         // resize the canvas to the draw dimensions if needed
         const layout = `${cellSize},${r.cells},${r.hasSash ? "sash" : "noSash"}`;
+        console.log(`${this.canvas.id} render layout: ${layout}`);
         let fullRedraw = layout !== v.layout || v.editorState < 0 || typeof seq !== "number";
         if (fullRedraw) {
             v.layout = layout;
             sizeCanvasTo(this.canvas, r.canvasSize, this.ignoreDPR);
             // reset "last drawn" to an empty quilt, so that we redraw everything
-            v.quilt = new Quilt();
+            v.quilt = new Quilt(quilt.shape);
         } else if (
             !v.quilt.colorSet.equals(quilt.colorSet) ||
             (r.hasSash && !arrayEquals(v.quilt.sash.colors, quilt.sash.colors))
@@ -365,7 +366,7 @@ export class Previewer {
 
         // draw from the pre-scaled images
         const stepSize = blockSize + sashSize; // common subexpression
-        let oY = padSize;
+        let oY = padSize; // initial row(oY)/column(oX) offsets
         let oX = padSize;
         for (const rowMap of q) {
             for (const iBlock of rowMap) {

@@ -460,13 +460,17 @@ export class Quilt {
     /** Sash options */
     sash: SashInfo = new SashInfo();
     /** Width and height of the quilt */
-    shape: Rect;
+    #shape: Rect;
     /** Quilt structure, containing indices of blocks */
     private blockMap: Array<Array<number>>;
 
     constructor(size?: Rect) {
-        this.shape = size || new Rect(BLOCKS_HORIZ, BLOCKS_VERT);
-        this.blockMap = this.newBlockMap(this.shape);
+        this.#shape = size || new Rect(BLOCKS_HORIZ, BLOCKS_VERT);
+        this.blockMap = this.newBlockMap(this.#shape);
+    }
+
+    get shape(): Rect {
+        return this.#shape;
     }
 
     /**
@@ -477,9 +481,9 @@ export class Quilt {
      * @yields {number[]} Iterable for the columns within each row
      */
     *[Symbol.iterator]() {
-        const w = this.shape.w;
+        const w = this.#shape.w;
         // noinspection UnnecessaryLocalVariableJS
-        const h = this.shape.h;
+        const h = this.#shape.h;
 
         for (let r = 0; r < h; r++) {
             yield this.blockMap[r].slice(0, w);
@@ -498,8 +502,8 @@ export class Quilt {
 
     resize(toShape: Rect) {
         // block map's width/height
-        const bmW = this.blockMap.length;
-        const bmH = this.blockMap[0].length;
+        const bmW = this.blockMap[0].length;
+        const bmH = this.blockMap.length;
 
         // delta width/height
         const dW = toShape.w - bmW;
@@ -507,7 +511,7 @@ export class Quilt {
 
         if (dW <= 0 && dH <= 0) {
             // we already have enough size in both dimensions to cover this
-            this.shape = toShape;
+            this.#shape = toShape;
 
             return;
         }
@@ -529,7 +533,7 @@ export class Quilt {
         }
 
         // save the new shape
-        this.shape = toShape;
+        this.#shape = toShape;
     }
 
     private newBlockMap(size: Rect): Array<Array<number>> {

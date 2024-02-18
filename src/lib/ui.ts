@@ -152,6 +152,7 @@ function initJsCore(): void {
     initColors();
     initBorders();
     initTools();
+    initQuiltResize();
 
     // get initial block size from the HTML
     const sizeInput = document.getElementById("cell-size");
@@ -318,6 +319,28 @@ function initTools(): void {
 
     // set up guide state
     initGuides();
+}
+
+function initQuiltResize(): void {
+    // extract quilt dimensions from the HTML
+    const quiltW = document.getElementById("quilt-size-w");
+    const quiltH = document.getElementById("quilt-size-h");
+    if (!(quiltW instanceof HTMLInputElement && quiltH instanceof HTMLInputElement)) {
+        return;
+    }
+
+    const w = parseInt(quiltW.value, 10);
+    const h = parseInt(quiltH.value, 10);
+    if (isNaN(w) || isNaN(h) || w <= 0 || h <= 0) {
+        return;
+    }
+
+    // set the dimensions
+    quilt.resize(new Rect(w, h));
+
+    // add event listeners
+    const root = quiltW.closest('.control');
+    root.addEventListener('input', onQuiltSize);
 }
 
 function initBorders(): void {
@@ -704,6 +727,26 @@ function onBorderSize(ev: Event): void {
     updatePreview(quilt, previewer);
 }
 
+function onQuiltSize(ev: Event): void {
+    if (!(ev instanceof Event && ev.target instanceof HTMLInputElement)) {
+        return;
+    }
+
+    const dir = ev.target.getAttribute('data-direction');
+    const i = parseInt(ev.target.value, 10);
+    if (isNaN(i) || i < 1 || (dir !== 'h' && dir !== 'w')) {
+        return;
+    }
+
+    const cs = quilt.shape;
+    quilt.resize(new Rect(
+        dir === 'w' ? i : cs.w,
+        dir === 'h' ? i : cs.h,
+    ));
+
+    updatePreview(quilt, previewer);
+}
+
 /**
  * Delegating event handler for control input-radio clicks
  */
@@ -879,7 +922,8 @@ function onResizeViewport(): void {
     // HACK: Takes a max-width and grid (3 columns = 2*10px gap) into account
     const width = Math.min(window.innerWidth, 1600) - 20 - VIEWPORT_MARGIN;
     const height = window.innerHeight - VIEWPORT_MARGIN;
-    const previewAspect = quilt.shape.w / quilt.shape.h;
+    const curShape = quilt.shape;
+    const previewAspect = curShape.w / curShape.h;
     const modPxH = 30;
     let gridWidth: number;
 

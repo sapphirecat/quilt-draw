@@ -226,10 +226,22 @@
         <div class="tab-region" id="tab-quilt">
             <div class="controls control-column" id="quilt-controls">
                 <!-- QUILT tab -->
-                <div class="control column" id="borders">
-                    <div class="heading">
-                        Border
+                <div class="control column" id="quilt-size">
+                    <div class="heading">Size</div>
+                    <div class="size-row">
+                        <label for="quilt-size-w">Width</label>
+                        <input data-direction="w" id="quilt-size-w" max="8" min="1" type="range"
+                               value="4">
                     </div>
+                    <div class="size-row">
+                        <label for="quilt-size-h">Height</label>
+                        <input data-direction="h" id="quilt-size-h" max="8" min="1" type="range"
+                               value="5">
+                    </div>
+                </div>
+
+                <div class="control column" id="borders">
+                    <div class="heading">Border</div>
                     <div>
                         <template class="hide" data-initial-palette="#ffbfd4|#d99fb2"
                                   id="border-item">
