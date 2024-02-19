@@ -194,6 +194,11 @@ button.new-thing.hide {
     align-items: center;
 }
 
+.size-row {
+    display: grid;
+    grid-template-columns: 1fr 4fr;
+}
+
 button.download {
     box-sizing: border-box;
     width: 100%;
