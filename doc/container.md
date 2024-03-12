@@ -26,3 +26,8 @@ for example 8080, change the left side of the port-binding value:
     podman run --rm -it -p 8080:9001 quilt-draw:latest
 
 Use Ctrl+C to stop the container.
+
+## Reloading the app
+
+You may need to use Shift+Reload (e.g. `Cmd+Shift+R` or `Shift+F5`) to
+load updated code in the browser after rebuilding the image.
