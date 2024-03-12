@@ -190,6 +190,15 @@ export class BlockInfo {
         return this.dirty;
     }
 
+    /**
+     *
+     * @param canvas Square canvas to be drawn on (will render at width × width)
+     * @param colors Color palette to be referenced
+     */
+    renderTo(canvas: HTMLCanvasElement, colors: Palette): void {
+        this.draw(canvas, colors);
+    }
+
     getSource(pixelSize: number, colors: Palette): CanvasImageSource {
         // check our argument states
         if (!colors.equals(this.lastColors)) {
@@ -206,7 +215,7 @@ export class BlockInfo {
 
         // if any (arguments or internal) state has updated, redraw
         if (this.dirty) {
-            this.draw(colors);
+            this.draw(this.canvas, colors);
         }
 
         // return the results
@@ -215,7 +224,7 @@ export class BlockInfo {
 
     getScaledSource(scaledSize: number): CanvasImageSource {
         if (this.dirty) {
-            this.draw(this.lastColors);
+            this.draw(this.canvas, this.lastColors);
         }
 
         const target = document.createElement("canvas");
@@ -425,16 +434,16 @@ export class BlockInfo {
         this.dirty = true;
     }
 
-    private draw(colors: Palette) {
+    private draw(canvas: HTMLCanvasElement, colors: Palette) {
         const cells = this.cells;
         const size = cells.getSize();
-        const cellPx = this.canvas.width / size;
+        const cellPx = canvas.width / size;
 
         // cell origin and current block index
         let oX, oY, iBlock;
 
         // canvas 2D context
-        const ctx = this.canvas.getContext("2d", { alpha: false });
+        const ctx = canvas.getContext("2d", { alpha: false });
 
         // process editor cells in unscaled space
         iBlock = 0; // index into block array
@@ -446,7 +455,9 @@ export class BlockInfo {
             }
         }
 
-        this.dirty = false;
+        if (canvas === this.canvas) {
+            this.dirty = false;
+        }
     }
 }
 
@@ -471,6 +482,29 @@ export class Quilt {
 
     get shape(): Rect {
         return this.#shape;
+    }
+
+    getHeightForWidth(width: number): number {
+        let addedCellsW = 0;
+        let addedCellsH = 0;
+        let cellsPerBlock = this.blocks[0].getSize();
+
+        // border widths
+        for (const border of this.borders) {
+            addedCellsW += border.cellWidth;
+            addedCellsH += border.cellWidth;
+        }
+
+        // sashing in-between blocks only
+        if (this.sash.levels !== Sashes.None) {
+            addedCellsW += this.#shape.w - 1;
+            addedCellsH += this.#shape.h - 1;
+        }
+
+        const w = (this.#shape.w * cellsPerBlock) + addedCellsW;
+        const h = (this.#shape.h * cellsPerBlock) + addedCellsH;
+
+        return ((width / w) * h) | 0;
     }
 
     /**

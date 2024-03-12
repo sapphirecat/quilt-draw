@@ -395,6 +395,41 @@ button.download {
     grid-template-columns: 2fr 7fr;
 }
 
+/* preview structure: we want a 4×3 (row×col) grid per page. preview gets the
+ * right 70% of the 1st page, then we tile up to 12 blocks on later pages.
+ * this should be true on both A4 _and_ letter sizes.  1st page allows for up
+ * to four blocks, and adding a 2nd page allows 16 blocks.  we hope.
+ */
+#tab-print-grid {
+    display: grid;
+    grid-template-columns: 30% 30% 40%;
+    justify-items: center;
+    width: 100%;
+}
+
+#tab-print.tab-region {
+    display: block; /* reset grid, so we can place our button outside of it */
+    width: 720px;
+    margin: auto;
+}
+
+#print-preview {
+    /* row start / col start / row end / col end */
+    grid-area: 1 / 2 / 5 / 4;
+}
+
+.print-block, #print-preview {
+    page-break-inside: avoid;
+    margin: 0;
+    border: 0;
+    padding: 0;
+}
+
+#tab-print .instructions {
+    text-align: center;
+    margin: 1em 0;
+}
+
 /* hide the "please reload!" message if both HTML+CSS updated */
 #broken-tabs-alert {
     display: none;
@@ -484,7 +519,7 @@ button.download {
 
 @media print {
     /* UI controls */
-    .tabs-select-row, #transforms, .controls, footer p {
+    .no-print, .tabs-select-row, #transforms, .controls, footer p {
         display: none;
     }
 

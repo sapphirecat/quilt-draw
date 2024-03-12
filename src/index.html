@@ -103,8 +103,9 @@
     <div class="tabs-parent" id="tabs-app">
         <!-- CAUTION: NO WHITESPACE IN HERE -->
         <ul class="tabs-select-row"><li
-            class="tab-select"><a href="#tab-block">Blocks</a></li><li
-            class="tab-select"><a href="#tab-quilt">Quilt</a></li></ul>
+            class="tab-select"><a href="#tab-block">Block</a></li><li
+            class="tab-select"><a href="#tab-quilt">Quilt</a></li><li
+            class="tab-select"><a href="#tab-print">Print</a></li></ul>
 
         <div class="tab-region" id="tab-block">
             <div class="controls control-column" id="block-controls">
@@ -282,6 +283,17 @@
 
             <div id="preview-area">
                 <canvas height="750" id="preview" width="600"></canvas>
+            </div>
+        </div>
+
+        <div class="tab-region" id="tab-print">
+            <div class="instructions">
+                <button class="no-print print-button hide">Print These</button>
+            </div>
+            <div class="grid-parent" id="tab-print-grid">
+                <div id="print-preview">
+                    <canvas id="print-preview-canvas"></canvas>
+                </div>
             </div>
         </div>
     </div>

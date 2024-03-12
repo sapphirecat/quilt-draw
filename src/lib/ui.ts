@@ -18,25 +18,22 @@ let previewer: Previewer;
 
 // Maximum width and height (it is square) of the block editor
 const EDITOR_MAX_WIDTH = 630; // HACK: this is specified in our CSS
-// Minimum width/height of he block editor
+// Minimum width/height of the block editor
 const EDITOR_MIN_WIDTH = 180;
 
 // Number of pixels to leave between the edge of the window and our UI
 const VIEWPORT_MARGIN = 24;
 
 // Minimum size of the on-screen preview on the Preview tab
-const PREVIEW_MIN_HEIGHT = 420;
+const PREVIEW_MIN_HEIGHT = 240;
 // Maximum size of the on-screen preview on the Preview tab
 const PREVIEW_MAX_HEIGHT = 1200;
 
-// Minimum size of the preview on the Editor tab
-const MINI_PREVIEW_MIN_HEIGHT = 300;
-// Maximum size of the preview on the Editor tab
-// noinspection JSSuspiciousNameCombination
-const MINI_PREVIEW_MAX_HEIGHT = EDITOR_MAX_WIDTH;
-
 // Minimum height of a rendered download, in pixels
 const DOWNLOAD_MIN_HEIGHT = 1400;
+
+// DPR when rendering a canvas for a printer
+const PRINT_RATIO = 3;
 
 // Maximum number of borders that may be added
 const BORDER_LIMIT = 6;
@@ -61,7 +58,7 @@ const toolForId: { [key: string]: Tool } = {
     "tool-spin-r": Tool.SpinR,
     "tool-spin-l": Tool.SpinL,
     "tool-flip-h": Tool.FlipH,
-    "tool-flip-v": Tool.FlipV,
+    "tool-flip-v": Tool.FlipV
 };
 
 /**
@@ -109,9 +106,9 @@ function setPaintColor(i: number, slot: PaintSlot = 0): void {
 }
 
 function getPaintClass(): string {
-    const paintNode = document.getElementById('tool-paint');
+    const paintNode = document.getElementById("tool-paint");
 
-    return paintNode?.getAttribute('data-cursor-type') || "";
+    return paintNode?.getAttribute("data-cursor-type") || "";
 }
 
 function getPalette(element?: Element): Palette {
@@ -153,6 +150,7 @@ function initJsCore(): void {
     initBorders();
     initTools();
     initQuiltResize();
+    initPrint();
 
     // get initial block size from the HTML
     const sizeInput = document.getElementById("cell-size");
@@ -227,16 +225,17 @@ function setupGlobalElements(): void {
         previewer = new Previewer(
             preview,
             new RectBounds(undefined, PREVIEW_MAX_HEIGHT),
-            new RectBounds(undefined, PREVIEW_MIN_HEIGHT),
+            new RectBounds(undefined, PREVIEW_MIN_HEIGHT)
         );
     }
 
     const miniPreview = document.getElementById("mini-preview");
     if (miniPreview instanceof HTMLCanvasElement) {
+        // scale the mini-preview so it's the same height as the editor (w=h)
         miniPreviewer = new Previewer(
             miniPreview,
-            new RectBounds(undefined, editor?.width ?? MINI_PREVIEW_MAX_HEIGHT),
-            new RectBounds(undefined, MINI_PREVIEW_MIN_HEIGHT),
+            new RectBounds(undefined, editor?.width ?? EDITOR_MAX_WIDTH),
+            new RectBounds(undefined, EDITOR_MIN_WIDTH)
         );
     }
 
@@ -305,7 +304,7 @@ function initTools(): void {
 
     // wire in the rest of the controls' events
     const nodeList = document.querySelectorAll(
-        ".controls, #transforms input[type=range]",
+        ".controls, #transforms input[type=range]"
     ) as NodeListOf<HTMLElement>;
     for (let i = 0; i < nodeList.length; i++) {
         nodeList[i].addEventListener("click", onControlClick);
@@ -339,8 +338,8 @@ function initQuiltResize(): void {
     quilt.resize(new Rect(w, h));
 
     // add event listeners
-    const root = quiltW.closest('.control');
-    root.addEventListener('input', onQuiltSize);
+    const root = quiltW.closest(".control");
+    root.addEventListener("input", onQuiltSize);
 }
 
 function initBorders(): void {
@@ -369,7 +368,7 @@ function initSashColors(): void {
         console.error(
             "Sash palette length %d does not match UI element count %d",
             colors.length,
-            targets.length,
+            targets.length
         );
         return;
     }
@@ -430,6 +429,21 @@ function initTabs(): undefined | TabGroup {
     return new TabGroup(root);
 }
 
+function initPrint() {
+    const printTab = document.getElementById("tab-print");
+    if (!printTab) {
+        return;
+    }
+
+    for (const btn of printTab.querySelectorAll('.print-button')) {
+        btn.addEventListener('click', (ev) => {
+            ev.preventDefault();
+            window.print();
+        });
+        btn.classList.remove('hide');
+    }
+}
+
 function createColor(): void {
     if (quilt.colorSet.length >= COLOR_LIMIT) {
         return;
@@ -465,14 +479,14 @@ function newColorPicker(button: HTMLElement, value: string): Pickr {
                 input: true,
                 cancel: true,
                 save: false,
-                clear: false,
-            },
+                clear: false
+            }
         },
 
         i18n: {
             "btn:cancel": "Reset",
-            "aria:btn:cancel": "Reset and keep open",
-        },
+            "aria:btn:cancel": "Reset and keep open"
+        }
     });
 }
 
@@ -627,7 +641,7 @@ function editorSetMoveHandler(): void {
 
 function onEditorMouseRelease(ev: MouseEvent): void {
     ev.preventDefault();
-    editor.canvas.classList.remove('mouse-down');
+    editor.canvas.classList.remove("mouse-down");
     if (ui.moveStatus !== Move.Ignore) {
         editorClearMoveHandler();
     }
@@ -651,7 +665,7 @@ function onEditorMouse(ev: MouseEvent, isMouseDown?: boolean): void {
 
     // if this is mouse-down (not move), set up the classes/move tracking
     if (isMouseDown) {
-        editor.canvas.classList.add('mouse-down');
+        editor.canvas.classList.add("mouse-down");
         if (ui.moveStatus === Move.Allow) {
             editorSetMoveHandler();
         }
@@ -693,7 +707,7 @@ function onEditorMouse(ev: MouseEvent, isMouseDown?: boolean): void {
             quilt.blocks[blk].paintSubCell(
                 index,
                 colorIndex,
-                ui.paintColors[isSecondaryClick ? 1 : 0],
+                ui.paintColors[isSecondaryClick ? 1 : 0]
             );
 
             break;
@@ -732,16 +746,16 @@ function onQuiltSize(ev: Event): void {
         return;
     }
 
-    const dir = ev.target.getAttribute('data-direction');
+    const dir = ev.target.getAttribute("data-direction");
     const i = parseInt(ev.target.value, 10);
-    if (isNaN(i) || i < 1 || (dir !== 'h' && dir !== 'w')) {
+    if (isNaN(i) || i < 1 || (dir !== "h" && dir !== "w")) {
         return;
     }
 
     const cs = quilt.shape;
     quilt.resize(new Rect(
-        dir === 'w' ? i : cs.w,
-        dir === 'h' ? i : cs.h,
+        dir === "w" ? i : cs.w,
+        dir === "h" ? i : cs.h
     ));
 
     updatePreview(quilt, previewer);
@@ -887,7 +901,7 @@ function onRollerClick(ev: MouseEvent): void {
         "roll-up": (b: BlockInfo) => b.rollUp(),
         "roll-down": (b: BlockInfo) => b.rollDown(),
         "roll-left": (b: BlockInfo) => b.rollLeft(),
-        "roll-right": (b: BlockInfo) => b.rollRight(),
+        "roll-right": (b: BlockInfo) => b.rollRight()
     };
 
     if (!(ev.target instanceof Element)) {
@@ -958,6 +972,63 @@ function updatePreview(quilt: Quilt, preview: Previewer): void {
     preview.render(quilt, cellSizeFn, editor.state);
 }
 
+function updatePrintPreview(_ev?: Event): void {
+    let canvas: HTMLCanvasElement = document.getElementById("print-preview-canvas") as HTMLCanvasElement;
+
+    // clean up: remove non-blocks from the display
+    const grid = document.getElementById("tab-print-grid");
+    for (const block of grid.querySelectorAll(".print-block")) {
+        block.remove();
+    }
+
+    // redraw the full quilt preview
+    // HACK: #print-preview clientWidth was 0, so we hard-code grid CSS (width/gap)
+    const px = PRINT_RATIO * ((grid.clientWidth * 0.7 - 10) | 0);
+    const pxMaxHeight = px * 2;
+    const pxHeight = quilt.getHeightForWidth(px);
+    const printPreviewer = new Previewer(
+        canvas,
+        new Rect(px, pxMaxHeight),
+        new RectBounds(undefined, pxHeight)
+    );
+    updatePreview(quilt, printPreviewer);
+    // HACK: we can't have ratio-correct scaling without using inline CSS 😭
+    canvas.style.width = `${((canvas.width / PRINT_RATIO) | 0)}px`;
+    canvas.style.height = `${((canvas.height / PRINT_RATIO) | 0)}px`;
+
+    // show each quilt block, enlarged
+    const colors = quilt.colorSet;
+    let i = 0;
+    for (const block of quilt.blocks) {
+        canvas = document.createElement("canvas");
+        canvas.className = "printBlock";
+
+        if (!canvas) {
+            console.error(`No canvas for block index ${i}`);
+            break;
+        }
+
+        // render the container in the browser, so we can get its output size
+        const blockParent = document.createElement("div");
+        blockParent.className = "print-block";
+        blockParent.appendChild(canvas);
+        grid.appendChild(blockParent);
+
+        // size the canvas according to its container dimension
+        // HACK: blockParent.clientWidth=0 so we bake in our grid CSS (width/gap) here
+        const pxHiRes = PRINT_RATIO * (grid.clientWidth * 0.3 - 10) | 0;
+        const px = (pxHiRes / PRINT_RATIO) | 0;
+        canvas.width = pxHiRes;
+        canvas.height = pxHiRes;
+        canvas.style.width = `${px}px`;
+        canvas.style.height = `${px}px`;
+
+        // TODO: figure out why this one is leaving gaps on the canvas (it is not PRINT_RATIO)
+        // draw the block onto the finalized canvas
+        block.renderTo(canvas, colors);
+    }
+}
+
 /**
  * Draw a large-size preview and return the canvas
  */
@@ -965,25 +1036,33 @@ function renderDownload(quilt: Quilt): HTMLCanvasElement {
     const canvas = document.createElement("canvas");
     let renderer = new Previewer(
         canvas,
-        new RectBounds(undefined, DOWNLOAD_MIN_HEIGHT),
-        new RectBounds(),
+        new RectBounds(undefined, DOWNLOAD_MIN_HEIGHT)
     );
     renderer.ignoreDPR = true; // switch to download mode
 
     // no sequence number = redraw everything
     renderer.render(quilt, (cells) =>
-        Math.max(12, 2 * Math.ceil(DOWNLOAD_MIN_HEIGHT / cells.h / 2)),
+        Math.max(12, 2 * Math.ceil(DOWNLOAD_MIN_HEIGHT / cells.h / 2))
     );
 
     return canvas;
 }
 
 function updateView(): void {
-    if (ui.tabs.current === "tab-quilt") {
-        updatePreview(quilt, previewer);
-    } else {
-        editor.render(quilt, ui.guides);
-        updatePreview(quilt, miniPreviewer);
+    // TODO: Fix the preview not updating on the editor tab??
+    switch (ui.tabs.current) {
+        case "tab-block":
+            editor.render(quilt, ui.guides);
+            updatePreview(quilt, previewer);
+            break;
+        case "tab-quilt":
+            updatePreview(quilt, miniPreviewer);
+            break;
+        case "tab-print":
+            updatePrintPreview();
+            break;
+        default:
+            console.error(`unknown tab name '${ui.tabs.current}'`);
     }
 }
 

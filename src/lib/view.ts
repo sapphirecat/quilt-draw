@@ -174,10 +174,10 @@ export class Previewer {
     private readonly canvas: HTMLCanvasElement;
     private readonly view: ViewData;
 
-    constructor(canvas: HTMLCanvasElement, maxSize: RectBounds, minSize: RectBounds) {
+    constructor(canvas: HTMLCanvasElement, maxSize: RectBounds, minSize?: RectBounds) {
         this.canvas = canvas;
         this.maxSize = maxSize;
-        this.minSize = minSize;
+        this.minSize = minSize || new RectBounds();
         this.view = new ViewData();
         // set this.drawSize
         this.resizeToBounds(new Rect(canvas.width, canvas.height));
@@ -203,7 +203,6 @@ export class Previewer {
 
         // resize the canvas to the draw dimensions if needed
         const layout = `${cellSize},${r.cells},${r.hasSash ? "sash" : "noSash"}`;
-        console.log(`${this.canvas.id} render layout: ${layout}`);
         let fullRedraw = layout !== v.layout || v.editorState < 0 || typeof seq !== "number";
         if (fullRedraw) {
             v.layout = layout;
