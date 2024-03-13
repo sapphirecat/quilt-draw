@@ -413,6 +413,10 @@ button.download {
     margin: auto;
 }
 
+#tab-print.tab-region.hide {
+    display: none; /* re-establish .hide semantics because we undid the grid */
+}
+
 #print-preview {
     /* row start / col start / row end / col end */
     grid-area: 1 / 2 / 5 / 4;
