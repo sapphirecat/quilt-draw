@@ -1049,14 +1049,13 @@ function renderDownload(quilt: Quilt): HTMLCanvasElement {
 }
 
 function updateView(): void {
-    // TODO: Fix the preview not updating on the editor tab??
     switch (ui.tabs.current) {
         case "tab-block":
             editor.render(quilt, ui.guides);
-            updatePreview(quilt, previewer);
+            updatePreview(quilt, miniPreviewer);
             break;
         case "tab-quilt":
-            updatePreview(quilt, miniPreviewer);
+            updatePreview(quilt, previewer);
             break;
         case "tab-print":
             updatePrintPreview();
