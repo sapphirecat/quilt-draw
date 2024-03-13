@@ -985,14 +985,15 @@ function updatePrintPreview(_ev?: Event): void {
     // HACK: #print-preview clientWidth was 0, so we hard-code grid CSS (width/gap)
     // The 1.6 ratio should fit a US Letter page with enough room for the logo:
     // {page aspect 1.29} ÷ {our width 0.7} ≈ {multiplier 1.84 for pxMaxHeight}
-    const px = PRINT_RATIO * ((grid.clientWidth * 0.7 - 10) | 0);
-    const pxMaxHeight = px * 1.6;
+    const px = (grid.clientWidth * 0.7 - 10) | 0;
+    const pxMaxHeight = (px * 1.6) | 0;
     const pxHeight = quilt.getHeightForWidth(px);
     const printPreviewer = new Previewer(
         canvas,
         new Rect(px, pxMaxHeight),
         new RectBounds(undefined, pxHeight)
     );
+    printPreviewer.DPR = PRINT_RATIO;
     updatePreview(quilt, printPreviewer);
     // HACK: we can't have ratio-correct scaling without using inline CSS 😭
     canvas.style.width = `${((canvas.width / PRINT_RATIO) | 0)}px`;
@@ -1036,7 +1037,7 @@ function renderDownload(quilt: Quilt): HTMLCanvasElement {
         canvas,
         new RectBounds(undefined, DOWNLOAD_MIN_HEIGHT)
     );
-    renderer.ignoreDPR = true; // switch to download mode
+    renderer.DPR = 1; // switch to download mode
 
     // no sequence number = redraw everything
     renderer.render(quilt, (cells) =>

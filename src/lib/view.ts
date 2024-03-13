@@ -110,16 +110,20 @@ function getDPR(canvas: HTMLCanvasElement, size: Rect): number {
     return size.w ? canvas.width / size.w : 1;
 }
 
+function getRealDPR(DPR?: number): number {
+    return Math.max(1, typeof DPR !== 'undefined' ? DPR : window.devicePixelRatio || 1);
+}
+
 /**
  * Resize a canvas to a specific physical and logical size.
  * @param canvas Canvas to resize
  * @param size Logical size (CSS pixels) to resize to
- * @param ignoreDPR TRUE to ignore the device pixel ratio (for downloads)
+ * @param DPR Override for the Device Pixel Ratio
  */
-function sizeCanvasTo(canvas: HTMLCanvasElement, size: Rect, ignoreDPR: boolean = false) {
-    const DPR = ignoreDPR ? 1 : Math.max(window.devicePixelRatio || 1, 1);
-    canvas.width = size.w * DPR;
-    canvas.height = size.h * DPR;
+function sizeCanvasTo(canvas: HTMLCanvasElement, size: Rect, DPR?: number) {
+    const useDPR = getRealDPR(DPR);
+    canvas.width = size.w * useDPR;
+    canvas.height = size.h * useDPR;
     canvas.style.width = `${size.w}px`;
     canvas.style.height = `${size.h}px`;
 }
@@ -168,7 +172,7 @@ function getDrawSize(
  * Draw/update a quilt into a canvas.
  */
 export class Previewer {
-    ignoreDPR: boolean = false;
+    public DPR?: number;
     private readonly maxSize: RectBounds;
     private readonly minSize: RectBounds;
     private readonly canvas: HTMLCanvasElement;
@@ -206,7 +210,7 @@ export class Previewer {
         let fullRedraw = layout !== v.layout || v.editorState < 0 || typeof seq !== "number";
         if (fullRedraw) {
             v.layout = layout;
-            sizeCanvasTo(this.canvas, r.canvasSize, this.ignoreDPR);
+            sizeCanvasTo(this.canvas, r.canvasSize, this.DPR);
             // reset "last drawn" to an empty quilt, so that we redraw everything
             v.quilt = new Quilt(quilt.shape);
         } else if (
@@ -221,8 +225,8 @@ export class Previewer {
         const ctx = this.canvas.getContext("2d", { alpha: false });
         ctx.save();
 
-        // DPR is ignored if this is for creating the download image
-        const DPR = this.ignoreDPR ? 1 : getDPR(this.canvas, r.canvasSize);
+        // Unless DPR is overridden (1 for downloads / higher for print), use screen DPR
+        const DPR = this.DPR || getDPR(this.canvas, r.canvasSize);
         ctx.scale(DPR, DPR);
 
         // draw changes to borders
@@ -355,12 +359,13 @@ export class Previewer {
         const blockSize = r.blockSize;
         const padSize = r.padSize;
         const sashSize = r.hasSash ? r.cellSize : 0;
+        const deviceSize = r.blockSize * getRealDPR(this.DPR);
 
         // pre-scale all blocks on the quilt
         const sourceCount: number = q.blocks.length;
         const scaled: CanvasImageSource[] = new Array(sourceCount);
         for (let i = 0; i < sourceCount; i++) {
-            scaled[i] = q.blocks[i].getScaledSource(r.blockSize);
+            scaled[i] = q.blocks[i].getScaledSource(deviceSize);
         }
 
         // draw from the pre-scaled images
@@ -369,7 +374,8 @@ export class Previewer {
         let oX = padSize;
         for (const rowMap of q) {
             for (const iBlock of rowMap) {
-                ctx.drawImage(scaled[iBlock], oX, oY);
+                const src = scaled[iBlock];
+                ctx.drawImage(src, 0, 0, deviceSize, deviceSize, oX, oY, stepSize, stepSize);
                 oX += stepSize; // next column
             }
             oY += stepSize; // next row
