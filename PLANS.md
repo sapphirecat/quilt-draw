@@ -29,11 +29,6 @@ Like so:
 
     ✅ Guides 🟦
 
-### Left-handed switch
-
-Potentially obsolete: the swatches are stacked _vertically_ now,
-in an attempt to eliminate the left/right confusion with left-handed mousing.
-
 ## General/Tabs
 
 ### Multiple Blocks
@@ -42,13 +37,6 @@ The Blocks tab should let the user add more than one block.
 The Quilt tab would then have a way to associate blocks,
 whether that's a simple A/B checkerboard (and 2-block limit) at first,
 or a complete set of tools for putting blocks on the preview.
-
-### Print Tab
-
-With tabs and especially multiple blocks,
-"just hit Print" is not as helpful as it could be.
-We should have a dedicated tab with all of the blocks in view,
-and no cruft to hide with `@print` rules.
 
 ### On-the-Point Mode
 
