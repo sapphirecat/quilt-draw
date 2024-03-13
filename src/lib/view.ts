@@ -241,8 +241,8 @@ export class Previewer {
             v.quilt.sash = new SashInfo();
         }
 
-        // draw the 5x4 blocks, inset by the half-border-width padSize, and offset
-        // by sashing if specified
+        // draw the quilt's blocks, inset by the half-border-width padSize,
+        // and offset by sashing if specified
         if (fullRedraw || seq !== v.editorState) {
             this.drawBlocks(quilt, ctx, r);
             v.editorState = seq;
@@ -375,7 +375,7 @@ export class Previewer {
         for (const rowMap of q) {
             for (const iBlock of rowMap) {
                 const src = scaled[iBlock];
-                ctx.drawImage(src, 0, 0, deviceSize, deviceSize, oX, oY, stepSize, stepSize);
+                ctx.drawImage(src, 0, 0, deviceSize, deviceSize, oX, oY, blockSize, blockSize);
                 oX += stepSize; // next column
             }
             oY += stepSize; // next row
