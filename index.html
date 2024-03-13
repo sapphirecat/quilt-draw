@@ -2,12 +2,20 @@
 <html lang="en" prefix="og: https://ogp.me/ns#">
 <head>
     <meta charset="UTF-8">
-    <title>Quilt Draw – Designer</title>
+    <title>Quilt Draw</title>
+
+    <meta content="Quilt Draw" property="og:title">
+    <meta content="images/social-share.png" property="og:image">
 
     <link href="app.css" rel="stylesheet" type="text/css">
     <link href="pickr/nano.min.css" rel="stylesheet" type="text/css">
-    <meta content="Quilt Draw" property="og:title">
-    <meta content="images/social-share.png" property="og:image">
+
+    <link href="apple-touch-icon.png" rel="apple-touch-icon" sizes="180x180">
+    <link href="favicon-32x32.png" rel="icon" sizes="32x32" type="image/png">
+    <link color="#e87752" href="safari-pinned-tab.svg" rel="mask-icon">
+
+    <!--suppress HtmlUnknownTarget -->
+    <script async src="build/app.js"></script>
 </head>
 <body>
 
@@ -15,7 +23,8 @@
     <h1>
         <picture>
             <source media="(prefers-color-scheme: dark)" srcset="images/logo-dk.svg">
-            <img alt="Quilt Draw" src="images/logo.svg">
+            <source media="(prefers-color-scheme: light)" srcset="images/logo.svg">
+            <img alt="Quilt Draw" src="images/logo.png">
         </picture>
     </h1>
 </header>
@@ -50,7 +59,7 @@
     })(document.getElementById("requirements"));
 </script>
 
-<div class="hide" id="jsInitError">
+<div class="hide" id="js-init-error">
     <p>
         <em>Oh dear.</em> It looks like the script is not supported in your
         current browser.
@@ -75,136 +84,225 @@
         and that includes Windows XP&ndash;8.1 and Puppy Linux users,
         please send an email about it to: devel at sapphirepaw.org
     </p>
+    <div class="hide js-error-parent">Please include this error message:
+        <div class="js-error-message"></div>
+    </div>
+</div>
+
+<div id="broken-tabs-alert">
+    <h1>Please Reload ↻</h1>
+    <p>A new user experience has been built from the ground up&hellip;
+        but if you're seeing this message, your browser has only loaded part of
+        the new code!</p>
+    <p>Please reload, and if this message persists, reload
+        <em>while holding the Shift key as well.</em></p>
+    <p>Thank you!</p>
 </div>
 
 <div class="hide" id="app">
-    <div class="controls" id="controls">
-        <div class="control" id="colors">
-            <div class="column">
-                <p>Colors</p>
-                <button id="color-new">Add</button>
-            </div>
-            <div data-initial-palette="#f3f3f3,#0066cc,#c665c6|#c3c3c3,#0d457f,#a452c9"
-                 id="color-items">
-                <template class="hide" id="color-item">
-                    <label class="color-item">
-                        <button class="color-button">&nbsp;</button>
-                    </label>
-                </template>
-            </div>
-        </div>
+    <div class="tabs-parent" id="tabs-app">
+        <!-- CAUTION: NO WHITESPACE IN HERE -->
+        <ul class="tabs-select-row"><li
+            class="tab-select"><a href="#tab-block">Block</a></li><li
+            class="tab-select"><a href="#tab-quilt">Quilt</a></li><li
+            class="tab-select"><a href="#tab-print">Print</a></li></ul>
 
-        <div class="control" id="tools">
-            <p>Tools</p>
-
-            <div class="column">
-                <div class="palette-row">
-                    <label class="tool-item">
-                        <input class="tool-active" data-move-tracking="1" id="tool-paint"
-                               name="tool_select" type="radio">
-                        Paint
-                    </label>
-                    <button class="palette-select" id="colorActive0">&nbsp;</button>
-                    <button class="palette-select" id="colorActive1">&nbsp;</button>
-                </div>
-                <label class="tool-item">
-                    <input class="tool-active" id="tool-spin" name="tool_select" type="radio">
-                    Spin
-                </label>
-                <label class="tool-item">
-                    <input class="tool-active" id="tool-flip" name="tool_select" type="radio">
-                    Flip
-                </label>
-            </div>
-        </div>
-
-        <div class="control" id="guides">
-            <div class="column">
-                <label for="guide-type">Guides</label>
-            </div>
-            <div class="column">
-                <select id="guide-type">
-                    <option value="">None</option>
-                    <option value="#000000">Black</option>
-                    <option value="#505050">Dark Gray</option>
-                    <option value="#a0a0a0">Light Gray</option>
-                    <option value="#ffffff">White</option>
-                </select>
-            </div>
-        </div>
-
-        <div class="control" id="borders">
-            <div class="column">
-                <p>Border</p>
-                <button id="border-new">Add</button>
-            </div>
-            <div class="column">
-                <template class="hide" data-initial-palette="#ffbfd4|#d99fb2" id="border-item">
-                    <div class="border-row">
-                        <p></p>
-                        <!--suppress HtmlFormInputWithoutLabel -->
-                        <input max="8" min="0" type="range" value="0">
-                        <button class="color-button">&nbsp;</button>
+        <div class="tab-region" id="tab-block">
+            <div class="controls control-column" id="block-controls">
+                <div class="control column" id="colors">
+                    <div class="heading">Colors</div>
+                    <div data-initial-palette="#f3f3f3,#0066cc,#c665c6|#c3c3c3,#0d457f,#a452c9"
+                         id="color-items">
+                        <template class="hide" id="color-item">
+                            <label class="color-item">
+                                <button class="color-button">&nbsp;</button>
+                            </label>
+                        </template>
                     </div>
-                </template>
+                    <div>
+                        <button class="new-thing" id="color-new">Add Color</button>
+                    </div>
+                </div>
+
+                <div class="control column" id="tools">
+                    <div class="heading">Tools</div>
+
+                    <div class="palette-row">
+                        <button class="palette-select" id="color-active-0" title="Primary paint color">&nbsp;</button>
+                        <button class="palette-select" id="color-active-1" title="Secondary paint color">&nbsp;</button>
+                    </div>
+
+                    <div class="tool-grid">
+                        <button class="tool-item tool-paint" data-cursor-type="ptr-paint"
+                                data-move-tracking="1"
+                                id="tool-paint" title="Paint Triangle">
+                            <picture>
+                                <source media="(prefers-color-scheme: dark)"
+                                        srcset="images/paint-dk.png">
+                                <img alt="Paint" src="images/paint.png">
+                            </picture>
+                        </button>
+                        <button class="tool-item tool-spin" data-cursor-type="ptr-spin"
+                                id="tool-spin-l" title="Rotate Square">
+                        <picture>
+                                <source media="(prefers-color-scheme: dark)"
+                                        srcset="images/rotate-l-dk.png">
+                                <img alt="Rotate Counter-clockwise" src="images/rotate-l.png">
+                            </picture>
+                        </button>
+                        <button class="tool-item tool-spin" data-cursor-type="ptr-spin"
+                                id="tool-spin-r" title="Rotate Square">
+                            <picture>
+                                <source media="(prefers-color-scheme: dark)"
+                                        srcset="images/rotate-r-dk.png">
+                                <img alt="Rotate Clockwise" src="images/rotate-r.png">
+                            </picture>
+                        </button>
+                        <button class="tool-item tool-flip" data-cursor-type="ptr-flip-h"
+                                id="tool-flip-h" title="Flip Square">
+                            <picture>
+                                <source media="(prefers-color-scheme: dark)"
+                                        srcset="images/flip-h-dk.png">
+                                <img alt="Flip Horizontally" src="images/flip-h.png">
+                            </picture>
+                        </button>
+                        <button class="tool-item tool-flip" data-cursor-type="ptr-flip-v"
+                                id="tool-flip-v" title="Flip Square">
+                            <picture>
+                                <source media="(prefers-color-scheme: dark)"
+                                        srcset="images/flip-v-dk.png">
+                                <img alt="Flip Vertically" src="images/flip-v.png">
+                            </picture>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="control column" id="guides">
+                    <div class="heading">
+                        <label for="guide-type">Guides</label>
+                    </div>
+                    <select id="guide-type">
+                        <option value="">None</option>
+                        <option value="#000000">Black</option>
+                        <option value="#505050">Dark Gray</option>
+                        <option value="#a0a0a0">Light Gray</option>
+                        <option value="#ffffff">White</option>
+                    </select>
+                </div>
+
+                <div class="control column downloads">
+                    <div class="heading">Download</div>
+
+                    <div class="download-buttons">
+                        <button class="download" id="download-block">Block</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="editor-area">
+                <canvas height="630" id="editor" width="630"></canvas>
+
+                <div class="controls" id="transforms">
+                    <p class="transform-title">Move</p>
+                    <div class="transform" id="rollers">
+                        <button class="roll" id="roll-up">&uarr;</button>
+                        <button class="roll" id="roll-left">&larr;</button>
+                        <button class="roll" id="roll-down">&darr;</button>
+                        <button class="roll" id="roll-right">&rarr;</button>
+                    </div>
+
+                    <p class="transform-title">Squares per Block</p>
+                    <label class="transform" for="cell-size" id="resize">
+                        <input class="resize" id="cell-size" max="12" min="2" type="range"
+                               value="4">
+                    </label>
+                </div>
+            </div>
+
+            <div id="mini-preview-area">
+                <canvas height="630" id="mini-preview" width="504"></canvas>
             </div>
         </div>
 
-        <div class="control" data-initial-palette="#d0ccfa,#749d6c|#3c237d,#4b8065" id="sashing">
-            <p>Sash&shy;ing</p>
-            <div class="sash-grid">
-                <input class="sash-select" id="sash-on" type="checkbox">
-                <label for="sash-on">Main</label>
-                <button class="color-button" id="main-sash-color">&nbsp;</button>
-                <input class="sash-select" id="sash-cross-on" type="checkbox">
-                <label for="sash-cross-on">Cross</label>
-                <button class="color-button" id="cross-sash-color">&nbsp;</button>
+        <div class="tab-region" id="tab-quilt">
+            <div class="controls control-column" id="quilt-controls">
+                <!-- QUILT tab -->
+                <div class="control column" id="quilt-size">
+                    <div class="heading">Size</div>
+                    <div class="size-row">
+                        <label for="quilt-size-w">Width</label>
+                        <input data-direction="w" id="quilt-size-w" max="8" min="1" type="range"
+                               value="4">
+                    </div>
+                    <div class="size-row">
+                        <label for="quilt-size-h">Height</label>
+                        <input data-direction="h" id="quilt-size-h" max="8" min="1" type="range"
+                               value="5">
+                    </div>
+                </div>
+
+                <div class="control column" id="borders">
+                    <div class="heading">Border</div>
+                    <div>
+                        <template class="hide" data-initial-palette="#ffbfd4|#d99fb2"
+                                  id="border-item">
+                            <div class="border-row">
+                                <p></p>
+                                <!--suppress HtmlFormInputWithoutLabel -->
+                                <input max="8" min="0" type="range" value="0">
+                                <button class="color-button">&nbsp;</button>
+                            </div>
+                        </template>
+                    </div>
+                    <div>
+                        <button class="new-thing" id="border-new">Add Border</button>
+                    </div>
+                </div>
+
+                <div class="control column" data-initial-palette="#d0ccfa,#749d6c|#3c237d,#4b8065"
+                     id="sashing">
+                    <div class="heading">Sashing</div>
+                    <div class="sash-grid">
+                        <input class="sash-select" id="sash-on" type="checkbox">
+                        <label for="sash-on">Main</label>
+                        <button class="color-button" id="main-sash-color">&nbsp;</button>
+                        <input class="sash-select" id="sash-cross-on" type="checkbox">
+                        <label for="sash-cross-on">Cross</label>
+                        <button class="color-button" id="cross-sash-color">&nbsp;</button>
+                    </div>
+                </div>
+
+                <div class="control column downloads">
+                    <div class="heading">Download</div>
+
+                    <div class="download-buttons column">
+                        <button class="download" id="download-preview">Preview</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="preview-area">
+                <canvas height="750" id="preview" width="600"></canvas>
             </div>
         </div>
 
-        <div class="control" id="downloads">
-            <p>Down&shy;loads</p>
-
-            <div class="download-buttons column">
-                <button class="download" id="download-block">Block</button>
-                <button class="download" id="download-preview">Preview</button>
+        <div class="tab-region" id="tab-print">
+            <div class="instructions">
+                <button class="no-print print-button hide">Print These</button>
+            </div>
+            <div class="grid-parent" id="tab-print-grid">
+                <div id="print-preview">
+                    <canvas id="print-preview-canvas"></canvas>
+                </div>
             </div>
         </div>
-
-    </div>
-
-    <div id="editorArea">
-        <canvas height="540" id="editor" width="540"></canvas>
-
-        <div class="controls" id="transforms">
-            <p class="transform-title">Move</p>
-            <div class="transform" id="rollers">
-                <button class="roll" id="roll-up">&uarr;</button>
-                <button class="roll" id="roll-left">&larr;</button>
-                <button class="roll" id="roll-down">&darr;</button>
-                <button class="roll" id="roll-right">&rarr;</button>
-            </div>
-
-            <p class="transform-title">Squares per Block</p>
-            <label class="transform" for="cell-size" id="resize">
-                <input class="resize" id="cell-size" max="12" min="2" type="range" value="4">
-            </label>
-        </div>
-
-        <div class="print-only" id="url-display">
-            https://sapphirecat.github.io/quilt-draw/
-        </div>
-    </div>
-
-    <div id="previewArea">
-        <canvas height="750" id="preview" width="600"></canvas>
     </div>
 </div>
 
-<!--suppress HtmlUnknownTarget -->
-<script src="build/app.js"></script>
-
 <footer>
+    <div class="print-only" id="url-display">
+        https://sapphirecat.github.io/quilt-draw/
+    </div>
     <p><strong><a href="help.html" target="_blank">Help / Usage</a></strong></p>
     <p>Made with ❤ in <a href="https://www.jetbrains.com/phpstorm/">PHPStorm</a></p>
     <p><a href="legal.html">Legal Notices</a></p>

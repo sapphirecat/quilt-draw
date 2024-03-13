@@ -14,7 +14,7 @@ a {
     border-bottom: 1px dotted;
 }
 
-a:hover, a:focus {
+a:hover {
     color: blue;
     border-bottom-style: solid;
 }
@@ -100,7 +100,7 @@ input[type=radio]:checked {
     background: #c0a0c0;
 }
 
-#controls input[type=range] {
+.controls input[type=range] {
     min-width: 80px;
     max-width: 160px;
     width: auto;
@@ -109,6 +109,19 @@ input[type=radio]:checked {
 canvas {
     margin: 0 auto;
     display: block;
+}
+
+canvas.ptr-flip-h {
+    cursor: ew-resize;
+}
+canvas.ptr-flip-v {
+    cursor: ns-resize;
+}
+canvas.ptr-spin {
+    cursor: cell;
+}
+canvas.ptr-paint {
+    cursor: crosshair;
 }
 
 footer {
@@ -120,14 +133,7 @@ footer {
 
 #app {
     margin: auto;
-    display: grid;
-    grid-template-columns: 1fr 2fr 2fr;
-    grid-gap: 10px;
     max-width: 1600px;
-}
-
-#app.hide {
-    display: none;
 }
 
 .column {
@@ -136,24 +142,45 @@ footer {
     grid-gap: 0.4em;
 }
 
-#controls {
-    margin: 0 auto auto;
-    display: grid;
-    grid-template-columns: 1fr;
-    grid-gap: 1.4em;
+.control-column > * {
+    margin: 0 0 1.4em;
 }
 
-.control {
+.control-column > *:last-child {
+    margin-bottom: 0;
+}
+
+.control > .heading {
+    text-align: center;
+    padding-bottom: 1px;
+    border-bottom: 1px dotted;
+}
+
+#color-items {
     display: grid;
-    grid-template-columns: 1fr 3fr;
-    align-items: baseline;
-    grid-gap: 0.3em;
-    margin: auto 0;
-    width: 100%;
+    /* repeat() partial support in Fx 52-75; avoid calc(), auto-fill, auto-fit */
+    grid-template-columns: repeat(4, 2em);
+    grid-gap: 0.4em;
+    margin: auto;
+}
+
+/* #color-new, #border-new */
+button.new-thing {
+    display: block;
+    margin: 0.5em auto;
+}
+
+/* fix the specificity problem of ".hide" < "button.new-thing" */
+button.new-thing.hide {
+    display: none;
 }
 
 .color-item, .tool-item {
     white-space: nowrap;
+}
+
+.color-item {
+    text-align: center;
 }
 
 .color-item.selected .pcr-button {
@@ -167,18 +194,16 @@ footer {
     align-items: center;
 }
 
-.palette-row {
+.size-row {
     display: grid;
-    grid-template-columns: 5fr 1fr 1fr;
-    margin: auto 0;
+    grid-template-columns: 1fr 4fr;
 }
 
-button.palette-select {
-    width: 1.5rem;
-    height: 1.5rem;
-    border: 1px solid rgba(50%, 50%, 50%, 0.2);
-    background: transparent;
-    transition: all 50ms linear;
+button.download {
+    box-sizing: border-box;
+    width: 100%;
+    height: auto;
+    padding: 4px 7px;
 }
 
 .sash-grid {
@@ -188,21 +213,51 @@ button.palette-select {
     align-items: center;
 }
 
-#tools button {
-    border-color: #dcdcdc;
+#tools {
+    position: relative;
+}
+.tool-grid {
+    display: grid;
+    /* repeat() partial support in Fx 52-75; avoid calc(), auto-fill, auto-fit */
+    grid-template-columns: repeat(3, 2em);
+    grid-gap: 0.4em;
+    margin: auto;
+}
+#tools .palette-row {
+    position: absolute;
+    top: 1.75rem;
+    right: 0;
+    width: 26px;
+    padding: 0;
+    text-align: right;
+}
+#tools button.palette-select {
+    width: 24px;
+    height: 24px;
+    margin-bottom: 2px;
+    border: 1px solid #dcdcdc;
+    background: transparent;
+    transition: all 50ms linear;
 }
 
-#tools li {
-    margin-bottom: 1em;
+#tools button.tool-item img {
+    width: 24px;
+    height: 24px;
+}
+#tools button.tool-item {
+    box-sizing: content-box;
+    width: 24px;
+    height: 24px;
+    padding: 2px;
+    background: none;
+    border: 1px solid transparent;
+}
+#tools button.tool-item.active {
+    border-color: #85aa6c;
+    background-color: #f0f0f0;
 }
 
-#tools button.active {
-    color: #ffffff;
-    background-color: #6690cf;
-    border-color: #627178;
-}
-
-#editorArea {
+#editor-area {
     display: grid;
     grid-template-columns: 1fr;
     margin: 0 auto auto;
@@ -261,9 +316,8 @@ button.palette-select {
 
 
 #editor {
-    cursor: pointer;
-    max-width: 540px;
-    max-height: 540px;
+    max-width: 630px;
+    max-height: 630px;
 }
 
 #preview {
@@ -271,11 +325,11 @@ button.palette-select {
     max-height: 750px;
 }
 
-
-div.pickr {
-    display: inline-block;
-    width: 2.0em;
+#mini-preview {
+    max-width: 504px;
+    max-height: 630px;
 }
+
 
 .page blockquote {
     font-family: monospace;
@@ -284,19 +338,129 @@ div.pickr {
     background-color: #f0f0f0;
 }
 
-#jsInitError {
+.tabs-select-row {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+    border-bottom: 1px solid;
+}
+
+.tab-select {
+    margin: 0 0 -1px 5px;
+    padding: 0.4em 0.8em;
+    display: inline-block;
+    border-radius: 3px 3px 0 0;
+    border: 1px solid;
+}
+
+.tab-select.active {
+    cursor: auto;
+    border-bottom-color: transparent;
+}
+
+.tab-select a {
+    border: 0;
+    color: inherit;
+}
+
+.tab-select a:hover {
+    border-bottom: 1px solid;
+}
+
+.tab-select.active a {
+    cursor: default;
+}
+
+.tab-select.active a:hover {
+    border: 0;
+    color: inherit;
+    cursor: default;
+}
+
+.tab-region.hide {
+    display: none;
+}
+
+.tab-region {
+    display: grid;
+    grid-gap: 10px;
+    padding-top: 1em;
+}
+
+#tab-block.tab-region {
+    grid-template-columns: minmax(10em, 2fr) 4fr 3fr;
+}
+
+#tab-quilt.tab-region {
+    grid-template-columns: 2fr 7fr;
+}
+
+/* preview structure: we want a 4×3 (row×col) grid per page. preview gets the
+ * right 70% of the 1st page, then we tile up to 12 blocks on later pages.
+ * this should be true on both A4 _and_ letter sizes.  1st page allows for up
+ * to four blocks, and adding a 2nd page allows 16 blocks.  we hope.
+ */
+#tab-print-grid {
+    display: grid;
+    grid-template-columns: 30% 30% 40%;
+    justify-items: center;
+    width: 100%;
+}
+
+#tab-print.tab-region {
+    display: block; /* reset grid, so we can place our button outside of it */
+    width: 720px;
+    margin: auto;
+}
+
+#tab-print.tab-region.hide {
+    display: none; /* re-establish .hide semantics because we undid the grid */
+}
+
+#print-preview {
+    /* row start / col start / row end / col end */
+    grid-area: 1 / 2 / 5 / 4;
+}
+
+.print-block, #print-preview {
+    page-break-inside: avoid;
+    margin: 0;
+    border: 0;
+    padding: 0;
+}
+
+#tab-print .instructions {
+    text-align: center;
+    margin: 1em 0;
+}
+
+/* hide the "please reload!" message if both HTML+CSS updated */
+#broken-tabs-alert {
+    display: none;
+}
+
+#js-init-error {
     line-height: 1.6;
     width: 80%;
     min-width: 300px;
     margin: 2em auto;
 }
 
-#jsInitError em {
+#js-init-error em {
     color: #660000;
 }
 
-#jsInitError p {
+#js-init-error p {
     margin: 1em 0;
+}
+
+#js-init-error .js-error-parent {
+    margin: 1em 0; /* emulate <p> */
+}
+
+#js-init-error .js-error-message {
+    font-weight: bold;
+    color: #002233;
 }
 
 /* dark mode! the best mode. */
@@ -310,7 +474,7 @@ div.pickr {
         color: dodgerblue;
     }
 
-    a:hover, a:focus {
+    a:hover {
         color: lightskyblue;
     }
 
@@ -336,38 +500,39 @@ div.pickr {
         border: 3px double #bf7fbf;
     }
 
-    #tools button {
+    #tools button, #tools button.palette-select {
         border-color: #3a3a3a;
     }
 
-    #tools button.active {
-        color: #000000;
-        background-color: #1e2a3b;
-        border-color: #475156;
+    #tools button.tool-item.active {
+        background-color: #303030;
     }
 
     .page blockquote {
         background-color: #303030;
     }
 
-    #jsInitError em {
+    #js-init-error em {
         color: #cc3333;
+    }
+
+    #js-init-error .js-error-message {
+        color: #6699cc;
     }
 }
 
 @media print {
-    @page {
-        size: landscape;
-    }
-
-    #app {
-        grid-template-columns: 1fr 1fr;
-    }
-
-    #transforms, #controls, footer {
+    /* UI controls */
+    .no-print, .tabs-select-row, #transforms, .controls, footer p {
         display: none;
     }
 
+    /* special modifications */
+    #mini-preview {
+        display: none;
+    }
+
+    /* our URL */
     .print-only {
         display: block;
     }
