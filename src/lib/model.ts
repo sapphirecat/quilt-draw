@@ -194,9 +194,10 @@ export class BlockInfo {
      *
      * @param canvas Square canvas to be drawn on (will render at width × width)
      * @param colors Color palette to be referenced
+     * @param fuzz Number of pixels to overdraw at the bottom edge of each cell
      */
-    renderTo(canvas: HTMLCanvasElement, colors: Palette): void {
-        this.draw(canvas, colors);
+    renderTo(canvas: HTMLCanvasElement, colors: Palette, fuzz?: number): void {
+        this.draw(canvas, colors, fuzz || 0);
     }
 
     getSource(pixelSize: number, colors: Palette): CanvasImageSource {
@@ -434,7 +435,7 @@ export class BlockInfo {
         this.dirty = true;
     }
 
-    private draw(canvas: HTMLCanvasElement, colors: Palette) {
+    private draw(canvas: HTMLCanvasElement, colors: Palette, fuzz: number = 0) {
         const cells = this.cells;
         const size = cells.getSize();
         const cellPx = canvas.width / size;
@@ -451,7 +452,7 @@ export class BlockInfo {
             oY = cY * cellPx; // Y-origin = cell Y-index (row) times cell height
             for (let cX = 0; cX < size; ++cX) {
                 oX = cX * cellPx;
-                drawCellAt(ctx, oX, oY, cellPx, colors, cells[iBlock++]);
+                drawCellAt(ctx, oX, oY, cellPx, colors, cells[iBlock++], fuzz);
             }
         }
 
@@ -602,12 +603,14 @@ function drawTriangle(
     ctx: CanvasRenderingContext2D,
     points: Array<Point>,
     fillStyle: string,
+    fuzz: number
 ): void {
+    const absFuzz = Math.abs(fuzz);
     ctx.beginPath();
 
     ctx.moveTo(points[0].x, points[0].y); // no line
-    ctx.lineTo(points[1].x, points[1].y); // edge 1
-    ctx.lineTo(points[2].x, points[2].y); // edge 2
+    ctx.lineTo(points[1].x + fuzz, points[1].y - absFuzz); // edge 1 to top
+    ctx.lineTo(points[2].x + fuzz, points[2].y + absFuzz); // edge 2 to bottom
     ctx.closePath(); // edge 3, back to the moveTo
 
     ctx.fillStyle = fillStyle;
@@ -637,6 +640,7 @@ function drawCellAt(
     cellPx: number,
     palette: Palette,
     cell: Cell,
+    fuzz: number = 0
 ): void {
     // Determine all coordinates we can draw from: top/left/bottom/right pairs, and center
     const half = cellPx / 2;
@@ -646,13 +650,13 @@ function drawCellAt(
     const br = new Point(oX + cellPx, oY + cellPx);
     const c = new Point(oX + half, oY + half);
     const ml = new Point(oX, oY + half); // mid left
-    const rect = new Rect(cellPx, half);
+    const rect = new Rect(cellPx, half + fuzz);
 
     // Draw all four triangles into place, but eliminate seams by drawing the
     // top and bottom first, but bigger.
     drawRect(ctx, tl, rect, palette[cell.colors[0]]);
     drawRect(ctx, ml, rect, palette[cell.colors[2]]);
     // draw left/right triangles over the edges of the polygons
-    drawTriangle(ctx, [c, tr, br], palette[cell.colors[1]]);
-    drawTriangle(ctx, [c, bl, tl], palette[cell.colors[3]]);
+    drawTriangle(ctx, [c, tr, br], palette[cell.colors[1]], fuzz);
+    drawTriangle(ctx, [c, bl, tl], palette[cell.colors[3]], -fuzz);
 }

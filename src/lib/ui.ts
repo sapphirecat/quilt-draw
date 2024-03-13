@@ -435,12 +435,12 @@ function initPrint() {
         return;
     }
 
-    for (const btn of printTab.querySelectorAll('.print-button')) {
-        btn.addEventListener('click', (ev) => {
+    for (const btn of printTab.querySelectorAll(".print-button")) {
+        btn.addEventListener("click", (ev) => {
             ev.preventDefault();
             window.print();
         });
-        btn.classList.remove('hide');
+        btn.classList.remove("hide");
     }
 }
 
@@ -983,8 +983,10 @@ function updatePrintPreview(_ev?: Event): void {
 
     // redraw the full quilt preview
     // HACK: #print-preview clientWidth was 0, so we hard-code grid CSS (width/gap)
+    // The 1.6 ratio should fit a US Letter page with enough room for the logo:
+    // {page aspect 1.29} ÷ {our width 0.7} ≈ {multiplier 1.84 for pxMaxHeight}
     const px = PRINT_RATIO * ((grid.clientWidth * 0.7 - 10) | 0);
-    const pxMaxHeight = px * 2;
+    const pxMaxHeight = px * 1.6;
     const pxHeight = quilt.getHeightForWidth(px);
     const printPreviewer = new Previewer(
         canvas,
@@ -998,17 +1000,10 @@ function updatePrintPreview(_ev?: Event): void {
 
     // show each quilt block, enlarged
     const colors = quilt.colorSet;
-    let i = 0;
     for (const block of quilt.blocks) {
         canvas = document.createElement("canvas");
-        canvas.className = "printBlock";
 
-        if (!canvas) {
-            console.error(`No canvas for block index ${i}`);
-            break;
-        }
-
-        // render the container in the browser, so we can get its output size
+        // render the container in the browser
         const blockParent = document.createElement("div");
         blockParent.className = "print-block";
         blockParent.appendChild(canvas);
@@ -1016,16 +1011,19 @@ function updatePrintPreview(_ev?: Event): void {
 
         // size the canvas according to its container dimension
         // HACK: blockParent.clientWidth=0 so we bake in our grid CSS (width/gap) here
-        const pxHiRes = PRINT_RATIO * (grid.clientWidth * 0.3 - 10) | 0;
+        let pxHiRes = Math.ceil(PRINT_RATIO * (grid.clientWidth * 0.3 - 10)) | 0;
+        if (PRINT_RATIO >= 2) {
+            pxHiRes -= pxHiRes % PRINT_RATIO;
+        }
         const px = (pxHiRes / PRINT_RATIO) | 0;
         canvas.width = pxHiRes;
         canvas.height = pxHiRes;
         canvas.style.width = `${px}px`;
         canvas.style.height = `${px}px`;
 
-        // TODO: figure out why this one is leaving gaps on the canvas (it is not PRINT_RATIO)
         // draw the block onto the finalized canvas
-        block.renderTo(canvas, colors);
+        // I don't understand why *this particular* rendering needs fuzz??
+        block.renderTo(canvas, colors, 0.5);
     }
 }
 
