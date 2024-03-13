@@ -14,6 +14,10 @@ function getAnchorName(a: HTMLAnchorElement): string {
     return split > -1 ? href.substring(split + 1) : "";
 }
 
+function getElementName(el: HTMLElement): string {
+    return el.id ? `#${el.id}` : el.tagName;
+}
+
 export class TabGroup {
     current: string = "";
     private handles: Map<string, TabHandle>;
@@ -95,6 +99,7 @@ export class TabGroup {
     private domInit(root: HTMLElement) {
         const tabRow = root.querySelector(":scope > .tabs-select-row");
         if (!tabRow) {
+            console.error("No .tabs-select-row element in %s", getElementName(root));
             return;
         }
 
@@ -120,9 +125,9 @@ export class TabGroup {
 
             // report a detailed error
             if (name.length === 0) {
-                console.error("Tab has no name in %s", root.id);
+                console.error("Tab has no name in %s", getElementName(root));
             } else {
-                console.error("Tab missing related #%s.tab-region in %s", name, root.id);
+                console.error("Tab missing related #%s.tab-region in %s", name, getElementName(root));
             }
         }
 
