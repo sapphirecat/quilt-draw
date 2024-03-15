@@ -29,7 +29,15 @@ Like so:
 
     ✅ Guides 🟦
 
-## General/Tabs
+### Selection support
+
+Move, copy, paste, fill, 🌈anything we can imagine🌈
+
+### Undo/Redo
+
+Multi-level undo/redo
+
+## Design Options
 
 ### Multiple Blocks
 
@@ -38,12 +46,29 @@ The Quilt tab would then have a way to associate blocks,
 whether that's a simple A/B checkerboard (and 2-block limit) at first,
 or a complete set of tools for putting blocks on the preview.
 
+Copy/paste would be useful,
+or at least a Duplicate to New Block operation.
+
 ### On-the-Point Mode
 
 Add a "quilt background color,"
 and paint blocks rotated at 45° on the preview.
 
+### Flexible Sashing
+
+Various ideas:
+
+- "Horizontal Only" and "Vertical Only" option (vs "Main" on/off)
+- Non-square blocks, allowing fake sashing by integrating it into a 4x5 block.
+- Window-box pattern (vs "Cross" which puts squares at the intersections)
+
 ## Load/Save
 
 As quilts get more complex,
 it would be nice to be able to save and restore them.
+Even if this is only using local storage at first.
+
+## Physical construction assistance
+
+- Size estimator: if a square (cell) is 3 inches, what size is the whole quilt?
+- Yardage estimator
